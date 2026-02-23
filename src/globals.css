@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+:root {
+  --font-play: 'Play', system-ui, sans-serif;
+}
+
+@theme inline {
+  /* ─── Primary palette ("Do." design language) ─── */
+  --color-brand-charcoal: #111111;
+  --color-brand-charcoal-light: #1E1E1E;
+  --color-brand-accent: #D4FF00;
+  --color-brand-accent-hover: #BFEA00;
+  --color-brand-accent-light: #1A2600;
+
+  /* Legacy aliases so existing brand-red classes still work */
+  --color-brand-red: #D4FF00;
+  --color-brand-red-hover: #BFEA00;
+  --color-brand-red-light: #1A2600;
+
+  /* ─── Surfaces (dark mode) ─── */
+  --color-surface-white: #141414;
+  --color-surface-50: #0A0A0A;
+  --color-surface-100: #1A1A1A;
+  --color-surface-200: #262626;
+  --color-surface-300: #3A3A3A;
+
+  /* ─── Text ─── */
+  --color-text-primary: #F0F0F0;
+  --color-text-secondary: #A0A0A0;
+  --color-text-tertiary: #666666;
+  --color-text-inverse: #111111;
+
+  /* ─── Status ─── */
+  --color-status-success: #22C55E;
+  --color-status-success-light: #0D2818;
+  --color-status-warning: #FACC15;
+  --color-status-warning-light: #2A2400;
+  --color-status-error: #EF4444;
+  --color-status-error-light: #2D1212;
+  --color-status-info: #3B82F6;
+  --color-status-info-light: #111C2E;
+
+  /* ─── Category colors ─── */
+  --color-cat-ev: #B8A8FF;
+  --color-cat-competitor: #FF9F7C;
+  --color-cat-market: #7DD3A8;
+  --color-cat-general: #94A3B8;
+
+  /* ─── Typography ─── */
+  --font-sans: var(--font-play), "Play", system-ui, -apple-system, sans-serif;
+
+  /* ─── Shadows (border-via-shadow for dark mode) ─── */
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-card-hover: 0 0 0 1px rgba(255, 255, 255, 0.10), 0 4px 16px -4px rgba(0, 0, 0, 0.4);
+  --shadow-dropdown: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 32px -4px rgba(0, 0, 0, 0.6);
+
+  /* ─── Spacing ─── */
+  --spacing-sidebar: 280px;
+  --spacing-header: 72px;
+}
+
+body {
+  background-color: var(--color-surface-50);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Buttons */
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  cursor: pointer;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-300);
+  border-radius: 9999px;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Scrape progress animations */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}

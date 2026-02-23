@@ -1,0 +1,276 @@
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const url = `${API_BASE}${endpoint}`;
+  const response = await fetch(url, {
+    headers: { "Content-Type": "application/json", ...options.headers },
+    ...options,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, error.error || `Request failed: ${response.statusText}`);
+  }
+
+  if (response.status === 204) return undefined as T;
+  return response.json();
+}
+
+function get<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+  const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+  return request<T>(`${endpoint}${qs}`);
+}
+
+function post<T>(endpoint: string, body?: unknown): Promise<T> {
+  return request<T>(endpoint, { method: "POST", body: body ? JSON.stringify(body) : undefined });
+}
+
+function put<T>(endpoint: string, body: unknown): Promise<T> {
+  return request<T>(endpoint, { method: "PUT", body: JSON.stringify(body) });
+}
+
+function del<T>(endpoint: string): Promise<T> {
+  return request<T>(endpoint, { method: "DELETE" });
+}
+
+// API endpoints
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface Article {
+  id: string;
+  title: string;
+  url: string;
+  snippet: string | null;
+  published_date: string | null;
+  scraped_at: string;
+  source: { id: string; name: string; site_domain: string };
+  category: { id: string; name: string; slug: string };
+  created_at: string;
+  raw_content?: string | null;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  keywords: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Source {
+  id: string;
+  name: string;
+  site_domain: string;
+  serpapi_site_query: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ScrapeJob {
+  id: string;
+  job_type: string;
+  status: string;
+  total_sources: number;
+  sources_completed: number;
+  articles_found: number;
+  articles_new: number;
+  errors: unknown[] | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface DashboardStats {
+  total_articles: number;
+  total_categories: number;
+  active_sources: number;
+  last_scrape: {
+    timestamp: string | null;
+    status: string | null;
+    articles_collected: number;
+  } | null;
+  category_counts: Record<string, { name: string; slug: string; count: number }>;
+}
+
+export interface SchedulerStatus {
+  is_running: boolean;
+  next_run_time: string | null;
+  cron_expression?: string;
+  timezone?: string;
+}
+
+export interface ProductLineup {
+  id: string;
+  name: string;
+  slug: string;
+  segment: string | null;
+  competitors: string[];
+  market_context: string | null;
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LineupReportCitation {
+  title: string;
+  source: string;
+  url?: string;
+  relevance_reason: string;
+}
+
+export interface LineupReport {
+  id: string;
+  lineup: { id: string; name: string; slug: string; segment: string | null };
+  batch_id: string;
+  content: string;
+  cited_articles: LineupReportCitation[];
+  model_used: string;
+  token_usage: { prompt: number; completion: number } | null;
+  report_date: string;
+  date_from: string;
+  date_to: string;
+  generated_at: string;
+  created_at: string;
+}
+
+export interface URLHealthItem {
+  article_id: string;
+  title: string;
+  stored_url: string;
+  original_url: string | null;
+  source_name: string;
+  category_name: string;
+  issue_type: string;
+  http_status: number | null;
+  error_detail: string | null;
+  response_time_ms: number | null;
+  final_url: string | null;
+  scraped_at: string;
+}
+
+export interface DuplicateArticleItem {
+  article_id: string;
+  title: string;
+  url: string;
+  source_name: string;
+  category_name: string;
+  scraped_at: string;
+}
+
+export interface DuplicateGroup {
+  match_type: string;
+  articles: DuplicateArticleItem[];
+}
+
+export interface SourceHealthItem {
+  source_id: string;
+  source_name: string;
+  site_domain: string;
+  is_active: boolean;
+  total_articles: number;
+  recent_articles_7d: number;
+  last_article_at: string | null;
+  last_scrape_error: string | null;
+  status: string;
+}
+
+export interface HealthSummary {
+  total_articles: number;
+  flagged_urls: number;
+  duplicate_groups: number;
+  healthy_sources: number;
+  degraded_sources: number;
+  failing_sources: number;
+  last_scrape_at: string | null;
+  last_scrape_status: string | null;
+}
+
+export interface HealthResponse {
+  summary: HealthSummary;
+  url_issues: URLHealthItem[];
+  duplicates: DuplicateGroup[];
+  source_health: SourceHealthItem[];
+}
+
+export const api = {
+  dashboard: {
+    stats: () => get<DashboardStats>("/api/v1/dashboard/stats"),
+    recent: (limit = 5) => get<Article[]>("/api/v1/dashboard/recent", { limit: String(limit) }),
+    trends: (days = 30) => get<Array<Record<string, unknown>>>("/api/v1/dashboard/trends", { days: String(days) }),
+  },
+  articles: {
+    list: (params: Record<string, string>) => get<PaginatedResponse<Article>>("/api/v1/articles", params),
+    get: (id: string) => get<Article>(`/api/v1/articles/${id}`),
+    delete: (id: string) => del(`/api/v1/articles/${id}`),
+  },
+  categories: {
+    list: () => get<Category[]>("/api/v1/categories"),
+    create: (data: { name: string; description?: string; keywords?: string[] }) =>
+      post<Category>("/api/v1/categories", data),
+    update: (id: string, data: Partial<Category>) => put<Category>(`/api/v1/categories/${id}`, data),
+    delete: (id: string) => del(`/api/v1/categories/${id}`),
+  },
+  sources: {
+    list: () => get<Source[]>("/api/v1/sources"),
+    create: (data: { site_domain: string }) => post<Source>("/api/v1/sources", data),
+    update: (id: string, data: Partial<Source>) => put<Source>(`/api/v1/sources/${id}`, data),
+    delete: (id: string) => del(`/api/v1/sources/${id}`),
+  },
+  scraping: {
+    trigger: () => post<ScrapeJob>("/api/v1/scraping/trigger"),
+    jobs: () => get<PaginatedResponse<ScrapeJob>>("/api/v1/scraping/jobs"),
+    cancel: (jobId: string) => post<{ status: string; message: string }>(`/api/v1/scraping/jobs/${jobId}/cancel`),
+  },
+  lineupAnalysis: {
+    lineups: () => get<ProductLineup[]>("/api/v1/lineup-analysis/lineups"),
+    createLineup: (data: { name: string; segment?: string; competitors?: string[]; market_context?: string; display_order?: number }) =>
+      post<ProductLineup>("/api/v1/lineup-analysis/lineups", data),
+    updateLineup: (id: string, data: Partial<ProductLineup>) =>
+      put<ProductLineup>(`/api/v1/lineup-analysis/lineups/${id}`, data),
+    deleteLineup: (id: string) => del(`/api/v1/lineup-analysis/lineups/${id}`),
+    generate: (data: { lineup_id: string; date_from?: string; date_to?: string }) =>
+      post<LineupReport>("/api/v1/lineup-analysis/generate", data),
+    generateAll: (data?: { date_from?: string; date_to?: string }) =>
+      post<LineupReport[]>("/api/v1/lineup-analysis/generate-all", data || {}),
+    latestReports: () => get<LineupReport[]>("/api/v1/lineup-analysis/reports/latest"),
+    getReport: (id: string) => get<LineupReport>(`/api/v1/lineup-analysis/reports/${id}`),
+    downloadPdf: async (reportId: string, filename?: string) => {
+      const url = `${API_BASE}/api/v1/lineup-analysis/reports/${reportId}/pdf`;
+      const res = await fetch(url);
+      if (!res.ok) throw new ApiError(res.status, "Failed to download PDF");
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename || "report.pdf";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    },
+  },
+  health: {
+    evaluation: () => get<HealthResponse>("/api/v1/health/evaluation"),
+  },
+  scheduler: {
+    status: () => get<SchedulerStatus>("/api/v1/scheduler/status"),
+    pause: () => post<SchedulerStatus>("/api/v1/scheduler/pause"),
+    resume: () => post<SchedulerStatus>("/api/v1/scheduler/resume"),
+  },
+};
