@@ -46,7 +46,7 @@ stages:
               containerRegistry: "RND-Container-Registry"
               repository: "$(IMAGE-NAME)"
               command: "buildAndPush"
-              Dockerfile: "Dockerfile.Development"
+              Dockerfile: "Dockerfile"
               tags: |
                 $(TAG-SANDBOX)
                 sandbox-latest
