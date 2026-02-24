@@ -3,9 +3,9 @@ import { LayoutShell } from "@/components/layout/LayoutShell";
 import DashboardPage from "@/pages/DashboardPage";
 import ArticlesPage from "@/pages/ArticlesPage";
 import AnalysisPage from "@/pages/AnalysisPage";
-import SentimentPage from "@/pages/SentimentPage";
+import SentimentPage from "@/pages/sentiment";
 import HealthPage from "@/pages/HealthPage";
-import SettingsPage from "@/pages/SettingsPage";
+import SettingsPage from "@/pages/settings";
 import NotFoundPage from "@/pages/NotFoundPage";
 
 const router = createBrowserRouter([

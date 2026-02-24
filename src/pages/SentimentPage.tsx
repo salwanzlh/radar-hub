@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ReactECharts from "echarts-for-react";
 import ReactMarkdown from "react-markdown";
@@ -26,6 +26,8 @@ import {
   Package,
   Eye,
   Zap,
+  Clock,
+  ChevronDown,
 } from "lucide-react";
 import {
   sentimentApi,
@@ -44,6 +46,8 @@ import {
   type ProductMapping,
   type CleansingRule,
   type CleansingPreviewResult,
+  type ScrapeProgress,
+  type ScrapeLogItem,
 } from "@/lib/sentiment-api-client";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -512,12 +516,144 @@ function OverviewTab({ selectedProduct }: { selectedProduct?: string }) {
 
 /* --- Tab 2: Comments --- */
 
+function CommentDetailModal({
+  comment,
+  onClose,
+}: {
+  comment: SentimentComment;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface-white border border-surface-200 rounded-[20px] max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-surface-200">
+          <div>
+            <h3 className="text-lg font-semibold text-text-primary">{comment.author_name}</h3>
+            {comment.commented_at && (
+              <p className="text-xs text-text-tertiary mt-0.5">{formatRelativeDate(comment.commented_at)}</p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-text-tertiary hover:text-brand-accent hover:bg-surface-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Full comment text */}
+        <div className="px-6 py-5 border-b border-surface-200">
+          <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap break-words">{comment.content}</p>
+          {comment.post_url && (
+            <a
+              href={comment.post_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-3 text-xs text-brand-accent hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              View original post
+            </a>
+          )}
+        </div>
+
+        {/* Metadata grid */}
+        <div className="px-6 py-5 grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-text-tertiary text-xs font-medium uppercase tracking-wide">Platform</span>
+            <div className="mt-1.5">
+              <PlatformBadge platform={comment.platform || "unknown"} />
+            </div>
+          </div>
+          <div>
+            <span className="text-text-tertiary text-xs font-medium uppercase tracking-wide">Source Account</span>
+            <p className="mt-1.5 text-text-primary">{comment.source_account || <span className="text-text-tertiary">--</span>}</p>
+          </div>
+          <div>
+            <span className="text-text-tertiary text-xs font-medium uppercase tracking-wide">Sentiment</span>
+            <div className="mt-1.5">
+              {comment.is_excluded ? (
+                <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-surface-200 text-text-tertiary">excluded</span>
+              ) : comment.sentiment_result ? (
+                <SentimentBadge
+                  sentiment={comment.sentiment_result.sentiment}
+                  confidence={comment.sentiment_result.confidence}
+                />
+              ) : (
+                <span className="text-xs text-text-tertiary">Pending</span>
+              )}
+            </div>
+          </div>
+          <div>
+            <span className="text-text-tertiary text-xs font-medium uppercase tracking-wide">Product</span>
+            <p className="mt-1.5 text-text-primary">{comment.product_name || <span className="text-text-tertiary">--</span>}</p>
+          </div>
+          <div>
+            <span className="text-text-tertiary text-xs font-medium uppercase tracking-wide">Likes</span>
+            <p className="mt-1.5 text-text-primary">{comment.likes_count}</p>
+          </div>
+          {comment.sentiment_result && (
+            <>
+              <div>
+                <span className="text-text-tertiary text-xs font-medium uppercase tracking-wide">Classified at</span>
+                <p className="mt-1.5 text-text-primary">{formatRelativeDate(comment.sentiment_result.classified_at)}</p>
+              </div>
+              <div>
+                <span className="text-text-tertiary text-xs font-medium uppercase tracking-wide">Model used</span>
+                <p className="mt-1.5 text-text-primary">{comment.sentiment_result.model_used}</p>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Excluded badge */}
+        {comment.is_excluded && (
+          <div className="px-6 pb-5">
+            <div className="flex items-center gap-2 px-4 py-3 bg-surface-100 border border-surface-200 rounded-xl">
+              <Shield className="w-4 h-4 text-text-tertiary flex-shrink-0" />
+              <span className="text-xs text-text-tertiary font-medium">This comment has been excluded from analysis</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
   const [search, setSearch] = useState("");
   const [platform, setPlatform] = useState("");
   const [sentiment, setSentiment] = useState("");
+  const [localProduct, setLocalProduct] = useState<string>("");
+  const [localProductName, setLocalProductName] = useState("");
   const [page, setPage] = useState(1);
+  const [selectedComment, setSelectedComment] = useState<SentimentComment | null>(null);
   const pageSize = 20;
+
+  // Clear local product filter when parent filter changes
+  useEffect(() => {
+    if (selectedProduct) {
+      setLocalProduct("");
+      setLocalProductName("");
+    }
+  }, [selectedProduct]);
+
+  const effectiveProduct = selectedProduct || localProduct || undefined;
 
   const params: Record<string, string> = {
     page: String(page),
@@ -526,15 +662,219 @@ function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
   if (search) params.search = search;
   if (platform) params.platform = platform;
   if (sentiment) params.sentiment = sentiment;
-  if (selectedProduct) params.product_lineup_id = selectedProduct;
+  if (effectiveProduct) params.product_lineup_id = effectiveProduct;
+
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery<PaginatedResponse<SentimentComment>>({
     queryKey: ["sentiment-comments", params],
     queryFn: () => sentimentApi.comments.list(params),
   });
 
+  const deleteAllMutation = useMutation({
+    mutationFn: sentimentApi.comments.deleteAll,
+    onSuccess: (result) => {
+      toast.success(`Deleted ${result.deleted} comments`);
+      queryClient.invalidateQueries({ queryKey: ["sentiment-comments"] });
+      queryClient.invalidateQueries({ queryKey: ["sentiment-stats"] });
+      setPage(1);
+    },
+    onError: () => {
+      toast.error("Failed to delete comments");
+    },
+  });
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const { data: stats } = useQuery<SentimentStats>({
+    queryKey: ["sentiment-stats-comments", effectiveProduct],
+    queryFn: () => sentimentApi.dashboard.stats(30, effectiveProduct),
+  });
+
+  const { data: productBreakdown } = useQuery<ProductBreakdownItem[]>({
+    queryKey: ["sentiment-product-breakdown-comments"],
+    queryFn: () => sentimentApi.dashboard.productBreakdown(30),
+  });
+
+  const { data: platformBreakdown } = useQuery<PlatformBreakdown[]>({
+    queryKey: ["sentiment-platform-breakdown-comments", effectiveProduct],
+    queryFn: () => sentimentApi.dashboard.platformBreakdown(30, effectiveProduct),
+  });
+
+  const donutOption = stats && stats.total_comments > 0 ? {
+    tooltip: { trigger: "item" as const, formatter: "{b}: {c} ({d}%)" },
+    legend: { bottom: 0, textStyle: { color: "#94a3b8" } },
+    series: [{
+      type: "pie" as const,
+      radius: ["45%", "70%"],
+      center: ["50%", "45%"],
+      avoidLabelOverlap: false,
+      itemStyle: { borderRadius: 6, borderColor: "#1a1a2e", borderWidth: 2 },
+      label: {
+        show: true,
+        position: "center" as const,
+        formatter: `{total|${stats.total_comments.toLocaleString()}}\n{label|comments}`,
+        rich: {
+          total: { fontSize: 22, fontWeight: "bold" as const, color: "#e2e8f0", lineHeight: 30 },
+          label: { fontSize: 11, color: "#64748b", lineHeight: 16 },
+        },
+      },
+      emphasis: { label: { show: true, fontSize: 13, fontWeight: "bold", color: "#e2e8f0" } },
+      data: [
+        { value: stats.positive_count, name: "Positive", itemStyle: { color: "#10B981" } },
+        { value: stats.neutral_count, name: "Neutral", itemStyle: { color: "#3B82F6" } },
+        { value: stats.negative_count, name: "Negative", itemStyle: { color: "#EF4444" } },
+      ],
+    }],
+  } : null;
+
+  const onDonutClick = (params: { name?: string }) => {
+    if (!params.name) return;
+    const val = params.name.toLowerCase();
+    setSentiment((prev) => prev === val ? "" : val);
+    setPage(1);
+  };
+
+  const showProductChart = productBreakdown && productBreakdown.length > 0 && !selectedProduct;
+
+  const productChartOption = showProductChart ? {
+    tooltip: { trigger: "axis" as const, axisPointer: { type: "shadow" as const } },
+    legend: { data: ["Positive", "Neutral", "Negative"], bottom: 0, textStyle: { color: "#94a3b8" } },
+    grid: { top: 10, right: 30, bottom: 40, left: 120 },
+    xAxis: { type: "value" as const, axisLabel: { color: "#64748b" }, splitLine: { lineStyle: { color: "#1e293b" } } },
+    yAxis: {
+      type: "category" as const,
+      data: productBreakdown!.map((p) => p.product_name),
+      axisLabel: {
+        fontSize: 11,
+        color: (value: string) => value === localProductName ? "#D4FF00" : "#94a3b8",
+        fontWeight: ((value: string) => value === localProductName ? "bold" : "normal") as unknown as string,
+      },
+      triggerEvent: true,
+    },
+    series: [
+      { name: "Positive", type: "bar" as const, stack: "total", data: productBreakdown!.map((p) => p.positive), itemStyle: { color: "#10B981" }, barMaxWidth: 28 },
+      { name: "Neutral", type: "bar" as const, stack: "total", data: productBreakdown!.map((p) => p.neutral), itemStyle: { color: "#3B82F6" }, barMaxWidth: 28 },
+      { name: "Negative", type: "bar" as const, stack: "total", data: productBreakdown!.map((p) => p.negative), itemStyle: { color: "#EF4444" }, barMaxWidth: 28 },
+    ],
+  } : null;
+
+  const onProductChartClick = (params: { componentType: string; name?: string; value?: string }) => {
+    const clickedName = params.componentType === "yAxis" ? params.value : params.name;
+    if (!clickedName || !productBreakdown) return;
+    const match = productBreakdown.find((p) => p.product_name === clickedName);
+    if (!match) return;
+    const id = match.product_lineup_id || "";
+    if (localProduct === id) {
+      setLocalProduct("");
+      setLocalProductName("");
+    } else {
+      setLocalProduct(id);
+      setLocalProductName(match.product_name);
+    }
+    setPage(1);
+  };
+
+  const platformChartOption = platformBreakdown && platformBreakdown.length > 0 ? {
+    tooltip: { trigger: "axis" as const, axisPointer: { type: "shadow" as const } },
+    legend: { data: ["Positive", "Neutral", "Negative"], bottom: 0, textStyle: { color: "#94a3b8" } },
+    grid: { top: 10, right: 30, bottom: 40, left: 100 },
+    xAxis: { type: "value" as const, axisLabel: { color: "#64748b" }, splitLine: { lineStyle: { color: "#1e293b" } } },
+    yAxis: {
+      type: "category" as const,
+      data: platformBreakdown.map((p) => p.platform),
+      axisLabel: {
+        color: (value: string) => value === platform ? "#D4FF00" : "#94a3b8",
+        fontWeight: ((value: string) => value === platform ? "bold" : "normal") as unknown as string,
+      },
+      triggerEvent: true,
+    },
+    series: [
+      { name: "Positive", type: "bar" as const, stack: "total", data: platformBreakdown.map((p) => p.positive), itemStyle: { color: "#10B981", opacity: platform && platformBreakdown.find((b) => b.platform === platform) ? undefined : 1 }, barMaxWidth: 28, emphasis: { itemStyle: { opacity: 1 } } },
+      { name: "Neutral", type: "bar" as const, stack: "total", data: platformBreakdown.map((p) => p.neutral), itemStyle: { color: "#3B82F6" }, barMaxWidth: 28 },
+      { name: "Negative", type: "bar" as const, stack: "total", data: platformBreakdown.map((p) => p.negative), itemStyle: { color: "#EF4444" }, barMaxWidth: 28 },
+    ],
+  } : null;
+
+  const onPlatformChartClick = (params: { componentType: string; name?: string; value?: string }) => {
+    const clickedPlatform = params.componentType === "yAxis" ? params.value : params.name;
+    if (!clickedPlatform) return;
+    setPlatform((prev) => prev === clickedPlatform ? "" : clickedPlatform);
+    setPage(1);
+  };
+
+  // Grid: 3 cols when product chart visible, 2 cols when filtered by product
+  const gridCols = showProductChart ? "lg:grid-cols-3" : "lg:grid-cols-2";
+
   return (
     <div className="space-y-4">
+      {/* Charts */}
+      <div className={cn("grid grid-cols-1 gap-4", gridCols)}>
+        {donutOption && (
+          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-semibold text-text-primary">Sentiment Distribution</h4>
+              {sentiment && (
+                <button
+                  onClick={() => { setSentiment(""); setPage(1); }}
+                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-accent bg-brand-accent/10 rounded-lg hover:bg-brand-accent/20 transition-colors capitalize"
+                >
+                  <X className="w-3 h-3" />
+                  {sentiment}
+                </button>
+              )}
+            </div>
+            <ReactECharts
+              option={donutOption}
+              style={{ height: 220 }}
+              onEvents={{ click: onDonutClick }}
+            />
+          </div>
+        )}
+        {productChartOption && (
+          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-semibold text-text-primary">Sentiment per Product</h4>
+              {localProduct && (
+                <button
+                  onClick={() => { setLocalProduct(""); setLocalProductName(""); setPage(1); }}
+                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-accent bg-brand-accent/10 rounded-lg hover:bg-brand-accent/20 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                  {localProductName}
+                </button>
+              )}
+            </div>
+            <ReactECharts
+              option={productChartOption}
+              style={{ height: 220 }}
+              onEvents={{ click: onProductChartClick }}
+            />
+          </div>
+        )}
+        {platformChartOption && (
+          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-semibold text-text-primary">Sentiment per Platform</h4>
+              {platform && (
+                <button
+                  onClick={() => { setPlatform(""); setPage(1); }}
+                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-accent bg-brand-accent/10 rounded-lg hover:bg-brand-accent/20 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                  {platform}
+                </button>
+              )}
+            </div>
+            <ReactECharts
+              option={platformChartOption}
+              style={{ height: 220 }}
+              onEvents={{ click: onPlatformChartClick }}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-[200px] relative">
@@ -569,7 +909,60 @@ function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
           <option value="neutral">Neutral</option>
           <option value="negative">Negative</option>
         </select>
+        {data && data.total > 0 && (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={deleteAllMutation.isPending}
+            className="ml-auto px-3.5 py-2.5 text-sm font-medium text-status-error bg-status-error-light border border-status-error/20 rounded-xl hover:bg-status-error hover:text-white transition-colors disabled:opacity-50"
+          >
+            {deleteAllMutation.isPending ? (
+              <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Deleting...</span>
+            ) : (
+              <span className="flex items-center gap-2"><Trash2 className="w-4 h-4" />Delete All</span>
+            )}
+          </button>
+        )}
       </div>
+
+      {/* Delete All Confirmation */}
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            className="bg-surface-white border border-surface-200 rounded-[20px] max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-status-error-light rounded-xl">
+                <AlertTriangle className="w-5 h-5 text-status-error" />
+              </div>
+              <h3 className="text-lg font-semibold text-text-primary">Delete All Comments</h3>
+            </div>
+            <p className="text-sm text-text-secondary mb-6">
+              This will permanently delete all <strong>{data?.total}</strong> comments and their sentiment results. This action cannot be undone.
+            </p>
+            <div className="flex items-center gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2.5 text-sm font-medium text-text-secondary bg-surface-100 border border-surface-200 rounded-xl hover:bg-surface-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteAllMutation.mutate();
+                  setShowDeleteConfirm(false);
+                }}
+                className="px-4 py-2.5 text-sm font-medium text-white bg-status-error rounded-xl hover:bg-red-700 transition-colors"
+              >
+                Delete All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       {isLoading ? (
@@ -587,6 +980,7 @@ function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
                   <tr className="bg-surface-100 border-b border-surface-200">
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Author</th>
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Comment</th>
+                    <th className="text-left px-5 py-3 font-medium text-text-secondary">Source</th>
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Product</th>
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Platform</th>
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Sentiment</th>
@@ -596,15 +990,22 @@ function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
                 </thead>
                 <tbody className="divide-y divide-surface-100">
                   {data.items.map((comment) => (
-                    <tr key={comment.id} className={cn(
-                      "hover:bg-surface-100 transition-colors",
-                      comment.is_excluded && "opacity-50"
-                    )}>
+                    <tr
+                      key={comment.id}
+                      onClick={() => setSelectedComment(comment)}
+                      className={cn(
+                        "hover:bg-surface-100 transition-colors cursor-pointer",
+                        comment.is_excluded && "opacity-50"
+                      )}
+                    >
                       <td className="px-5 py-3.5 font-medium text-text-primary whitespace-nowrap">
                         {comment.author_name}
                       </td>
                       <td className="px-5 py-3.5 text-text-secondary max-w-[300px]">
                         <p className="truncate">{comment.content}</p>
+                      </td>
+                      <td className="px-5 py-3.5 text-text-secondary text-xs whitespace-nowrap">
+                        {comment.source_account || <span className="text-text-tertiary">--</span>}
                       </td>
                       <td className="px-5 py-3.5 text-text-secondary text-xs whitespace-nowrap">
                         {comment.product_name || <span className="text-text-tertiary">--</span>}
@@ -668,6 +1069,13 @@ function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
           <MessageSquare className="w-8 h-8 text-text-tertiary mx-auto mb-2" />
           <p className="text-sm text-text-tertiary">No comments found matching your filters.</p>
         </div>
+      )}
+
+      {selectedComment && (
+        <CommentDetailModal
+          comment={selectedComment}
+          onClose={() => setSelectedComment(null)}
+        />
       )}
     </div>
   );
@@ -999,6 +1407,17 @@ function SettingsTab() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const { data: scrapeProgress } = useQuery<ScrapeProgress>({
+    queryKey: ["scrape-progress"],
+    queryFn: sentimentApi.scraping.progress,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "running" ? 2000 : false;
+    },
+  });
+
+  const isScraping = scrapeProgress?.status === "running";
+
   const isSchedulerRunning = schedulerStatus?.is_running;
 
   return (
@@ -1221,44 +1640,210 @@ function SettingsTab() {
       {/* Trigger Scrape */}
       <div>
         <h4 className="text-sm font-semibold text-text-primary mb-3">Manual Trigger</h4>
-        <div className="flex items-center gap-3 p-5 border border-surface-200 rounded-xl bg-surface-50">
-          <div className="flex-1">
-            <p className="text-sm text-text-secondary">
-              Trigger an immediate scrape or weekly report generation.
-            </p>
+        <div className="p-5 border border-surface-200 rounded-xl bg-surface-50 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <p className="text-sm text-text-secondary">
+                Trigger an immediate scrape or weekly report generation.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                triggerMutation.mutate();
+                queryClient.invalidateQueries({ queryKey: ["scrape-progress"] });
+              }}
+              disabled={triggerMutation.isPending || isScraping}
+              className="px-5 py-2.5 text-sm bg-brand-accent text-text-inverse rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 flex items-center gap-1.5 transition-colors"
+            >
+              {isScraping ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="w-3.5 h-3.5" />
+              )}
+              {isScraping ? "Running..." : "Daily Scrape"}
+            </button>
+            <button
+              onClick={() => triggerWeeklyMutation.mutate()}
+              disabled={triggerWeeklyMutation.isPending}
+              className="px-5 py-2.5 text-sm border border-brand-accent text-brand-accent rounded-xl hover:bg-brand-accent/10 disabled:opacity-60 flex items-center gap-1.5 transition-colors"
+            >
+              {triggerWeeklyMutation.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Zap className="w-3.5 h-3.5" />
+              )}
+              Weekly Report
+            </button>
           </div>
-          <button
-            onClick={() => triggerMutation.mutate()}
-            disabled={triggerMutation.isPending}
-            className="px-5 py-2.5 text-sm bg-brand-accent text-text-inverse rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 flex items-center gap-1.5 transition-colors"
-          >
-            {triggerMutation.isPending ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="w-3.5 h-3.5" />
-            )}
-            Daily Scrape
-          </button>
-          <button
-            onClick={() => triggerWeeklyMutation.mutate()}
-            disabled={triggerWeeklyMutation.isPending}
-            className="px-5 py-2.5 text-sm border border-brand-accent text-brand-accent rounded-xl hover:bg-brand-accent/10 disabled:opacity-60 flex items-center gap-1.5 transition-colors"
-          >
-            {triggerWeeklyMutation.isPending ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Zap className="w-3.5 h-3.5" />
-            )}
-            Weekly Report
-          </button>
+
+          {/* Scrape Progress Panel */}
+          {scrapeProgress && scrapeProgress.status !== "idle" && (
+            <div className="border border-surface-200 rounded-xl overflow-hidden">
+              {/* Status header */}
+              <div className={cn(
+                "flex items-center gap-2.5 px-4 py-3",
+                scrapeProgress.status === "running" && "bg-blue-500/10 border-b border-surface-200",
+                scrapeProgress.status === "completed" && "bg-status-success-light border-b border-surface-200",
+                scrapeProgress.status === "failed" && "bg-status-error-light border-b border-surface-200",
+              )}>
+                {scrapeProgress.status === "running" && <Loader2 className="w-4 h-4 text-blue-500 animate-spin flex-shrink-0" />}
+                {scrapeProgress.status === "completed" && <Check className="w-4 h-4 text-status-success flex-shrink-0" />}
+                {scrapeProgress.status === "failed" && <AlertTriangle className="w-4 h-4 text-status-error flex-shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium text-text-primary capitalize">{scrapeProgress.status}</span>
+                  {scrapeProgress.current_phase && (
+                    <span className="text-xs text-text-tertiary ml-2">- {scrapeProgress.current_phase}</span>
+                  )}
+                </div>
+                {scrapeProgress.started_at && (
+                  <span className="text-[10px] text-text-tertiary flex-shrink-0">
+                    {new Date(scrapeProgress.started_at).toLocaleTimeString("id-ID")}
+                    {scrapeProgress.finished_at && ` - ${new Date(scrapeProgress.finished_at).toLocaleTimeString("id-ID")}`}
+                  </span>
+                )}
+              </div>
+
+              {/* Log entries */}
+              <div className="max-h-[240px] overflow-y-auto">
+                {scrapeProgress.logs.map((log, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "flex items-start gap-3 px-4 py-2 text-xs",
+                      i < scrapeProgress.logs.length - 1 && "border-b border-surface-50"
+                    )}
+                  >
+                    <span className="text-text-tertiary flex-shrink-0 w-16 text-[10px] pt-0.5">
+                      {new Date(log.timestamp).toLocaleTimeString("id-ID")}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-text-secondary">{log.message}</span>
+                      {log.counts && (
+                        <div className="flex gap-3 mt-1 flex-wrap">
+                          {Object.entries(log.counts).map(([key, val]) => (
+                            <span key={key} className="text-[10px] font-medium px-1.5 py-0.5 bg-surface-100 rounded text-text-tertiary">
+                              {key.replace(/_/g, " ")}: <span className="text-text-primary">{val}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Error detail */}
+              {scrapeProgress.error && (
+                <div className="px-4 py-3 border-t border-surface-200 bg-status-error-light">
+                  <p className="text-xs text-status-error font-mono break-all">{scrapeProgress.error}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Run History */}
+      <ScrapeHistorySection />
 
       {/* Product Keyword Mappings */}
       <ProductMappingsSection />
 
       {/* Cleansing Rules */}
       <CleansingRulesSection />
+    </div>
+  );
+}
+
+/* --- Scrape Run History Section --- */
+
+function ScrapeHistorySection() {
+  const { data: logs, isLoading } = useQuery<ScrapeLogItem[]>({
+    queryKey: ["scrape-logs"],
+    queryFn: () => sentimentApi.scraping.logs(10),
+  });
+
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <Clock className="w-4 h-4 text-text-tertiary" />
+        <h4 className="text-sm font-semibold text-text-primary">Run History</h4>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-12 bg-surface-100 rounded-xl animate-pulse" />
+          ))}
+        </div>
+      ) : logs && logs.length > 0 ? (
+        <div className="border border-surface-200 rounded-[20px] overflow-hidden divide-y divide-surface-100">
+          {logs.map((log) => {
+            const duration = Math.round(
+              (new Date(log.finished_at).getTime() - new Date(log.started_at).getTime()) / 1000
+            );
+            const isExpanded = expandedId === log.id;
+            return (
+              <div key={log.id}>
+                <button
+                  onClick={() => setExpandedId(isExpanded ? null : log.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-50 transition-colors text-left"
+                >
+                  {log.status === "completed" ? (
+                    <Check className="w-4 h-4 text-status-success flex-shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-status-error flex-shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-text-primary">
+                      {new Date(log.started_at).toLocaleString("id-ID")}
+                    </span>
+                    <div className="flex gap-2 mt-0.5 flex-wrap">
+                      {Object.entries(log.summary).map(([key, val]) => (
+                        <span key={key} className="text-[10px] px-1.5 py-0.5 bg-surface-100 rounded text-text-tertiary">
+                          {key.replace(/_/g, " ")}: <span className="text-text-primary font-medium">{val}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <span className="text-xs text-text-tertiary flex-shrink-0">
+                    {duration < 60 ? `${duration}s` : `${Math.floor(duration / 60)}m ${duration % 60}s`}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "w-4 h-4 text-text-tertiary transition-transform flex-shrink-0",
+                      isExpanded && "rotate-180"
+                    )}
+                  />
+                </button>
+                {isExpanded && (
+                  <div className="border-t border-surface-100 bg-surface-50 max-h-[200px] overflow-y-auto">
+                    {log.error && (
+                      <div className="px-4 py-2 bg-status-error-light">
+                        <p className="text-xs text-status-error font-mono break-all">{log.error}</p>
+                      </div>
+                    )}
+                    {log.log_entries.map((entry, i) => (
+                      <div key={i} className="flex items-start gap-3 px-4 py-1.5 text-xs">
+                        <span className="text-text-tertiary flex-shrink-0 w-16 text-[10px] pt-0.5">
+                          {new Date(entry.timestamp).toLocaleTimeString("id-ID")}
+                        </span>
+                        <span className="text-text-secondary">{entry.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="text-center py-6 border border-surface-200 rounded-[20px]">
+          <p className="text-sm text-text-tertiary">No scrape runs recorded yet.</p>
+        </div>
+      )}
     </div>
   );
 }

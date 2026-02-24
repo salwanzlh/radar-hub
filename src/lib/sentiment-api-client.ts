@@ -82,6 +82,8 @@ export interface SentimentComment {
   product_lineup_id: string | null;
   product_name: string | null;
   is_excluded: boolean;
+  source_account: string | null;
+  post_url: string | null;
 }
 
 export interface SentimentReport {
@@ -207,6 +209,32 @@ export interface SchedulerStatus {
   weekly_cron_expression?: string | null;
 }
 
+export interface ScrapeLogEntry {
+  timestamp: string;
+  message: string;
+  counts?: Record<string, number>;
+}
+
+export interface ScrapeProgress {
+  status: "idle" | "running" | "completed" | "failed";
+  started_at: string | null;
+  finished_at: string | null;
+  current_phase: string | null;
+  error: string | null;
+  logs: ScrapeLogEntry[];
+}
+
+export interface ScrapeLogItem {
+  id: string;
+  status: "completed" | "failed";
+  started_at: string;
+  finished_at: string;
+  error: string | null;
+  summary: Record<string, number>;
+  log_entries: ScrapeLogEntry[];
+  created_at: string;
+}
+
 function buildParams(base: Record<string, string>, productLineupId?: string | null): Record<string, string> {
   const params = { ...base };
   if (productLineupId) params.product_lineup_id = productLineupId;
@@ -237,6 +265,7 @@ export const sentimentApi = {
     list: (params: Record<string, string>) =>
       get<PaginatedResponse<SentimentComment>>(`${PREFIX}/comments`, params),
     get: (id: string) => get<SentimentComment>(`${PREFIX}/comments/${id}`),
+    deleteAll: () => del<{ deleted: number }>(`${PREFIX}/comments`),
   },
 
   accounts: {
@@ -262,6 +291,8 @@ export const sentimentApi = {
   scraping: {
     trigger: () => post<{ status: string; message: string }>(`${PREFIX}/scraping/trigger`),
     triggerWeekly: () => post<{ status: string; message: string }>(`${PREFIX}/scraping/trigger-weekly`),
+    progress: () => get<ScrapeProgress>(`${PREFIX}/scraping/progress`),
+    logs: (limit = 10) => get<ScrapeLogItem[]>(`${PREFIX}/scraping/logs`, { limit: String(limit) }),
   },
 
   scheduler: {
