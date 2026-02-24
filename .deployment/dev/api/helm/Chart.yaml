@@ -1,0 +1,6 @@
+apiVersion: v2
+name: eira-security-deploy
+description: Helm chart for new eira application
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

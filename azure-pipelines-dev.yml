@@ -1,0 +1,87 @@
+trigger: none
+
+variables:
+  LOCATION: Southeast Asia
+  IMAGE-NAME: poc/mitra-frontend
+
+  ##########################################################  Demo  ###########################################################
+  RESOURCE-GROUP-SANDBOX: RG-POC-Shared-RnD
+  TAG-SANDBOX: "release-dev-$(Build.BuildId)"
+  NAMESPACE-SANDBOX: rnd-poc
+  CLUSTER-SANDBOX: AZBSIAKST110
+  SC_ACR_REGISTRY: EIRA-container-Registry
+  ACR_REGISTRY: rndcontregistry2024.azurecr.io
+
+  DOCKERFILE-SANDBOX: $(Agent.BuildDirectory)/cloud/Dockerfile.Development
+  releaseName-Sandbox: mitra-frontend
+  command-sandbox: upgrade
+  chartType-sandbox: FilePath
+  chartPath-sandbox: $(Agent.BuildDirectory)/cloud/.deployment/dev/api/helm/
+  valueFile-sandbox: $(Agent.BuildDirectory)/cloud/.deployment/dev/api/helm/values.yaml
+
+pool:
+  vmImage: "ubuntu-latest"
+
+resources:
+  repositories:
+    - repository: self
+      trigger:
+        branches:
+          include:
+            - "main"
+
+##########################################  Sandbox  ########################################################################
+stages:
+  - stage: BuildAndPush
+    displayName: Build And Deploy Sandbox
+    jobs:
+      - job: Build
+        displayName: Build Sandbox
+        steps:
+          - checkout: self
+            path: cloud
+          - task: Docker@2
+            displayName: Build Docker Sandbox
+            inputs:
+              containerRegistry: "RND-Container-Registry"
+              repository: "$(IMAGE-NAME)"
+              command: "buildAndPush"
+              Dockerfile: "Dockerfile.Development"
+              tags: |
+                $(TAG-SANDBOX)
+                sandbox-latest
+      - job: Deploy
+        displayName: Deploy Sandbox
+        dependsOn: Build
+        steps:
+          - checkout: self
+            path: cloud
+
+          - script: |
+              curl -LO https://github.com/Azure/kubelogin/releases/download/v0.0.25/kubelogin-linux-amd64.zip
+              unzip kubelogin-linux-amd64.zip
+              mv bin/linux_amd64/kubelogin /usr/local/bin/kubelogin
+              chmod +x /usr/local/bin/kubelogin
+            displayName: "Install kubelogin and configure kubeconfig"
+
+          - script: |
+              /usr/local/bin/kubelogin convert-kubeconfig -l azurecli
+            displayName: "Configure kubeconfig for kubelogin"
+
+          - script: |
+              sed -i -e 's@latest@$(TAG-SANDBOX)@g' $(valueFile-sandbox)
+            displayName: Change Image tag
+
+          - task: HelmDeploy@0
+            inputs:
+              connectionType: "azureResourceManager"
+              azureSubscriptionConnection: "BSI-Cloud-Azure-02"
+              kubernetesServiceEndpoint: "rnd-poc"
+              azureResourceGroup: "$(RESOURCE-GROUP-SANDBOX)"
+              kubernetesCluster: "$(CLUSTER-SANDBOX)"
+              namespace: "$(NAMESPACE-SANDBOX)"
+              command: "$(command-sandbox)"
+              chartType: "$(chartType-sandbox)"
+              chartPath: "$(chartPath-sandbox)"
+              releaseName: "$(releaseName-Sandbox)"
+              valueFile: "$(valueFile-sandbox)"
