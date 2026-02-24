@@ -45,7 +45,6 @@ import {
   type ProductLineup,
   type ProductMapping,
   type CleansingRule,
-  type CleansingPreviewResult,
   type ScrapeProgress,
   type ScrapeLogItem,
 } from "@/lib/sentiment-api-client";
@@ -264,12 +263,12 @@ function OverviewTab({ selectedProduct }: { selectedProduct?: string }) {
     queryFn: () => sentimentApi.dashboard.trends(days, selectedProduct),
   });
 
-  const { data: platforms, isLoading: platformsLoading } = useQuery<PlatformBreakdown[]>({
+  const { data: platforms } = useQuery<PlatformBreakdown[]>({
     queryKey: ["sentiment-platforms", days, selectedProduct],
     queryFn: () => sentimentApi.dashboard.platformBreakdown(days, selectedProduct),
   });
 
-  const { data: painPoints, isLoading: painLoading } = useQuery<PainPointItem[]>({
+  const { data: painPoints } = useQuery<PainPointItem[]>({
     queryKey: ["sentiment-pain-points", selectedProduct],
     queryFn: () => sentimentApi.dashboard.painPoints(selectedProduct),
   });
