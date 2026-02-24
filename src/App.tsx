@@ -1,26 +1,75 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet, RouterProvider } from "react-router-dom";
 import { LayoutShell } from "@/components/layout/LayoutShell";
+import { useAuth } from "@/lib/auth-context";
 import DashboardPage from "@/pages/DashboardPage";
 import ArticlesPage from "@/pages/ArticlesPage";
 import AnalysisPage from "@/pages/AnalysisPage";
 import SentimentPage from "@/pages/sentiment";
 import HealthPage from "@/pages/HealthPage";
 import SettingsPage from "@/pages/settings";
+import LoginPage from "@/pages/LoginPage";
 import NotFoundPage from "@/pages/NotFoundPage";
+
+function ProtectedRoute() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-surface-50 flex items-center justify-center">
+        <div className="text-text-tertiary">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Outlet />;
+}
+
+function PublicOnlyRoute() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-surface-50 flex items-center justify-center">
+        <div className="text-text-tertiary">Loading...</div>
+      </div>
+    );
+  }
+
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <Outlet />;
+}
 
 const router = createBrowserRouter(
   [
     {
-      path: "/",
-      element: <LayoutShell />,
+      element: <PublicOnlyRoute />,
       children: [
-        { index: true, element: <DashboardPage /> },
-        { path: "articles", element: <ArticlesPage /> },
-        { path: "analysis", element: <AnalysisPage /> },
-        { path: "sentiment", element: <SentimentPage /> },
-        { path: "health", element: <HealthPage /> },
-        { path: "settings", element: <SettingsPage /> },
-        { path: "*", element: <NotFoundPage /> },
+        { path: "login", element: <LoginPage /> },
+      ],
+    },
+    {
+      element: <ProtectedRoute />,
+      children: [
+        {
+          path: "/",
+          element: <LayoutShell />,
+          children: [
+            { index: true, element: <DashboardPage /> },
+            { path: "articles", element: <ArticlesPage /> },
+            { path: "analysis", element: <AnalysisPage /> },
+            { path: "sentiment", element: <SentimentPage /> },
+            { path: "health", element: <HealthPage /> },
+            { path: "settings", element: <SettingsPage /> },
+            { path: "*", element: <NotFoundPage /> },
+          ],
+        },
       ],
     },
   ],

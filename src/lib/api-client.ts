@@ -9,16 +9,69 @@ class ApiError extends Error {
   }
 }
 
+let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
+
+async function tryRefreshToken(): Promise<string | null> {
+  const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (res.ok) {
+    const data = await res.json();
+    localStorage.setItem("access_token", data.access_token);
+    return data.access_token;
+  }
+  return null;
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
+  const token = localStorage.getItem("access_token");
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...options.headers },
     ...options,
+    headers,
+    credentials: "include",
   });
+
+  if (response.status === 401 && token) {
+    // Try refresh once
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshPromise = tryRefreshToken();
+    }
+    const newToken = await refreshPromise;
+    isRefreshing = false;
+    refreshPromise = null;
+
+    if (newToken) {
+      headers["Authorization"] = `Bearer ${newToken}`;
+      const retry = await fetch(url, { ...options, headers, credentials: "include" });
+      if (!retry.ok) {
+        const error = await retry.json().catch(() => ({}));
+        throw new ApiError(retry.status, error.error || error.detail || `Request failed: ${retry.statusText}`);
+      }
+      if (retry.status === 204) return undefined as T;
+      return retry.json();
+    }
+
+    // Refresh failed — clear auth and redirect
+    localStorage.removeItem("access_token");
+    window.location.href = import.meta.env.BASE_URL + "login";
+    throw new ApiError(401, "Session expired");
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new ApiError(response.status, error.error || `Request failed: ${response.statusText}`);
+    throw new ApiError(response.status, error.error || error.detail || `Request failed: ${response.statusText}`);
   }
 
   if (response.status === 204) return undefined as T;
@@ -211,6 +264,16 @@ export interface HealthResponse {
   source_health: SourceHealthItem[];
 }
 
+export interface UserInfo {
+  id: string;
+  email: string;
+  full_name: string;
+  role: "admin" | "viewer";
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export const api = {
   dashboard: {
     stats: () => get<DashboardStats>("/api/v1/dashboard/stats"),
@@ -254,8 +317,12 @@ export const api = {
     latestReports: () => get<LineupReport[]>("/api/v1/lineup-analysis/reports/latest"),
     getReport: (id: string) => get<LineupReport>(`/api/v1/lineup-analysis/reports/${id}`),
     downloadPdf: async (reportId: string, filename?: string) => {
+      const token = localStorage.getItem("access_token");
       const url = `${API_BASE}/api/v1/lineup-analysis/reports/${reportId}/pdf`;
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      });
       if (!res.ok) throw new ApiError(res.status, "Failed to download PDF");
       const blob = await res.blob();
       const a = document.createElement("a");
@@ -272,5 +339,13 @@ export const api = {
     status: () => get<SchedulerStatus>("/api/v1/scheduler/status"),
     pause: () => post<SchedulerStatus>("/api/v1/scheduler/pause"),
     resume: () => post<SchedulerStatus>("/api/v1/scheduler/resume"),
+  },
+  users: {
+    list: () => get<UserInfo[]>("/api/v1/users"),
+    create: (data: { email: string; full_name: string; password: string; role: string }) =>
+      post<UserInfo>("/api/v1/users", data),
+    update: (id: string, data: { full_name?: string; role?: string; is_active?: boolean }) =>
+      put<UserInfo>(`/api/v1/users/${id}`, data),
+    delete: (id: string) => del(`/api/v1/users/${id}`),
   },
 };

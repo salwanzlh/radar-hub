@@ -1,14 +1,16 @@
-import { useState } from "react";
-import { Tags, Globe, Car, Clock } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Tags, Globe, Car, Clock, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 import CategoriesTab from "./CategoriesTab";
 import SourcesTab from "./SourcesTab";
 import LineupsTab from "./LineupsTab";
 import ScheduleTab from "./ScheduleTab";
+import UsersTab from "./UsersTab";
 
-type Tab = "categories" | "sources" | "lineups" | "schedule";
+type Tab = "categories" | "sources" | "lineups" | "schedule" | "users";
 
-const TABS: { id: Tab; label: string; icon: typeof Tags }[] = [
+const BASE_TABS: { id: Tab; label: string; icon: typeof Tags }[] = [
   { id: "categories", label: "Categories & Keywords", icon: Tags },
   { id: "sources", label: "News Sources", icon: Globe },
   { id: "lineups", label: "Product Lineups", icon: Car },
@@ -16,7 +18,15 @@ const TABS: { id: Tab; label: string; icon: typeof Tags }[] = [
 ];
 
 export default function SettingsPage() {
+  const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("categories");
+
+  const TABS = useMemo(() => {
+    if (isAdmin) {
+      return [...BASE_TABS, { id: "users" as Tab, label: "Users", icon: Users }];
+    }
+    return BASE_TABS;
+  }, [isAdmin]);
 
   return (
     <div className="space-y-6">
@@ -45,6 +55,7 @@ export default function SettingsPage() {
           {activeTab === "sources" && <SourcesTab />}
           {activeTab === "lineups" && <LineupsTab />}
           {activeTab === "schedule" && <ScheduleTab />}
+          {activeTab === "users" && isAdmin && <UsersTab />}
         </div>
       </div>
     </div>

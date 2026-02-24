@@ -9,12 +9,64 @@ class ApiError extends Error {
   }
 }
 
+let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
+
+async function tryRefreshToken(): Promise<string | null> {
+  const MAIN_API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const res = await fetch(`${MAIN_API}/api/v1/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (res.ok) {
+    const data = await res.json();
+    localStorage.setItem("access_token", data.access_token);
+    return data.access_token;
+  }
+  return null;
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${SENTIMENT_API_BASE}${endpoint}`;
+  const token = localStorage.getItem("access_token");
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...options.headers },
     ...options,
+    headers,
+    credentials: "include",
   });
+
+  if (response.status === 401 && token) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshPromise = tryRefreshToken();
+    }
+    const newToken = await refreshPromise;
+    isRefreshing = false;
+    refreshPromise = null;
+
+    if (newToken) {
+      headers["Authorization"] = `Bearer ${newToken}`;
+      const retry = await fetch(url, { ...options, headers, credentials: "include" });
+      if (!retry.ok) {
+        const error = await retry.json().catch(() => ({}));
+        throw new ApiError(retry.status, error.detail || `Request failed: ${retry.statusText}`);
+      }
+      if (retry.status === 204) return undefined as T;
+      return retry.json();
+    }
+
+    localStorage.removeItem("access_token");
+    window.location.href = import.meta.env.BASE_URL + "login";
+    throw new ApiError(401, "Session expired");
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));

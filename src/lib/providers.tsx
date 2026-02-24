@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { Toaster } from "react-hot-toast";
+import { AuthProvider } from "@/lib/auth-context";
 import { SidebarProvider } from "@/components/layout/SidebarContext";
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -15,9 +16,11 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        {children}
-      </SidebarProvider>
+      <AuthProvider>
+        <SidebarProvider>
+          {children}
+        </SidebarProvider>
+      </AuthProvider>
       <Toaster
         position="top-right"
         toastOptions={{
