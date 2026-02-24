@@ -12,7 +12,7 @@ variables:
   SC_ACR_REGISTRY: EIRA-container-Registry
   ACR_REGISTRY: rndcontregistry2024.azurecr.io
 
-  DOCKERFILE-SANDBOX: $(Agent.BuildDirectory)/cloud/Dockerfile.Development
+  DOCKERFILE-SANDBOX: $(Agent.BuildDirectory)/cloud/Dockerfile
   releaseName-Sandbox: mitra-frontend
   command-sandbox: upgrade
   chartType-sandbox: FilePath
