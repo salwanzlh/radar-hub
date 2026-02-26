@@ -5,7 +5,6 @@ import {
   MessageSquare,
   Hash,
   FileText,
-  Settings,
   Package,
 } from "lucide-react";
 import {
@@ -17,16 +16,13 @@ import { OverviewTab } from "./OverviewTab";
 import { CommentsTab } from "./CommentsTab";
 import { TopicsTab } from "./TopicsTab";
 import { ReportsTab } from "./ReportsTab";
-import { SettingsTab } from "./SettingsTab";
-
-type Tab = "overview" | "comments" | "topics" | "reports" | "settings";
+type Tab = "overview" | "comments" | "topics" | "reports";
 
 const TABS: { id: Tab; label: string; icon: typeof BarChart3 }[] = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "comments", label: "Comments", icon: MessageSquare },
   { id: "topics", label: "Topics", icon: Hash },
   { id: "reports", label: "Reports", icon: FileText },
-  { id: "settings", label: "Settings", icon: Settings },
 ];
 
 /* --- Shared Badge Components --- */
@@ -130,7 +126,6 @@ export default function SentimentPage() {
           {activeTab === "comments" && <CommentsTab selectedProduct={selectedProduct} />}
           {activeTab === "topics" && <TopicsTab selectedProduct={selectedProduct} />}
           {activeTab === "reports" && <ReportsTab selectedProduct={selectedProduct} />}
-          {activeTab === "settings" && <SettingsTab />}
         </div>
       </div>
     </div>

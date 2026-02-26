@@ -1,20 +1,22 @@
 import { useState, useMemo } from "react";
-import { Tags, Globe, Car, Clock, Users } from "lucide-react";
+import { Tags, Globe, Car, Clock, MessageSquare, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import CategoriesTab from "./CategoriesTab";
 import SourcesTab from "./SourcesTab";
 import LineupsTab from "./LineupsTab";
 import ScheduleTab from "./ScheduleTab";
+import { SettingsTab as SentimentSettingsTab } from "@/pages/sentiment/SettingsTab";
 import UsersTab from "./UsersTab";
 
-type Tab = "categories" | "sources" | "lineups" | "schedule" | "users";
+type Tab = "categories" | "sources" | "lineups" | "schedule" | "sentiment" | "users";
 
 const BASE_TABS: { id: Tab; label: string; icon: typeof Tags }[] = [
   { id: "categories", label: "Categories & Keywords", icon: Tags },
   { id: "sources", label: "News Sources", icon: Globe },
   { id: "lineups", label: "Product Lineups", icon: Car },
   { id: "schedule", label: "Schedule & Scraping", icon: Clock },
+  { id: "sentiment", label: "Sentiment", icon: MessageSquare },
 ];
 
 export default function SettingsPage() {
@@ -55,6 +57,7 @@ export default function SettingsPage() {
           {activeTab === "sources" && <SourcesTab />}
           {activeTab === "lineups" && <LineupsTab />}
           {activeTab === "schedule" && <ScheduleTab />}
+          {activeTab === "sentiment" && <SentimentSettingsTab />}
           {activeTab === "users" && isAdmin && <UsersTab />}
         </div>
       </div>
