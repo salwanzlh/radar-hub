@@ -20,6 +20,8 @@ import {
   Clock,
   ChevronDown,
   Lock,
+  Tag,
+  ExternalLink,
 } from "lucide-react";
 import {
   sentimentApi,
@@ -490,6 +492,9 @@ export function SettingsTab() {
 
       {/* Cleansing Rules */}
       <CleansingRulesSection />
+
+      {/* Annotation Studio */}
+      <AnnotationStudioSection />
 
       {/* Password Confirmation Modal */}
       {showPasswordModal && (
@@ -1044,7 +1049,35 @@ function CleansingRulesSection() {
     exclusion_regex: "Regex",
     min_length: "Min Length",
     max_emoji_ratio: "Max Emoji",
+    mention_only: "Mention Only",
+    sales_promo: "Sales Promo",
+    duplicate: "Duplicate",
   };
+
+  const ruleTypeHelp: Record<string, string> = {
+    exclusion_keyword: "Comments containing this keyword will be excluded",
+    exclusion_regex: "Comments matching this regex pattern will be excluded",
+    min_length: "Comments shorter than this length will be excluded",
+    max_emoji_ratio: "Comments with emoji ratio above this value will be excluded",
+    mention_only: "Filter comments that are just @mentions (no other content)",
+    sales_promo: "Filter dealer/sales promotions: comments with phone number + any of these keywords",
+    duplicate: "Filter exact duplicate comments during scraping",
+  };
+
+  const getPlaceholder = (ruleType: string) => {
+    switch (ruleType) {
+      case "min_length": return "e.g. 10";
+      case "max_emoji_ratio": return "e.g. 0.5";
+      case "sales_promo": return "comma-separated keywords, e.g. konsultasi,test drive,pembelian";
+      case "mention_only":
+      case "duplicate":
+        return "enabled";
+      default: return "e.g. sholawat";
+    }
+  };
+
+  const isToggleOnlyRule = (ruleType: string) =>
+    ruleType === "mention_only" || ruleType === "duplicate";
 
   return (
     <div>
@@ -1140,6 +1173,9 @@ function CleansingRulesSection() {
                 <option value="exclusion_regex">Exclusion Regex</option>
                 <option value="min_length">Min Length</option>
                 <option value="max_emoji_ratio">Max Emoji Ratio</option>
+                <option value="mention_only">Mention Only</option>
+                <option value="sales_promo">Sales Promo</option>
+                <option value="duplicate">Duplicate</option>
               </select>
             </div>
             <div>
@@ -1148,10 +1184,11 @@ function CleansingRulesSection() {
               </label>
               <input
                 type="text"
-                placeholder={createForm.rule_type === "min_length" ? "e.g. 3" : "e.g. sholawat"}
-                value={createForm.pattern}
+                placeholder={getPlaceholder(createForm.rule_type)}
+                value={isToggleOnlyRule(createForm.rule_type) ? "enabled" : createForm.pattern}
                 onChange={(e) => setCreateForm({ ...createForm, pattern: e.target.value })}
-                className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary placeholder:text-text-tertiary"
+                disabled={isToggleOnlyRule(createForm.rule_type)}
+                className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary placeholder:text-text-tertiary disabled:opacity-60"
               />
             </div>
             <div>
@@ -1167,6 +1204,11 @@ function CleansingRulesSection() {
               />
             </div>
           </div>
+          {ruleTypeHelp[createForm.rule_type] && (
+            <p className="text-xs text-text-tertiary px-1">
+              {ruleTypeHelp[createForm.rule_type]}
+            </p>
+          )}
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-surface-100">
             <button
               onClick={() => {
@@ -1178,12 +1220,15 @@ function CleansingRulesSection() {
               Cancel
             </button>
             <button
-              onClick={() => createMutation.mutate({
-                rule_type: createForm.rule_type,
-                pattern: createForm.pattern,
-                description: createForm.description || undefined,
-              })}
-              disabled={!createForm.pattern || createMutation.isPending}
+              onClick={() => {
+                const pattern = isToggleOnlyRule(createForm.rule_type) ? "enabled" : createForm.pattern;
+                createMutation.mutate({
+                  rule_type: createForm.rule_type,
+                  pattern,
+                  description: createForm.description || undefined,
+                });
+              }}
+              disabled={(!isToggleOnlyRule(createForm.rule_type) && !createForm.pattern) || createMutation.isPending}
               className="px-5 py-2 text-sm bg-brand-accent text-text-inverse rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 flex items-center gap-1.5 font-medium"
             >
               {createMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
@@ -1319,6 +1364,56 @@ function CleansingRulesSection() {
           <p className="text-sm text-text-tertiary">No cleansing rules configured. Run migration to seed defaults.</p>
         </div>
       )}
+    </div>
+  );
+}
+
+/* --- Annotation Studio Section --- */
+
+function AnnotationStudioSection() {
+  const labelStudioUrl = import.meta.env.VITE_LABEL_STUDIO_URL || "http://localhost:8080";
+
+  const exportMutation = useMutation({
+    mutationFn: sentimentApi.annotation.exportJson,
+    onSuccess: () => {
+      toast.success("JSON file downloaded — import it in Label Studio");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <Tag className="w-4 h-4 text-text-tertiary" />
+        <h4 className="text-sm font-semibold text-text-primary">Annotation Studio</h4>
+      </div>
+      <p className="text-xs text-text-tertiary mb-4">
+        Download comments as Label Studio JSON, then import via Label Studio UI.
+      </p>
+
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => exportMutation.mutate()}
+          disabled={exportMutation.isPending}
+          className="px-5 py-2.5 text-sm bg-brand-accent text-text-inverse rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 flex items-center gap-2 font-medium transition-colors"
+        >
+          {exportMutation.isPending ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Tag className="w-4 h-4" />
+          )}
+          Download JSON
+        </button>
+        <a
+          href={labelStudioUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-5 py-2.5 text-sm border border-surface-200 rounded-xl hover:bg-surface-100 flex items-center gap-2 font-medium transition-colors text-text-primary"
+        >
+          <ExternalLink className="w-4 h-4" />
+          Open Label Studio
+        </a>
+      </div>
     </div>
   );
 }
