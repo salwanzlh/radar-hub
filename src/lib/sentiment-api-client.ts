@@ -90,6 +90,10 @@ function put<T>(endpoint: string, body: unknown): Promise<T> {
   return request<T>(endpoint, { method: "PUT", body: JSON.stringify(body) });
 }
 
+function patch<T>(endpoint: string, body: unknown): Promise<T> {
+  return request<T>(endpoint, { method: "PATCH", body: JSON.stringify(body) });
+}
+
 function del<T>(endpoint: string): Promise<T> {
   return request<T>(endpoint, { method: "DELETE" });
 }
@@ -119,6 +123,10 @@ export interface SentimentResultData {
   confidence: number;
   model_used: string;
   classified_at: string;
+  is_manual_override: boolean;
+  original_sentiment: string | null;
+  overridden_by: string | null;
+  overridden_at: string | null;
 }
 
 export interface SentimentComment {
@@ -134,6 +142,7 @@ export interface SentimentComment {
   product_lineup_id: string | null;
   product_name: string | null;
   is_excluded: boolean;
+  exclusion_reason: string | null;
   source_account: string | null;
   post_url: string | null;
 }
@@ -318,6 +327,10 @@ export const sentimentApi = {
       get<PaginatedResponse<SentimentComment>>(`${PREFIX}/comments`, params),
     get: (id: string) => get<SentimentComment>(`${PREFIX}/comments/${id}`),
     deleteAll: () => del<{ deleted: number }>(`${PREFIX}/comments`),
+    updateExclusion: (id: string, is_excluded: boolean) =>
+      patch<SentimentComment>(`${PREFIX}/comments/${id}/exclude`, { is_excluded }),
+    overrideSentiment: (id: string, sentiment: string, overridden_by: string) =>
+      patch<SentimentComment>(`${PREFIX}/comments/${id}/sentiment`, { sentiment, overridden_by }),
   },
 
   accounts: {

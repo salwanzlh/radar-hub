@@ -92,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json();
     setToken(data.access_token);
     localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("user_email", email);
     const me = await fetchMe(data.access_token);
     setUser(me);
   };

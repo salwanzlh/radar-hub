@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
+  ChevronDown,
 } from "lucide-react";
 import {
   sentimentApi,
@@ -32,6 +33,7 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
   const [localProductName, setLocalProductName] = useState("");
   const [page, setPage] = useState(1);
   const [selectedComment, setSelectedComment] = useState<SentimentComment | null>(null);
+  const [editingSentimentId, setEditingSentimentId] = useState<string | null>(null);
   const pageSize = 20;
 
   // Clear local product filter when parent filter changes
@@ -70,6 +72,22 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
     },
     onError: () => {
       toast.error("Failed to delete comments");
+    },
+  });
+
+  const overrideMutation = useMutation({
+    mutationFn: ({ id, sentiment }: { id: string; sentiment: string }) => {
+      const userEmail = localStorage.getItem("user_email") || "unknown";
+      return sentimentApi.comments.overrideSentiment(id, sentiment, userEmail);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sentiment-comments"] });
+      queryClient.invalidateQueries({ queryKey: ["sentiment-stats"] });
+      toast.success("Sentiment updated");
+      setEditingSentimentId(null);
+    },
+    onError: () => {
+      toast.error("Failed to update sentiment");
     },
   });
 
@@ -402,16 +420,61 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
                       <td className="px-5 py-3.5">
                         <PlatformBadge platform={comment.platform || "unknown"} />
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
                         {comment.is_excluded ? (
                           <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-surface-200 text-text-tertiary">excluded</span>
+                        ) : editingSentimentId === comment.id ? (
+                          <div className="flex items-center gap-1">
+                            {(["positive", "neutral", "negative"] as const).map((s) => {
+                              const styles: Record<string, string> = {
+                                positive: "bg-status-success-light text-status-success hover:ring-2 hover:ring-status-success/30",
+                                neutral: "bg-blue-50 text-blue-600 hover:ring-2 hover:ring-blue-300",
+                                negative: "bg-status-error-light text-status-error hover:ring-2 hover:ring-status-error/30",
+                              };
+                              return (
+                                <button
+                                  key={s}
+                                  disabled={overrideMutation.isPending}
+                                  onClick={() => overrideMutation.mutate({ id: comment.id, sentiment: s })}
+                                  className={cn(
+                                    "px-2 py-0.5 text-xs font-semibold rounded-full transition-all cursor-pointer",
+                                    styles[s],
+                                    comment.sentiment_result?.sentiment === s && "ring-2 ring-offset-1"
+                                  )}
+                                >
+                                  {s.charAt(0).toUpperCase() + s.slice(1, 3)}
+                                </button>
+                              );
+                            })}
+                            <button
+                              onClick={() => setEditingSentimentId(null)}
+                              className="ml-1 text-text-tertiary hover:text-text-primary"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
                         ) : comment.sentiment_result ? (
-                          <SentimentBadge
-                            sentiment={comment.sentiment_result.sentiment}
-                            confidence={comment.sentiment_result.confidence}
-                          />
+                          <button
+                            onClick={() => setEditingSentimentId(comment.id)}
+                            className="group flex items-center gap-1 cursor-pointer"
+                          >
+                            <SentimentBadge
+                              sentiment={comment.sentiment_result.sentiment}
+                              confidence={comment.sentiment_result.confidence}
+                            />
+                            {comment.sentiment_result.is_manual_override && (
+                              <span className="text-[10px] text-text-tertiary" title={`Overridden by ${comment.sentiment_result.overridden_by}`}>M</span>
+                            )}
+                            <ChevronDown className="w-3 h-3 text-text-tertiary opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </button>
                         ) : (
-                          <span className="text-xs text-text-tertiary">Pending</span>
+                          <button
+                            onClick={() => setEditingSentimentId(comment.id)}
+                            className="group flex items-center gap-1 cursor-pointer"
+                          >
+                            <span className="text-xs text-text-tertiary">Pending</span>
+                            <ChevronDown className="w-3 h-3 text-text-tertiary opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </button>
                         )}
                       </td>
                       <td className="px-5 py-3.5 text-right text-text-secondary">
