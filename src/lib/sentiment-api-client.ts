@@ -331,6 +331,21 @@ export const sentimentApi = {
       patch<SentimentComment>(`${PREFIX}/comments/${id}/exclude`, { is_excluded }),
     overrideSentiment: (id: string, sentiment: string, overridden_by: string) =>
       patch<SentimentComment>(`${PREFIX}/comments/${id}/sentiment`, { sentiment, overridden_by }),
+    exportCsv: async () => {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${SENTIMENT_API_BASE}/api/v1/sentiment/comments/export`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `comments_export_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
   },
 
   accounts: {

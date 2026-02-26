@@ -11,6 +11,7 @@ import {
   ChevronRight,
   AlertTriangle,
   ChevronDown,
+  Download,
 } from "lucide-react";
 import {
   sentimentApi,
@@ -88,6 +89,13 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
     },
     onError: () => {
       toast.error("Failed to update sentiment");
+    },
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: sentimentApi.comments.exportCsv,
+    onError: () => {
+      toast.error("Failed to export CSV");
     },
   });
 
@@ -317,17 +325,30 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
           <option value="negative">Negative</option>
         </select>
         {data && data.total > 0 && (
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={deleteAllMutation.isPending}
-            className="ml-auto px-3.5 py-2.5 text-sm font-medium text-status-error bg-status-error-light border border-status-error/20 rounded-xl hover:bg-status-error hover:text-white transition-colors disabled:opacity-50"
-          >
-            {deleteAllMutation.isPending ? (
-              <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Deleting...</span>
-            ) : (
-              <span className="flex items-center gap-2"><Trash2 className="w-4 h-4" />Delete All</span>
-            )}
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => exportMutation.mutate()}
+              disabled={exportMutation.isPending}
+              className="px-3.5 py-2.5 text-sm font-medium text-brand-accent bg-brand-accent/10 border border-brand-accent/20 rounded-xl hover:bg-brand-accent/20 transition-colors disabled:opacity-50"
+            >
+              {exportMutation.isPending ? (
+                <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Exporting...</span>
+              ) : (
+                <span className="flex items-center gap-2"><Download className="w-4 h-4" />Export CSV</span>
+              )}
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={deleteAllMutation.isPending}
+              className="px-3.5 py-2.5 text-sm font-medium text-status-error bg-status-error-light border border-status-error/20 rounded-xl hover:bg-status-error hover:text-white transition-colors disabled:opacity-50"
+            >
+              {deleteAllMutation.isPending ? (
+                <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Deleting...</span>
+              ) : (
+                <span className="flex items-center gap-2"><Trash2 className="w-4 h-4" />Delete All</span>
+              )}
+            </button>
+          </div>
         )}
       </div>
 
