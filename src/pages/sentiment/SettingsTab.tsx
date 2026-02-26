@@ -15,9 +15,11 @@ import {
   Shield,
   Package,
   Eye,
+  EyeOff,
   Zap,
   Clock,
   ChevronDown,
+  Lock,
 } from "lucide-react";
 import {
   sentimentApi,
@@ -27,6 +29,7 @@ import {
   type ScrapeProgress,
   type ScrapeLogItem,
 } from "@/lib/sentiment-api-client";
+import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 import { PlatformBadge } from "./SentimentPage";
@@ -36,6 +39,11 @@ export function SettingsTab() {
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ platform: "facebook", account_name: "", account_id: "" });
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"daily" | "weekly" | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const { data: accounts, isLoading: accountsLoading } = useQuery<SocialAccount[]>({
     queryKey: ["sentiment-accounts"],
@@ -113,6 +121,33 @@ export function SettingsTab() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  const openPasswordModal = (action: "daily" | "weekly") => {
+    setPendingAction(action);
+    setPassword("");
+    setShowPassword(false);
+    setShowPasswordModal(true);
+  };
+
+  const handlePasswordSubmit = async () => {
+    if (!password.trim() || !pendingAction) return;
+    setIsVerifying(true);
+    try {
+      await api.auth.verifyPassword(password);
+      setShowPasswordModal(false);
+      setPassword("");
+      if (pendingAction === "daily") {
+        triggerMutation.mutate();
+        queryClient.invalidateQueries({ queryKey: ["scrape-progress"] });
+      } else {
+        triggerWeeklyMutation.mutate();
+      }
+    } catch {
+      toast.error("Incorrect password");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   const { data: scrapeProgress } = useQuery<ScrapeProgress>({
     queryKey: ["scrape-progress"],
@@ -355,10 +390,7 @@ export function SettingsTab() {
               </p>
             </div>
             <button
-              onClick={() => {
-                triggerMutation.mutate();
-                queryClient.invalidateQueries({ queryKey: ["scrape-progress"] });
-              }}
+              onClick={() => openPasswordModal("daily")}
               disabled={triggerMutation.isPending || isScraping}
               className="px-5 py-2.5 text-sm bg-brand-accent text-text-inverse rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 flex items-center gap-1.5 transition-colors"
             >
@@ -370,7 +402,7 @@ export function SettingsTab() {
               {isScraping ? "Running..." : "Daily Scrape"}
             </button>
             <button
-              onClick={() => triggerWeeklyMutation.mutate()}
+              onClick={() => openPasswordModal("weekly")}
               disabled={triggerWeeklyMutation.isPending}
               className="px-5 py-2.5 text-sm border border-brand-accent text-brand-accent rounded-xl hover:bg-brand-accent/10 disabled:opacity-60 flex items-center gap-1.5 transition-colors"
             >
@@ -458,6 +490,114 @@ export function SettingsTab() {
 
       {/* Cleansing Rules */}
       <CleansingRulesSection />
+
+      {/* Password Confirmation Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => {
+              if (!isVerifying) {
+                setShowPasswordModal(false);
+                setPassword("");
+              }
+            }}
+          />
+          <div className="relative bg-surface-white border border-surface-200 rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-brand-accent/10 flex items-center justify-center">
+                  <Lock className="w-5 h-5 text-brand-accent" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary">
+                    {pendingAction === "daily" ? "Confirm Daily Scrape" : "Confirm Weekly Report"}
+                  </h3>
+                  <p className="text-xs text-text-tertiary mt-0.5">
+                    Enter your password to proceed
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setPassword("");
+                }}
+                disabled={isVerifying}
+                className="p-1.5 rounded-lg hover:bg-surface-100 text-text-tertiary transition-colors disabled:opacity-60"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handlePasswordSubmit();
+              }}
+            >
+              <div className="relative mb-4">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  autoFocus
+                  disabled={isVerifying}
+                  className="w-full px-4 py-2.5 pr-10 bg-surface-100 border border-surface-200 rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/25 disabled:opacity-60 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-secondary transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPassword("");
+                  }}
+                  disabled={isVerifying}
+                  className="px-4 py-2.5 text-sm text-text-secondary border border-surface-200 rounded-xl hover:bg-surface-100 transition-colors disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!password.trim() || isVerifying}
+                  className="px-5 py-2.5 text-sm bg-brand-accent text-text-inverse font-semibold rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 transition-colors flex items-center gap-1.5"
+                >
+                  {isVerifying ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : pendingAction === "daily" ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Daily Scrape
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5" />
+                      Weekly Report
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

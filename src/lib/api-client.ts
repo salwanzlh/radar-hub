@@ -275,6 +275,10 @@ export interface UserInfo {
 }
 
 export const api = {
+  auth: {
+    verifyPassword: (password: string) =>
+      post<{ verified: boolean }>("/api/v1/auth/verify-password", { password }),
+  },
   dashboard: {
     stats: () => get<DashboardStats>("/api/v1/dashboard/stats"),
     recent: (limit = 5) => get<Article[]>("/api/v1/dashboard/recent", { limit: String(limit) }),
@@ -299,7 +303,7 @@ export const api = {
     delete: (id: string) => del(`/api/v1/sources/${id}`),
   },
   scraping: {
-    trigger: () => post<ScrapeJob>("/api/v1/scraping/trigger"),
+    trigger: (password: string) => post<ScrapeJob>("/api/v1/scraping/trigger", { password }),
     jobs: () => get<PaginatedResponse<ScrapeJob>>("/api/v1/scraping/jobs"),
     cancel: (jobId: string) => post<{ status: string; message: string }>(`/api/v1/scraping/jobs/${jobId}/cancel`),
   },
