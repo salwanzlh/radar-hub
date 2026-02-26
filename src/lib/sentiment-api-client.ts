@@ -296,6 +296,7 @@ export interface ScrapeLogItem {
   created_at: string;
 }
 
+
 function buildParams(base: Record<string, string>, productLineupId?: string | null): Record<string, string> {
   const params = { ...base };
   if (productLineupId) params.product_lineup_id = productLineupId;
@@ -390,6 +391,24 @@ export const sentimentApi = {
       update: (id: string, data: { keywords?: string[]; is_active?: boolean }) =>
         put<ProductMapping>(`${PREFIX}/products/mappings/${id}`, data),
       delete: (id: string) => del(`${PREFIX}/products/mappings/${id}`),
+    },
+  },
+
+  annotation: {
+    exportJson: async () => {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${SENTIMENT_API_BASE}/api/v1/sentiment/annotation/export`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `label_studio_tasks_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
     },
   },
 
