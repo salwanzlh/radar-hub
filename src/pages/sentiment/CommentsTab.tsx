@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   ChevronDown,
   Download,
+  RefreshCw,
 } from "lucide-react";
 import {
   sentimentApi,
@@ -20,6 +21,7 @@ import {
   type ProductBreakdownItem,
   type SentimentComment,
   type PaginatedResponse,
+  type ScrapeProgress,
 } from "@/lib/sentiment-api-client";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -99,7 +101,47 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
     },
   });
 
+  const reclassifyMutation = useMutation({
+    mutationFn: sentimentApi.scraping.reclassify,
+    onSuccess: () => {
+      toast.success("Sentiment reclassification started");
+      // Optimistically show running state immediately
+      queryClient.setQueryData<ScrapeProgress>(["reclassify-progress"], (old) => ({
+        status: "running",
+        current_phase: "Starting...",
+        logs: [],
+        started_at: new Date().toISOString(),
+        finished_at: null,
+        error: null,
+        ...(old?.status === "running" ? old : {}),
+      }));
+      queryClient.invalidateQueries({ queryKey: ["reclassify-progress"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to start reclassification");
+    },
+  });
+
+  const { data: reclassifyProgress } = useQuery<ScrapeProgress>({
+    queryKey: ["reclassify-progress"],
+    queryFn: sentimentApi.scraping.progress,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === "running") return 2000;
+      if (status === "completed" || status === "failed") {
+        // Invalidate comments data when done
+        queryClient.invalidateQueries({ queryKey: ["sentiment-comments"] });
+        queryClient.invalidateQueries({ queryKey: ["sentiment-stats"] });
+        return false;
+      }
+      return false;
+    },
+  });
+
+  const isReclassifying = reclassifyProgress?.status === "running";
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showReclassifyConfirm, setShowReclassifyConfirm] = useState(false);
 
   const { data: stats } = useQuery<SentimentStats>({
     queryKey: ["sentiment-stats-comments", effectiveProduct],
@@ -327,6 +369,17 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
         {data && data.total > 0 && (
           <div className="ml-auto flex items-center gap-2">
             <button
+              onClick={() => setShowReclassifyConfirm(true)}
+              disabled={isReclassifying || reclassifyMutation.isPending}
+              className="px-3.5 py-2.5 text-sm font-medium text-purple-400 bg-purple-400/10 border border-purple-400/20 rounded-xl hover:bg-purple-400/20 transition-colors disabled:opacity-50"
+            >
+              {isReclassifying ? (
+                <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Reclassifying...</span>
+              ) : (
+                <span className="flex items-center gap-2"><RefreshCw className="w-4 h-4" />Re-run Sentiment</span>
+              )}
+            </button>
+            <button
               onClick={() => exportMutation.mutate()}
               disabled={exportMutation.isPending}
               className="px-3.5 py-2.5 text-sm font-medium text-brand-accent bg-brand-accent/10 border border-brand-accent/20 rounded-xl hover:bg-brand-accent/20 transition-colors disabled:opacity-50"
@@ -389,6 +442,89 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Reclassify Confirmation */}
+      {showReclassifyConfirm && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowReclassifyConfirm(false)}
+        >
+          <div
+            className="bg-surface-white border border-surface-200 rounded-[20px] max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-purple-400/10 rounded-xl">
+                <RefreshCw className="w-5 h-5 text-purple-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-text-primary">Re-run Sentiment Analysis</h3>
+            </div>
+            <p className="text-sm text-text-secondary mb-2">
+              This will re-classify all comments using the current model. Manual overrides will be preserved.
+            </p>
+            <p className="text-xs text-text-tertiary mb-6">
+              This may take a few minutes depending on the number of comments.
+            </p>
+            <div className="flex items-center gap-3 justify-end">
+              <button
+                onClick={() => setShowReclassifyConfirm(false)}
+                className="px-4 py-2.5 text-sm font-medium text-text-secondary bg-surface-100 border border-surface-200 rounded-xl hover:bg-surface-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  reclassifyMutation.mutate();
+                  setShowReclassifyConfirm(false);
+                }}
+                className="px-4 py-2.5 text-sm font-medium text-white bg-purple-600 rounded-xl hover:bg-purple-700 transition-colors"
+              >
+                Re-run
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reclassify Progress */}
+      {reclassifyProgress && reclassifyProgress.status !== "idle" && (
+        <div className={cn(
+          "border rounded-[20px] p-4",
+          reclassifyProgress.status === "running" && "border-purple-400/30 bg-purple-400/5",
+          reclassifyProgress.status === "completed" && "border-green-400/30 bg-green-400/5",
+          reclassifyProgress.status === "failed" && "border-red-400/30 bg-red-400/5",
+        )}>
+          <div className="flex items-center gap-2 mb-2">
+            {reclassifyProgress.status === "running" && <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />}
+            {reclassifyProgress.status === "completed" && <RefreshCw className="w-4 h-4 text-green-400" />}
+            {reclassifyProgress.status === "failed" && <AlertTriangle className="w-4 h-4 text-red-400" />}
+            <span className="text-sm font-medium text-text-primary capitalize">
+              Reclassification {reclassifyProgress.status}
+            </span>
+            {reclassifyProgress.current_phase && (
+              <span className="text-xs text-text-tertiary">- {reclassifyProgress.current_phase}</span>
+            )}
+          </div>
+          <div className="max-h-32 overflow-y-auto space-y-1">
+            {reclassifyProgress.logs.map((log, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <span className="text-text-tertiary whitespace-nowrap">
+                  {new Date(log.timestamp).toLocaleTimeString()}
+                </span>
+                <span className="text-text-secondary">{log.message}</span>
+                {log.counts && Object.entries(log.counts).map(([k, v]) => (
+                  <span key={k} className="px-1.5 py-0.5 bg-surface-200 rounded text-text-tertiary">
+                    {k}: {v}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+          {reclassifyProgress.error && (
+            <p className="mt-2 text-xs text-red-400">{reclassifyProgress.error}</p>
+          )}
         </div>
       )}
 

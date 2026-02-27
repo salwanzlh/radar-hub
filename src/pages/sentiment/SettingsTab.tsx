@@ -12,7 +12,6 @@ import {
   Pause,
   RefreshCw,
   AlertTriangle,
-  Shield,
   Package,
   Eye,
   EyeOff,
@@ -20,21 +19,55 @@ import {
   Clock,
   ChevronDown,
   Lock,
-  Tag,
-  ExternalLink,
+  Link,
 } from "lucide-react";
 import {
   sentimentApi,
   type SocialAccount,
   type ProductMapping,
-  type CleansingRule,
   type ScrapeProgress,
   type ScrapeLogItem,
+  type DirectUrlConfig,
 } from "@/lib/sentiment-api-client";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 import { PlatformBadge } from "./SentimentPage";
+
+function CollapsibleSection({
+  title,
+  icon,
+  children,
+  defaultOpen = false,
+  rightSlot,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  rightSlot?: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-surface-200 rounded-[20px] overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-2.5 px-5 py-3.5 bg-surface-50 hover:bg-surface-100 transition-colors text-left"
+      >
+        <span className="text-text-tertiary">{icon}</span>
+        <h4 className="text-sm font-semibold text-text-primary flex-1">{title}</h4>
+        {rightSlot && <span onClick={(e) => e.stopPropagation()}>{rightSlot}</span>}
+        <ChevronDown
+          className={cn(
+            "w-4 h-4 text-text-tertiary transition-transform",
+            open && "rotate-180"
+          )}
+        />
+      </button>
+      {open && <div className="px-5 pb-5 pt-3">{children}</div>}
+    </div>
+  );
+}
 
 export function SettingsTab() {
   const queryClient = useQueryClient();
@@ -167,19 +200,20 @@ export function SettingsTab() {
   return (
     <div className="space-y-6">
       {/* Social Accounts */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h4 className="text-sm font-semibold text-text-primary">Social Accounts</h4>
-            <p className="text-xs text-text-tertiary mt-0.5">Manage social media accounts for comment scraping.</p>
-          </div>
+      <CollapsibleSection
+        title="Social Accounts"
+        icon={<MessageSquare className="w-4 h-4" />}
+        defaultOpen
+        rightSlot={
           <button
             onClick={() => setShowCreate(!showCreate)}
-            className="px-4 py-2 text-sm bg-brand-accent text-text-inverse rounded-xl hover:bg-brand-accent-hover transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 text-xs bg-brand-accent text-text-inverse rounded-lg hover:bg-brand-accent-hover transition-colors flex items-center gap-1"
           >
-            <Plus className="w-4 h-4" /> Add Account
+            <Plus className="w-3.5 h-3.5" /> Add
           </button>
-        </div>
+        }
+      >
+        <p className="text-xs text-text-tertiary mb-4">Manage social media accounts for comment scraping.</p>
 
         {/* Create Form */}
         {showCreate && (
@@ -272,7 +306,7 @@ export function SettingsTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
-                {accounts.filter((a) => a.platform !== "twitter_search").map((account) => (
+                {accounts.filter((a) => a.platform !== "twitter_search" && a.platform !== "direct_url").map((account) => (
                   <AccountRow
                     key={account.id}
                     account={account}
@@ -303,12 +337,15 @@ export function SettingsTab() {
             <p className="text-sm text-text-tertiary">No social accounts configured yet.</p>
           </div>
         )}
-      </div>
+      </CollapsibleSection>
 
       {/* Scheduler Status */}
-      <div>
-        <h4 className="text-sm font-semibold text-text-primary mb-3">Scraping Scheduler</h4>
-        <div className="flex items-center gap-4 p-5 border border-surface-200 rounded-xl bg-surface-50">
+      <CollapsibleSection
+        title="Scraping Scheduler"
+        icon={<Clock className="w-4 h-4" />}
+        defaultOpen
+      >
+        <div className="flex items-center gap-4 p-4 border border-surface-200 rounded-xl bg-surface-50">
           <div className="flex-1">
             <div className="flex items-center gap-2.5 mb-1">
               <span className="relative flex h-2.5 w-2.5">
@@ -379,11 +416,22 @@ export function SettingsTab() {
             )}
           </div>
         </div>
-      </div>
+      </CollapsibleSection>
 
-      {/* Trigger Scrape */}
-      <div>
-        <h4 className="text-sm font-semibold text-text-primary mb-3">Manual Trigger</h4>
+      {/* Product Keyword Mappings */}
+      <ProductMappingsSection />
+
+      {/* Twitter Keyword Search */}
+      <TwitterSearchSection />
+
+      {/* Direct URL Scraping */}
+      <DirectUrlSection />
+
+      {/* Manual Trigger */}
+      <CollapsibleSection
+        title="Manual Trigger"
+        icon={<Zap className="w-4 h-4" />}
+      >
         <div className="p-5 border border-surface-200 rounded-xl bg-surface-50 space-y-4">
           <div className="flex items-center gap-3">
             <div className="flex-1">
@@ -482,22 +530,10 @@ export function SettingsTab() {
             </div>
           )}
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Run History */}
       <ScrapeHistorySection />
-
-      {/* Product Keyword Mappings */}
-      <ProductMappingsSection />
-
-      {/* Twitter Keyword Search */}
-      <TwitterSearchSection />
-
-      {/* Cleansing Rules */}
-      <CleansingRulesSection />
-
-      {/* Annotation Studio */}
-      <AnnotationStudioSection />
 
       {/* Password Confirmation Modal */}
       {showPasswordModal && (
@@ -621,12 +657,10 @@ function ScrapeHistorySection() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-3">
-        <Clock className="w-4 h-4 text-text-tertiary" />
-        <h4 className="text-sm font-semibold text-text-primary">Run History</h4>
-      </div>
-
+    <CollapsibleSection
+      title="Run History"
+      icon={<Clock className="w-4 h-4" />}
+    >
       {isLoading ? (
         <div className="space-y-2">
           {[...Array(3)].map((_, i) => (
@@ -699,7 +733,7 @@ function ScrapeHistorySection() {
           <p className="text-sm text-text-tertiary">No scrape runs recorded yet.</p>
         </div>
       )}
-    </div>
+    </CollapsibleSection>
   );
 }
 
@@ -724,6 +758,7 @@ function AccountRow({
   onDelete: () => void;
   isSaving: boolean;
 }) {
+  const [platform, setPlatform] = useState(account.platform);
   const [accountName, setAccountName] = useState(account.account_name);
   const [accountId, setAccountId] = useState(account.account_id);
 
@@ -731,7 +766,17 @@ function AccountRow({
     return (
       <tr className="bg-surface-50">
         <td className="px-5 py-3.5">
-          <PlatformBadge platform={account.platform} />
+          <select
+            value={platform}
+            onChange={(e) => setPlatform(e.target.value)}
+            className="w-full px-2.5 py-1.5 text-sm bg-surface-100 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary"
+          >
+            <option value="facebook">Facebook</option>
+            <option value="instagram">Instagram</option>
+            <option value="twitter">Twitter</option>
+            <option value="youtube">YouTube</option>
+            <option value="tiktok">TikTok</option>
+          </select>
         </td>
         <td className="px-5 py-3.5">
           <input
@@ -768,7 +813,7 @@ function AccountRow({
         <td className="px-5 py-3.5 text-right">
           <div className="flex items-center justify-end gap-1">
             <button
-              onClick={() => onSave({ account_name: accountName, account_id: accountId })}
+              onClick={() => onSave({ platform, account_name: accountName, account_id: accountId })}
               disabled={isSaving}
               className="p-1.5 text-status-success hover:bg-status-success-light rounded-lg transition-colors disabled:opacity-60"
             >
@@ -862,11 +907,10 @@ function ProductMappingsSection() {
   });
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-3">
-        <Package className="w-4 h-4 text-text-tertiary" />
-        <h4 className="text-sm font-semibold text-text-primary">Product Keyword Mappings</h4>
-      </div>
+    <CollapsibleSection
+      title="Product Keyword Mappings"
+      icon={<Package className="w-4 h-4" />}
+    >
       <p className="text-xs text-text-tertiary mb-4">
         Keywords used to detect which product a comment/post is about. Separate multiple keywords with commas.
       </p>
@@ -983,7 +1027,7 @@ function ProductMappingsSection() {
           <p className="text-sm text-text-tertiary">No product mappings configured. Run migration to seed defaults.</p>
         </div>
       )}
-    </div>
+    </CollapsibleSection>
   );
 }
 
@@ -1025,12 +1069,10 @@ function TwitterSearchSection() {
     .flatMap((m) => m.keywords) ?? [];
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-text-tertiary" />
-          <h4 className="text-sm font-semibold text-text-primary">Twitter Keyword Search</h4>
-        </div>
+    <CollapsibleSection
+      title="Twitter Keyword Search"
+      icon={<MessageSquare className="w-4 h-4" />}
+      rightSlot={
         <button
           onClick={() =>
             updateMutation.mutate({
@@ -1050,7 +1092,8 @@ function TwitterSearchSection() {
             )}
           />
         </button>
-      </div>
+      }
+    >
       <p className="text-xs text-text-tertiary mb-4">
         Search Twitter/X for tweets matching product keywords. Uses the same keywords from Product Keyword Mappings above.
       </p>
@@ -1116,440 +1159,197 @@ function TwitterSearchSection() {
           </div>
         </div>
       )}
-    </div>
+    </CollapsibleSection>
   );
 }
 
-/* --- Cleansing Rules Section --- */
+/* --- Direct URL Scraping Section --- */
 
-function CleansingRulesSection() {
+const PLATFORM_PATTERNS: [string, RegExp][] = [
+  ["YouTube", /(?:youtube\.com\/watch|youtu\.be\/)/],
+  ["Instagram", /instagram\.com\/(p|reel)\//],
+  ["TikTok", /tiktok\.com\/@.+\/video\//],
+  ["Twitter/X", /(?:twitter\.com|x\.com)\/.+\/status\//],
+  ["Facebook", /facebook\.com\/.+\/posts\//],
+];
+
+function detectPlatformLabel(url: string): string | null {
+  for (const [label, pattern] of PLATFORM_PATTERNS) {
+    if (pattern.test(url)) return label;
+  }
+  return null;
+}
+
+const platformBadgeColors: Record<string, string> = {
+  YouTube: "bg-red-500/10 text-red-400",
+  Instagram: "bg-pink-500/10 text-pink-400",
+  TikTok: "bg-cyan-500/10 text-cyan-400",
+  "Twitter/X": "bg-blue-500/10 text-blue-400",
+  Facebook: "bg-blue-600/10 text-blue-300",
+};
+
+function DirectUrlSection() {
   const queryClient = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ pattern: "", description: "" });
-  const [createForm, setCreateForm] = useState({ rule_type: "exclusion_keyword", pattern: "", description: "" });
-  const [previewText, setPreviewText] = useState("");
+  const [urlInput, setUrlInput] = useState("");
 
-  const { data: rules, isLoading } = useQuery<CleansingRule[]>({
-    queryKey: ["sentiment-cleansing-rules"],
-    queryFn: sentimentApi.cleansing.rules.list,
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (data: { rule_type: string; pattern: string; description?: string }) =>
-      sentimentApi.cleansing.rules.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sentiment-cleansing-rules"] });
-      setShowCreate(false);
-      setCreateForm({ rule_type: "exclusion_keyword", pattern: "", description: "" });
-      toast.success("Rule added");
-    },
-    onError: (err: Error) => toast.error(err.message),
+  const { data: config, isLoading } = useQuery<DirectUrlConfig>({
+    queryKey: ["sentiment-direct-urls"],
+    queryFn: sentimentApi.directUrls.get,
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { pattern?: string; description?: string } }) =>
-      sentimentApi.cleansing.rules.update(id, data),
+    mutationFn: (data: Parameters<typeof sentimentApi.directUrls.update>[0]) =>
+      sentimentApi.directUrls.update(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sentiment-cleansing-rules"] });
-      setEditingId(null);
-      toast.success("Rule updated");
+      queryClient.invalidateQueries({ queryKey: ["sentiment-direct-urls"] });
+      toast.success("Direct URL config updated");
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const toggleMutation = useMutation({
-    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
-      sentimentApi.cleansing.rules.update(id, { is_active }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sentiment-cleansing-rules"] });
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
+  if (isLoading) {
+    return (
+      <CollapsibleSection
+        title="Direct URL Scraping"
+        icon={<Link className="w-4 h-4" />}
+      >
+        <div className="h-24 bg-surface-100 rounded-xl animate-pulse" />
+      </CollapsibleSection>
+    );
+  }
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => sentimentApi.cleansing.rules.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sentiment-cleansing-rules"] });
-      toast.success("Rule deleted");
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
+  if (!config) return null;
 
-  const previewMutation = useMutation({
-    mutationFn: (text: string) => sentimentApi.cleansing.preview(text),
-  });
+  const handleAddUrls = () => {
+    const newUrls = urlInput
+      .split("\n")
+      .map((u) => u.trim())
+      .filter(Boolean);
+    if (newUrls.length === 0) return;
 
-  const ruleTypeLabels: Record<string, string> = {
-    exclusion_keyword: "Keyword",
-    exclusion_regex: "Regex",
-    min_length: "Min Length",
-    max_emoji_ratio: "Max Emoji",
-    mention_only: "Mention Only",
-    sales_promo: "Sales Promo",
-    duplicate: "Duplicate",
+    const merged = [...(config.urls || []), ...newUrls];
+    updateMutation.mutate({ urls: merged });
+    setUrlInput("");
   };
 
-  const ruleTypeHelp: Record<string, string> = {
-    exclusion_keyword: "Comments containing this keyword will be excluded",
-    exclusion_regex: "Comments matching this regex pattern will be excluded",
-    min_length: "Comments shorter than this length will be excluded",
-    max_emoji_ratio: "Comments with emoji ratio above this value will be excluded",
-    mention_only: "Filter comments that are just @mentions (no other content)",
-    sales_promo: "Filter dealer/sales promotions: comments with phone number + any of these keywords",
-    duplicate: "Filter exact duplicate comments during scraping",
+  const handleRemoveUrl = (url: string) => {
+    updateMutation.mutate({ urls: config.urls.filter((u) => u !== url) });
   };
-
-  const getPlaceholder = (ruleType: string) => {
-    switch (ruleType) {
-      case "min_length": return "e.g. 10";
-      case "max_emoji_ratio": return "e.g. 0.5";
-      case "sales_promo": return "comma-separated keywords, e.g. konsultasi,test drive,pembelian";
-      case "mention_only":
-      case "duplicate":
-        return "enabled";
-      default: return "e.g. sholawat";
-    }
-  };
-
-  const isToggleOnlyRule = (ruleType: string) =>
-    ruleType === "mention_only" || ruleType === "duplicate";
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Shield className="w-4 h-4 text-text-tertiary" />
-          <h4 className="text-sm font-semibold text-text-primary">Data Cleansing Rules</h4>
-        </div>
+    <CollapsibleSection
+      title="Direct URL Scraping"
+      icon={<Link className="w-4 h-4" />}
+      rightSlot={
         <button
-          onClick={() => setShowCreate(!showCreate)}
-          className="px-4 py-2 text-sm bg-brand-accent text-text-inverse rounded-xl hover:bg-brand-accent-hover transition-colors flex items-center gap-1.5"
+          onClick={() => updateMutation.mutate({ is_active: !config.is_active })}
+          className={cn(
+            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+            config.is_active ? "bg-status-success" : "bg-surface-200"
+          )}
         >
-          <Plus className="w-4 h-4" /> Add Rule
-        </button>
-      </div>
-      <p className="text-xs text-text-tertiary mb-4">
-        Rules to filter and clean comments before sentiment analysis.
-      </p>
-
-      {/* Preview */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="flex-1 relative">
-          <Eye className="w-4 h-4 text-text-tertiary absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={previewText}
-            onChange={(e) => setPreviewText(e.target.value)}
-            placeholder="Test cleansing: paste a comment here..."
-            className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary placeholder:text-text-tertiary"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && previewText.trim()) {
-                previewMutation.mutate(previewText);
-              }
-            }}
+          <span
+            className={cn(
+              "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+              config.is_active ? "translate-x-6" : "translate-x-1"
+            )}
           />
-        </div>
-        <button
-          onClick={() => previewText.trim() && previewMutation.mutate(previewText)}
-          disabled={!previewText.trim() || previewMutation.isPending}
-          className="px-4 py-2.5 text-sm border border-surface-200 rounded-xl hover:bg-surface-100 flex items-center gap-1.5 transition-colors disabled:opacity-60"
-        >
-          {previewMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
-          Preview
         </button>
-      </div>
-
-      {/* Preview Result */}
-      {previewMutation.data && (
-        <div className="mb-4 p-4 border border-surface-200 rounded-xl bg-surface-50 space-y-2">
-          <div className="grid grid-cols-2 gap-4 text-xs">
-            <div>
-              <span className="text-text-tertiary font-medium">Cleaned:</span>
-              <p className="text-text-secondary mt-1">{previewMutation.data.cleaned || "(empty)"}</p>
-            </div>
-            <div className="space-y-1">
-              <p>
-                <span className="text-text-tertiary font-medium">Excluded:</span>{" "}
-                <span className={previewMutation.data.is_excluded ? "text-status-error font-semibold" : "text-status-success"}>
-                  {previewMutation.data.is_excluded ? "Yes" : "No"}
-                </span>
-              </p>
-              {previewMutation.data.exclusion_reason && (
-                <p>
-                  <span className="text-text-tertiary font-medium">Reason:</span>{" "}
-                  <span className="text-text-secondary">{previewMutation.data.exclusion_reason}</span>
-                </p>
-              )}
-              {previewMutation.data.detected_product && (
-                <p>
-                  <span className="text-text-tertiary font-medium">Product:</span>{" "}
-                  <span className="text-text-secondary">{previewMutation.data.detected_product}</span>
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Form */}
-      {showCreate && (
-        <div className="rounded-2xl border border-surface-200 bg-surface-50 p-5 space-y-4 mb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
-                Rule Type
-              </label>
-              <select
-                value={createForm.rule_type}
-                onChange={(e) => setCreateForm({ ...createForm, rule_type: e.target.value })}
-                className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary"
-              >
-                <option value="exclusion_keyword">Exclusion Keyword</option>
-                <option value="exclusion_regex">Exclusion Regex</option>
-                <option value="min_length">Min Length</option>
-                <option value="max_emoji_ratio">Max Emoji Ratio</option>
-                <option value="mention_only">Mention Only</option>
-                <option value="sales_promo">Sales Promo</option>
-                <option value="duplicate">Duplicate</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
-                Pattern / Value
-              </label>
-              <input
-                type="text"
-                placeholder={getPlaceholder(createForm.rule_type)}
-                value={isToggleOnlyRule(createForm.rule_type) ? "enabled" : createForm.pattern}
-                onChange={(e) => setCreateForm({ ...createForm, pattern: e.target.value })}
-                disabled={isToggleOnlyRule(createForm.rule_type)}
-                className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary placeholder:text-text-tertiary disabled:opacity-60"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
-                Description
-              </label>
-              <input
-                type="text"
-                placeholder="Optional description"
-                value={createForm.description}
-                onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-                className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary placeholder:text-text-tertiary"
-              />
-            </div>
-          </div>
-          {ruleTypeHelp[createForm.rule_type] && (
-            <p className="text-xs text-text-tertiary px-1">
-              {ruleTypeHelp[createForm.rule_type]}
-            </p>
-          )}
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-surface-100">
-            <button
-              onClick={() => {
-                setShowCreate(false);
-                setCreateForm({ rule_type: "exclusion_keyword", pattern: "", description: "" });
-              }}
-              className="px-4 py-2 text-sm border border-surface-200 rounded-xl hover:bg-surface-100 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                const pattern = isToggleOnlyRule(createForm.rule_type) ? "enabled" : createForm.pattern;
-                createMutation.mutate({
-                  rule_type: createForm.rule_type,
-                  pattern,
-                  description: createForm.description || undefined,
-                });
-              }}
-              disabled={(!isToggleOnlyRule(createForm.rule_type) && !createForm.pattern) || createMutation.isPending}
-              className="px-5 py-2 text-sm bg-brand-accent text-text-inverse rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 flex items-center gap-1.5 font-medium"
-            >
-              {createMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              Add Rule
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Rules Table */}
-      {isLoading ? (
-        <div className="space-y-2">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-14 bg-surface-100 rounded-xl animate-pulse" />
-          ))}
-        </div>
-      ) : rules && rules.length > 0 ? (
-        <div className="border border-surface-200 rounded-[20px] overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-surface-100 border-b border-surface-200">
-                <th className="text-left px-5 py-3 font-medium text-text-secondary">Type</th>
-                <th className="text-left px-5 py-3 font-medium text-text-secondary">Pattern</th>
-                <th className="text-left px-5 py-3 font-medium text-text-secondary">Description</th>
-                <th className="text-center px-5 py-3 font-medium text-text-secondary">Active</th>
-                <th className="text-right px-5 py-3 font-medium text-text-secondary">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-100">
-              {rules.map((rule) => (
-                <tr key={rule.id} className="hover:bg-surface-100 transition-colors">
-                  <td className="px-5 py-3.5">
-                    <span className="px-2 py-0.5 text-xs bg-surface-100 text-text-secondary rounded-md font-medium">
-                      {ruleTypeLabels[rule.rule_type] || rule.rule_type}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    {editingId === rule.id ? (
-                      <input
-                        type="text"
-                        value={editForm.pattern}
-                        onChange={(e) => setEditForm({ ...editForm, pattern: e.target.value })}
-                        className="w-full px-2.5 py-1.5 text-sm bg-surface-100 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary"
-                      />
-                    ) : (
-                      <code className="text-xs text-text-secondary bg-surface-100 px-1.5 py-0.5 rounded">
-                        {rule.pattern}
-                      </code>
-                    )}
-                  </td>
-                  <td className="px-5 py-3.5 text-text-tertiary text-xs">
-                    {editingId === rule.id ? (
-                      <input
-                        type="text"
-                        value={editForm.description}
-                        onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                        className="w-full px-2.5 py-1.5 text-sm bg-surface-100 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary"
-                      />
-                    ) : (
-                      rule.description || "--"
-                    )}
-                  </td>
-                  <td className="px-5 py-3.5 text-center">
-                    <button
-                      onClick={() => toggleMutation.mutate({ id: rule.id, is_active: !rule.is_active })}
-                      className={cn(
-                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                        rule.is_active ? "bg-status-success" : "bg-surface-200"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                          rule.is_active ? "translate-x-6" : "translate-x-1"
-                        )}
-                      />
-                    </button>
-                  </td>
-                  <td className="px-5 py-3.5 text-right">
-                    {editingId === rule.id ? (
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => {
-                            updateMutation.mutate({
-                              id: rule.id,
-                              data: { pattern: editForm.pattern, description: editForm.description },
-                            });
-                          }}
-                          disabled={updateMutation.isPending}
-                          className="p-1.5 text-status-success hover:bg-status-success-light rounded-lg transition-colors disabled:opacity-60"
-                        >
-                          {updateMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-surface-100 rounded-lg transition-colors"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => {
-                            setEditingId(rule.id);
-                            setEditForm({ pattern: rule.pattern, description: rule.description || "" });
-                          }}
-                          className="p-2 text-text-tertiary hover:text-text-primary hover:bg-surface-100 rounded-xl transition-colors"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Delete rule "${rule.pattern}"?`)) {
-                              deleteMutation.mutate(rule.id);
-                            }
-                          }}
-                          className="p-2 text-text-tertiary hover:text-status-error hover:bg-status-error-light rounded-xl transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="text-center py-8 border border-surface-200 rounded-[20px]">
-          <Shield className="w-8 h-8 text-text-tertiary mx-auto mb-2" />
-          <p className="text-sm text-text-tertiary">No cleansing rules configured. Run migration to seed defaults.</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* --- Annotation Studio Section --- */
-
-function AnnotationStudioSection() {
-  const labelStudioUrl = import.meta.env.VITE_LABEL_STUDIO_URL || "http://localhost:8080";
-
-  const exportMutation = useMutation({
-    mutationFn: sentimentApi.annotation.exportJson,
-    onSuccess: () => {
-      toast.success("JSON file downloaded — import it in Label Studio");
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-3">
-        <Tag className="w-4 h-4 text-text-tertiary" />
-        <h4 className="text-sm font-semibold text-text-primary">Annotation Studio</h4>
-      </div>
+      }
+    >
       <p className="text-xs text-text-tertiary mb-4">
-        Download comments as Label Studio JSON, then import via Label Studio UI.
+        Paste specific post/video URLs to scrape their comments directly. Supports YouTube, Instagram, TikTok, Twitter/X, and Facebook.
       </p>
 
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => exportMutation.mutate()}
-          disabled={exportMutation.isPending}
-          className="px-5 py-2.5 text-sm bg-brand-accent text-text-inverse rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 flex items-center gap-2 font-medium transition-colors"
-        >
-          {exportMutation.isPending ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Tag className="w-4 h-4" />
-          )}
-          Download JSON
-        </button>
-        <a
-          href={labelStudioUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-5 py-2.5 text-sm border border-surface-200 rounded-xl hover:bg-surface-100 flex items-center gap-2 font-medium transition-colors text-text-primary"
-        >
-          <ExternalLink className="w-4 h-4" />
-          Open Label Studio
-        </a>
+      <div className="space-y-4 p-5 border border-surface-200 rounded-xl bg-surface-50">
+        {/* URL List */}
+        {config.urls.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
+              URLs ({config.urls.length}/50)
+            </p>
+            <div className="max-h-[200px] overflow-y-auto space-y-1.5">
+              {config.urls.map((url) => {
+                const platform = detectPlatformLabel(url);
+                return (
+                  <div key={url} className="flex items-center gap-2 px-3 py-2 bg-surface-100 rounded-lg group">
+                    {platform && (
+                      <span className={cn("px-2 py-0.5 text-[10px] font-semibold rounded-md flex-shrink-0", platformBadgeColors[platform] || "bg-surface-200 text-text-tertiary")}>
+                        {platform}
+                      </span>
+                    )}
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-text-secondary hover:text-brand-accent truncate flex-1"
+                    >
+                      {url}
+                    </a>
+                    <button
+                      onClick={() => handleRemoveUrl(url)}
+                      className="p-1 text-text-tertiary hover:text-status-error opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Add URLs */}
+        <div>
+          <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Add URLs (one per line)
+          </label>
+          <textarea
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            placeholder={"https://www.youtube.com/watch?v=...\nhttps://www.instagram.com/p/...\nhttps://www.tiktok.com/@user/video/..."}
+            rows={3}
+            className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary placeholder:text-text-tertiary resize-none font-mono"
+          />
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-[10px] text-text-tertiary">
+              Supported: YouTube, Instagram, TikTok, Twitter/X, Facebook
+            </p>
+            <button
+              onClick={handleAddUrls}
+              disabled={!urlInput.trim() || updateMutation.isPending}
+              className="px-4 py-2 text-sm bg-brand-accent text-text-inverse rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 flex items-center gap-1.5 transition-colors"
+            >
+              {updateMutation.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Plus className="w-3.5 h-3.5" />
+              )}
+              Add URLs
+            </button>
+          </div>
+        </div>
+
+        {/* Max Comments */}
+        <div className="max-w-xs">
+          <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Max Comments per URL
+          </label>
+          <input
+            type="number"
+            min={10}
+            max={500}
+            value={config.max_comments_per_url}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) || 100;
+              updateMutation.mutate({ max_comments_per_url: val });
+            }}
+            className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary"
+          />
+          <p className="text-[10px] text-text-tertiary mt-1">Maximum comments to fetch per URL (default: 100)</p>
+        </div>
       </div>
-    </div>
+    </CollapsibleSection>
   );
 }
+

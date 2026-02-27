@@ -42,28 +42,35 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     credentials: "include",
   });
 
-  if (response.status === 401 && token) {
-    // Try refresh once
-    if (!isRefreshing) {
-      isRefreshing = true;
-      refreshPromise = tryRefreshToken();
-    }
-    const newToken = await refreshPromise;
-    isRefreshing = false;
-    refreshPromise = null;
-
-    if (newToken) {
-      headers["Authorization"] = `Bearer ${newToken}`;
-      const retry = await fetch(url, { ...options, headers, credentials: "include" });
-      if (!retry.ok) {
-        const error = await retry.json().catch(() => ({}));
-        throw new ApiError(retry.status, error.error || error.detail || `Request failed: ${retry.statusText}`);
+  if (response.status === 401) {
+    if (token) {
+      // Try refresh once
+      if (!isRefreshing) {
+        isRefreshing = true;
+        refreshPromise = tryRefreshToken();
       }
-      if (retry.status === 204) return undefined as T;
-      return retry.json();
+      const newToken = await refreshPromise;
+      isRefreshing = false;
+      refreshPromise = null;
+
+      if (newToken) {
+        headers["Authorization"] = `Bearer ${newToken}`;
+        const retry = await fetch(url, { ...options, headers, credentials: "include" });
+        if (retry.status === 401) {
+          localStorage.removeItem("access_token");
+          window.location.href = import.meta.env.BASE_URL + "login";
+          throw new ApiError(401, "Session expired");
+        }
+        if (!retry.ok) {
+          const error = await retry.json().catch(() => ({}));
+          throw new ApiError(retry.status, error.error || error.detail || `Request failed: ${retry.statusText}`);
+        }
+        if (retry.status === 204) return undefined as T;
+        return retry.json();
+      }
     }
 
-    // Refresh failed — clear auth and redirect
+    // No token or refresh failed — clear auth and redirect
     localStorage.removeItem("access_token");
     window.location.href = import.meta.env.BASE_URL + "login";
     throw new ApiError(401, "Session expired");

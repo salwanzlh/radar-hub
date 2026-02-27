@@ -43,24 +43,31 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     credentials: "include",
   });
 
-  if (response.status === 401 && token) {
-    if (!isRefreshing) {
-      isRefreshing = true;
-      refreshPromise = tryRefreshToken();
-    }
-    const newToken = await refreshPromise;
-    isRefreshing = false;
-    refreshPromise = null;
-
-    if (newToken) {
-      headers["Authorization"] = `Bearer ${newToken}`;
-      const retry = await fetch(url, { ...options, headers, credentials: "include" });
-      if (!retry.ok) {
-        const error = await retry.json().catch(() => ({}));
-        throw new ApiError(retry.status, error.detail || `Request failed: ${retry.statusText}`);
+  if (response.status === 401) {
+    if (token) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        refreshPromise = tryRefreshToken();
       }
-      if (retry.status === 204) return undefined as T;
-      return retry.json();
+      const newToken = await refreshPromise;
+      isRefreshing = false;
+      refreshPromise = null;
+
+      if (newToken) {
+        headers["Authorization"] = `Bearer ${newToken}`;
+        const retry = await fetch(url, { ...options, headers, credentials: "include" });
+        if (retry.status === 401) {
+          localStorage.removeItem("access_token");
+          window.location.href = import.meta.env.BASE_URL + "login";
+          throw new ApiError(401, "Session expired");
+        }
+        if (!retry.ok) {
+          const error = await retry.json().catch(() => ({}));
+          throw new ApiError(retry.status, error.detail || `Request failed: ${retry.statusText}`);
+        }
+        if (retry.status === 204) return undefined as T;
+        return retry.json();
+      }
     }
 
     localStorage.removeItem("access_token");
@@ -261,6 +268,18 @@ export interface CleansingPreviewResult {
   detected_product: string | null;
 }
 
+export interface DirectUrlConfig {
+  urls: string[];
+  max_comments_per_url: number;
+  is_active: boolean;
+}
+
+export interface DirectUrlUpdate {
+  urls?: string[];
+  max_comments_per_url?: number;
+  is_active?: boolean;
+}
+
 export interface SchedulerStatus {
   is_running: boolean;
   next_run_time: string | null;
@@ -359,6 +378,11 @@ export const sentimentApi = {
     delete: (id: string) => del(`${PREFIX}/accounts/${id}`),
   },
 
+  directUrls: {
+    get: () => get<DirectUrlConfig>(`${PREFIX}/accounts/direct-urls`),
+    update: (data: DirectUrlUpdate) => put<DirectUrlConfig>(`${PREFIX}/accounts/direct-urls`, data),
+  },
+
   reports: {
     list: (params: Record<string, string>) =>
       get<PaginatedResponse<ReportSummary>>(`${PREFIX}/reports`, params),
@@ -372,6 +396,7 @@ export const sentimentApi = {
   scraping: {
     trigger: () => post<{ status: string; message: string }>(`${PREFIX}/scraping/trigger`),
     triggerWeekly: () => post<{ status: string; message: string }>(`${PREFIX}/scraping/trigger-weekly`),
+    reclassify: () => post<{ status: string; message: string }>(`${PREFIX}/scraping/reclassify`),
     progress: () => get<ScrapeProgress>(`${PREFIX}/scraping/progress`),
     logs: (limit = 10) => get<ScrapeLogItem[]>(`${PREFIX}/scraping/logs`, { limit: String(limit) }),
   },
