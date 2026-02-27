@@ -272,7 +272,7 @@ export function SettingsTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
-                {accounts.map((account) => (
+                {accounts.filter((a) => a.platform !== "twitter_search").map((account) => (
                   <AccountRow
                     key={account.id}
                     account={account}
@@ -489,6 +489,9 @@ export function SettingsTab() {
 
       {/* Product Keyword Mappings */}
       <ProductMappingsSection />
+
+      {/* Twitter Keyword Search */}
+      <TwitterSearchSection />
 
       {/* Cleansing Rules */}
       <CleansingRulesSection />
@@ -978,6 +981,139 @@ function ProductMappingsSection() {
         <div className="text-center py-8 border border-surface-200 rounded-[20px]">
           <Package className="w-8 h-8 text-text-tertiary mx-auto mb-2" />
           <p className="text-sm text-text-tertiary">No product mappings configured. Run migration to seed defaults.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* --- Twitter Keyword Search Section --- */
+
+function TwitterSearchSection() {
+  const queryClient = useQueryClient();
+
+  const { data: accounts } = useQuery<SocialAccount[]>({
+    queryKey: ["sentiment-accounts"],
+    queryFn: sentimentApi.accounts.list,
+  });
+
+  const { data: mappings } = useQuery<ProductMapping[]>({
+    queryKey: ["sentiment-product-mappings"],
+    queryFn: sentimentApi.products.mappings.list,
+  });
+
+  const twitterAccount = accounts?.find((a) => a.platform === "twitter_search");
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<SocialAccount> }) =>
+      sentimentApi.accounts.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sentiment-accounts"] });
+      toast.success("Twitter search config updated");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  if (!twitterAccount) return null;
+
+  const config = twitterAccount.scrape_config as { days_back?: number; max_tweets_per_keyword?: number };
+  const daysBack = config.days_back ?? 1;
+  const maxTweets = config.max_tweets_per_keyword ?? 50;
+
+  const activeKeywords = mappings
+    ?.filter((m) => m.is_active)
+    .flatMap((m) => m.keywords) ?? [];
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="w-4 h-4 text-text-tertiary" />
+          <h4 className="text-sm font-semibold text-text-primary">Twitter Keyword Search</h4>
+        </div>
+        <button
+          onClick={() =>
+            updateMutation.mutate({
+              id: twitterAccount.id,
+              data: { is_active: !twitterAccount.is_active },
+            })
+          }
+          className={cn(
+            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+            twitterAccount.is_active ? "bg-status-success" : "bg-surface-200"
+          )}
+        >
+          <span
+            className={cn(
+              "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+              twitterAccount.is_active ? "translate-x-6" : "translate-x-1"
+            )}
+          />
+        </button>
+      </div>
+      <p className="text-xs text-text-tertiary mb-4">
+        Search Twitter/X for tweets matching product keywords. Uses the same keywords from Product Keyword Mappings above.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 border border-surface-200 rounded-xl bg-surface-50">
+        <div>
+          <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Days Back
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={30}
+            value={daysBack}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) || 1;
+              updateMutation.mutate({
+                id: twitterAccount.id,
+                data: {
+                  scrape_config: { ...config, days_back: val },
+                },
+              });
+            }}
+            className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary"
+          />
+          <p className="text-[10px] text-text-tertiary mt-1">How many days back to search (default: 1)</p>
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Max Tweets per Keyword
+          </label>
+          <input
+            type="number"
+            min={10}
+            max={500}
+            value={maxTweets}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) || 50;
+              updateMutation.mutate({
+                id: twitterAccount.id,
+                data: {
+                  scrape_config: { ...config, max_tweets_per_keyword: val },
+                },
+              });
+            }}
+            className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary"
+          />
+          <p className="text-[10px] text-text-tertiary mt-1">Maximum tweets per keyword search (default: 50)</p>
+        </div>
+      </div>
+
+      {activeKeywords.length > 0 && (
+        <div className="mt-3">
+          <p className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Search Keywords (from Product Mappings)
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {activeKeywords.map((kw, i) => (
+              <span key={i} className="px-2 py-0.5 text-xs bg-surface-100 text-text-secondary rounded-md">
+                {kw}
+              </span>
+            ))}
+          </div>
         </div>
       )}
     </div>
