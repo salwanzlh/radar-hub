@@ -11,6 +11,8 @@ import {
   ChevronRight,
   AlertTriangle,
   ChevronDown,
+  ChevronUp,
+  ArrowUpDown,
   Download,
   RefreshCw,
 } from "lucide-react";
@@ -28,6 +30,43 @@ import toast from "react-hot-toast";
 import { SentimentBadge, PlatformBadge } from "./SentimentPage";
 import { CommentDetailModal } from "./CommentDetailModal";
 
+function SortHeader({
+  field,
+  label,
+  align,
+  sortBy,
+  sortOrder,
+  onSort,
+}: {
+  field: string;
+  label: string;
+  align: "left" | "right";
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+  onSort: (field: string) => void;
+}) {
+  const isActive = sortBy === field;
+  return (
+    <th
+      className={cn(
+        "px-5 py-3 font-medium select-none cursor-pointer transition-colors hover:text-text-primary",
+        align === "right" ? "text-right" : "text-left",
+        isActive ? "text-brand-accent" : "text-text-secondary"
+      )}
+      onClick={() => onSort(field)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {isActive ? (
+          sortOrder === "asc" ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />
+        ) : (
+          <ArrowUpDown className="w-3 h-3 opacity-40" />
+        )}
+      </span>
+    </th>
+  );
+}
+
 export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
   const [search, setSearch] = useState("");
   const [platform, setPlatform] = useState("");
@@ -37,6 +76,8 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
   const [page, setPage] = useState(1);
   const [selectedComment, setSelectedComment] = useState<SentimentComment | null>(null);
   const [editingSentimentId, setEditingSentimentId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const pageSize = 20;
 
   // Clear local product filter when parent filter changes
@@ -52,6 +93,8 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
   const params: Record<string, string> = {
     page: String(page),
     page_size: String(pageSize),
+    sort_by: sortBy,
+    sort_order: sortOrder,
   };
   if (search) params.search = search;
   if (platform) params.platform = platform;
@@ -544,12 +587,12 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
                   <tr className="bg-surface-100 border-b border-surface-200">
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Author</th>
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Comment</th>
-                    <th className="text-left px-5 py-3 font-medium text-text-secondary">Source</th>
-                    <th className="text-left px-5 py-3 font-medium text-text-secondary">Product</th>
-                    <th className="text-left px-5 py-3 font-medium text-text-secondary">Platform</th>
-                    <th className="text-left px-5 py-3 font-medium text-text-secondary">Sentiment</th>
+                    <SortHeader field="source" label="Source" align="left" sortBy={sortBy} sortOrder={sortOrder} onSort={(f) => { if (sortBy === f) { setSortOrder(o => o === "asc" ? "desc" : "asc"); } else { setSortBy(f); setSortOrder("asc"); } setPage(1); }} />
+                    <SortHeader field="product" label="Product" align="left" sortBy={sortBy} sortOrder={sortOrder} onSort={(f) => { if (sortBy === f) { setSortOrder(o => o === "asc" ? "desc" : "asc"); } else { setSortBy(f); setSortOrder("asc"); } setPage(1); }} />
+                    <SortHeader field="platform" label="Platform" align="left" sortBy={sortBy} sortOrder={sortOrder} onSort={(f) => { if (sortBy === f) { setSortOrder(o => o === "asc" ? "desc" : "asc"); } else { setSortBy(f); setSortOrder("asc"); } setPage(1); }} />
+                    <SortHeader field="sentiment" label="Sentiment" align="left" sortBy={sortBy} sortOrder={sortOrder} onSort={(f) => { if (sortBy === f) { setSortOrder(o => o === "asc" ? "desc" : "asc"); } else { setSortBy(f); setSortOrder("asc"); } setPage(1); }} />
                     <th className="text-right px-5 py-3 font-medium text-text-secondary">Likes</th>
-                    <th className="text-right px-5 py-3 font-medium text-text-secondary">Date</th>
+                    <SortHeader field="date" label="Date" align="right" sortBy={sortBy} sortOrder={sortOrder} onSort={(f) => { if (sortBy === f) { setSortOrder(o => o === "asc" ? "desc" : "asc"); } else { setSortBy(f); setSortOrder("desc"); } setPage(1); }} />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-100">
