@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import {
@@ -6,6 +6,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  X,
 } from "lucide-react";
 import {
   sentimentApi,
@@ -16,9 +17,75 @@ import {
 import { formatRelativeDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
+function ReportDetailModal({ reportId, onClose }: { reportId: string; onClose: () => void }) {
+  const { data: report, isLoading } = useQuery<SentimentReport>({
+    queryKey: ["sentiment-report-detail", reportId],
+    queryFn: () => sentimentApi.reports.get(reportId),
+  });
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface-white border border-surface-200 rounded-[20px] max-w-3xl w-full max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
+          </div>
+        ) : report ? (
+          <>
+            <div className="sticky top-0 bg-surface-white border-b border-surface-200 px-6 py-4 flex items-start justify-between rounded-t-[20px]">
+              <div>
+                <h3 className="text-base font-semibold text-text-primary">
+                  {report.report_type.charAt(0).toUpperCase() + report.report_type.slice(1)} Report
+                </h3>
+                <p className="text-xs text-text-tertiary mt-1">
+                  {new Date(report.period_start).toLocaleDateString()} - {new Date(report.period_end).toLocaleDateString()}
+                  {" | "}{report.total_analyzed} comments analyzed
+                  {report.product_name && ` | ${report.product_name}`}
+                </p>
+                <p className="text-xs text-text-tertiary mt-0.5">
+                  Generated {formatRelativeDate(report.generated_at)}
+                  {report.model_used && ` | Model: ${report.model_used}`}
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-1.5 text-text-tertiary hover:text-text-primary hover:bg-surface-100 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-6 py-5 prose prose-sm max-w-none text-text-secondary">
+              <ReactMarkdown>{report.content}</ReactMarkdown>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-sm text-text-tertiary">Report not found.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ReportsTab({ selectedProduct }: { selectedProduct?: string }) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
 
   const { data: latestReport, isLoading: latestLoading } = useQuery<SentimentReport | null>({
     queryKey: ["sentiment-latest-report", selectedProduct],
@@ -120,7 +187,11 @@ export function ReportsTab({ selectedProduct }: { selectedProduct?: string }) {
                 </thead>
                 <tbody className="divide-y divide-surface-100">
                   {reportHistory.items.map((report) => (
-                    <tr key={report.id} className="hover:bg-surface-100 transition-colors">
+                    <tr
+                      key={report.id}
+                      className="hover:bg-surface-100 transition-colors cursor-pointer"
+                      onClick={() => setSelectedReportId(report.id)}
+                    >
                       <td className="px-5 py-3.5 text-text-tertiary text-xs whitespace-nowrap">
                         {new Date(report.generated_at).toLocaleDateString()}
                       </td>
@@ -168,6 +239,13 @@ export function ReportsTab({ selectedProduct }: { selectedProduct?: string }) {
           </div>
         )}
       </div>
+
+      {selectedReportId && (
+        <ReportDetailModal
+          reportId={selectedReportId}
+          onClose={() => setSelectedReportId(null)}
+        />
+      )}
     </div>
   );
 }

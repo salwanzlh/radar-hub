@@ -397,6 +397,8 @@ export const sentimentApi = {
     trigger: () => post<{ status: string; message: string }>(`${PREFIX}/scraping/trigger`),
     triggerWeekly: () => post<{ status: string; message: string }>(`${PREFIX}/scraping/trigger-weekly`),
     reclassify: () => post<{ status: string; message: string }>(`${PREFIX}/scraping/reclassify`),
+    verifyTriggerPassword: (password: string) =>
+      post<{ verified: boolean }>(`${PREFIX}/scraping/verify-trigger-password`, { password }),
     progress: () => get<ScrapeProgress>(`${PREFIX}/scraping/progress`),
     logs: (limit = 10) => get<ScrapeLogItem[]>(`${PREFIX}/scraping/logs`, { limit: String(limit) }),
   },

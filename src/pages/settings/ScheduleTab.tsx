@@ -441,7 +441,7 @@ export default function ScheduleTab() {
                     Confirm Manual Scrape
                   </h3>
                   <p className="text-xs text-text-tertiary mt-0.5">
-                    Enter your password to proceed
+                    Enter trigger password to proceed
                   </p>
                 </div>
               </div>
@@ -469,7 +469,7 @@ export default function ScheduleTab() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder="Enter trigger password"
                   autoFocus
                   disabled={triggerMutation.isPending}
                   className="w-full px-4 py-2.5 pr-10 bg-surface-100 border border-surface-200 rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/25 disabled:opacity-60 transition-colors"
