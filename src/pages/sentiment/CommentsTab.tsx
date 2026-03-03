@@ -308,73 +308,6 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
 
   return (
     <div className="space-y-4">
-      {/* Charts */}
-      <div className={cn("grid grid-cols-1 gap-4", gridCols)}>
-        {donutOption && (
-          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-semibold text-text-primary">Sentiment Distribution</h4>
-              {sentiment && (
-                <button
-                  onClick={() => { setSentiment(""); setPage(1); }}
-                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-accent bg-brand-accent/10 rounded-lg hover:bg-brand-accent/20 transition-colors capitalize"
-                >
-                  <X className="w-3 h-3" />
-                  {sentiment}
-                </button>
-              )}
-            </div>
-            <ReactECharts
-              option={donutOption}
-              style={{ height: 220 }}
-              onEvents={{ click: onDonutClick }}
-            />
-          </div>
-        )}
-        {productChartOption && (
-          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-semibold text-text-primary">Sentiment per Product</h4>
-              {localProduct && (
-                <button
-                  onClick={() => { setLocalProduct(""); setLocalProductName(""); setPage(1); }}
-                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-accent bg-brand-accent/10 rounded-lg hover:bg-brand-accent/20 transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                  {localProductName}
-                </button>
-              )}
-            </div>
-            <ReactECharts
-              option={productChartOption}
-              style={{ height: 220 }}
-              onEvents={{ click: onProductChartClick }}
-            />
-          </div>
-        )}
-        {platformChartOption && (
-          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-semibold text-text-primary">Sentiment per Platform</h4>
-              {platform && (
-                <button
-                  onClick={() => { setPlatform(""); setPage(1); }}
-                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-accent bg-brand-accent/10 rounded-lg hover:bg-brand-accent/20 transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                  {platform}
-                </button>
-              )}
-            </div>
-            <ReactECharts
-              option={platformChartOption}
-              style={{ height: 220 }}
-              onEvents={{ click: onPlatformChartClick }}
-            />
-          </div>
-        )}
-      </div>
-
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-[200px] relative">
@@ -444,6 +377,73 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
                 <span className="flex items-center gap-2"><Trash2 className="w-4 h-4" />Delete All</span>
               )}
             </button>
+          </div>
+        )}
+      </div>
+
+      {/* Charts */}
+      <div className={cn("grid grid-cols-1 gap-4", gridCols)}>
+        {donutOption && (
+          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-semibold text-text-primary">Sentiment Distribution</h4>
+              {sentiment && (
+                <button
+                  onClick={() => { setSentiment(""); setPage(1); }}
+                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-accent bg-brand-accent/10 rounded-lg hover:bg-brand-accent/20 transition-colors capitalize"
+                >
+                  <X className="w-3 h-3" />
+                  {sentiment}
+                </button>
+              )}
+            </div>
+            <ReactECharts
+              option={donutOption}
+              style={{ height: 220 }}
+              onEvents={{ click: onDonutClick }}
+            />
+          </div>
+        )}
+        {productChartOption && (
+          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-semibold text-text-primary">Sentiment per Product</h4>
+              {localProduct && (
+                <button
+                  onClick={() => { setLocalProduct(""); setLocalProductName(""); setPage(1); }}
+                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-accent bg-brand-accent/10 rounded-lg hover:bg-brand-accent/20 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                  {localProductName}
+                </button>
+              )}
+            </div>
+            <ReactECharts
+              option={productChartOption}
+              style={{ height: 220 }}
+              onEvents={{ click: onProductChartClick }}
+            />
+          </div>
+        )}
+        {platformChartOption && (
+          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-semibold text-text-primary">Sentiment per Platform</h4>
+              {platform && (
+                <button
+                  onClick={() => { setPlatform(""); setPage(1); }}
+                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-accent bg-brand-accent/10 rounded-lg hover:bg-brand-accent/20 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                  {platform}
+                </button>
+              )}
+            </div>
+            <ReactECharts
+              option={platformChartOption}
+              style={{ height: 220 }}
+              onEvents={{ click: onPlatformChartClick }}
+            />
           </div>
         )}
       </div>
@@ -543,10 +543,14 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
             {reclassifyProgress.status === "running" && <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />}
             {reclassifyProgress.status === "completed" && <RefreshCw className="w-4 h-4 text-green-400" />}
             {reclassifyProgress.status === "failed" && <AlertTriangle className="w-4 h-4 text-red-400" />}
-            <span className="text-sm font-medium text-text-primary capitalize">
-              Reclassification {reclassifyProgress.status}
+            <span className="text-sm font-medium text-text-primary">
+              {reclassifyProgress.status === "completed"
+                ? `Data refreshed per ${reclassifyProgress.finished_at ? new Date(reclassifyProgress.finished_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`
+                : reclassifyProgress.status === "running"
+                ? "Refreshing data..."
+                : "Data refresh failed"}
             </span>
-            {reclassifyProgress.current_phase && (
+            {reclassifyProgress.current_phase && reclassifyProgress.status === "running" && (
               <span className="text-xs text-text-tertiary">- {reclassifyProgress.current_phase}</span>
             )}
           </div>

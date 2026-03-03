@@ -218,8 +218,8 @@ export default function ScheduleTab() {
       <div>
         <h4 className="text-sm font-semibold text-text-primary mb-3">Scheduler</h4>
         <div className="flex items-center gap-4 p-5 border border-surface-200 rounded-xl bg-surface-50">
-          <div className="flex-1">
-            <div className="flex items-center gap-2.5 mb-1">
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2.5">
               <span className="relative flex h-2.5 w-2.5">
                 <span
                   className={cn(
@@ -242,10 +242,31 @@ export default function ScheduleTab() {
                   : "Paused"}
               </span>
             </div>
-            {schedulerStatus?.next_run_time && (
-              <p className="text-xs text-text-tertiary ml-5">
-                Next run: {new Date(schedulerStatus.next_run_time).toLocaleString("id-ID")}
-              </p>
+            {schedulerStatus?.jobs && schedulerStatus.jobs.length > 0 && (
+              <div className="ml-5 space-y-2 mt-1">
+                {schedulerStatus.jobs.map((job: { id: string; name: string; frequency: string; schedule: string; next_run_time: string | null; last_run_time: string | null; is_active: boolean }) => (
+                  <div key={job.id} className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className={cn("inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider", job.is_active ? "bg-status-success-light text-status-success" : "bg-surface-200 text-text-tertiary")}>
+                        {job.frequency}
+                      </span>
+                      <span className="text-xs font-medium text-text-secondary">{job.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3 ml-0.5">
+                      {job.last_run_time && (
+                        <span className="text-[11px] text-text-tertiary">
+                          Last run: {new Date(job.last_run_time).toLocaleString("id-ID")}
+                        </span>
+                      )}
+                      {job.next_run_time && (
+                        <span className="text-[11px] text-text-tertiary">
+                          Next: {new Date(job.next_run_time).toLocaleString("id-ID")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
           <div className="flex gap-2">

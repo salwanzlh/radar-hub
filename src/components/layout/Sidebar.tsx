@@ -1,13 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Newspaper, BrainCircuit, MessageCircle, HeartPulse, Settings } from "lucide-react";
+import { Newspaper, BrainCircuit, MessageCircle, HeartPulse, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./SidebarContext";
 
 const NAV_ITEMS = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { label: "Sentiment", href: "/sentiment", icon: MessageCircle },
   { label: "News Articles", href: "/articles", icon: Newspaper },
   { label: "AI Analysis", href: "/analysis", icon: BrainCircuit },
-  { label: "Sentiment", href: "/sentiment", icon: MessageCircle },
   { label: "Health Check", href: "/health", icon: HeartPulse },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
@@ -50,10 +49,7 @@ export function Sidebar() {
       <nav className={cn("flex-1 py-6 transition-all duration-300", collapsed ? "px-2" : "px-4")}>
         <ul className="space-y-1.5">
           {NAV_ITEMS.map((item) => {
-            const isActive =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(item.href);
+            const isActive = pathname.startsWith(item.href);
 
             return (
               <li key={item.href} className="relative group/nav">

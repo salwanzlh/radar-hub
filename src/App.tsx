@@ -1,7 +1,6 @@
 import { createBrowserRouter, Navigate, Outlet, RouterProvider } from "react-router-dom";
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import { useAuth } from "@/lib/auth-context";
-import DashboardPage from "@/pages/DashboardPage";
 import ArticlesPage from "@/pages/ArticlesPage";
 import AnalysisPage from "@/pages/AnalysisPage";
 import SentimentPage from "@/pages/sentiment";
@@ -61,7 +60,7 @@ const router = createBrowserRouter(
           path: "/",
           element: <LayoutShell />,
           children: [
-            { index: true, element: <DashboardPage /> },
+            { index: true, element: <Navigate to="/sentiment" replace /> },
             { path: "articles", element: <ArticlesPage /> },
             { path: "analysis", element: <AnalysisPage /> },
             { path: "sentiment", element: <SentimentPage /> },
