@@ -170,11 +170,22 @@ export interface DashboardStats {
   category_counts: Record<string, { name: string; slug: string; count: number }>;
 }
 
+export interface SchedulerJob {
+  id: string;
+  name: string;
+  frequency: string;
+  schedule: string;
+  next_run_time: string | null;
+  last_run_time: string | null;
+  is_active: boolean;
+}
+
 export interface SchedulerStatus {
   is_running: boolean;
   next_run_time: string | null;
   cron_expression?: string;
   timezone?: string;
+  jobs?: SchedulerJob[];
 }
 
 export interface ProductLineup {

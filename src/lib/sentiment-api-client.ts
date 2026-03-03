@@ -280,13 +280,22 @@ export interface DirectUrlUpdate {
   is_active?: boolean;
 }
 
+export interface SchedulerJob {
+  id: string;
+  name: string;
+  frequency: string;
+  schedule: string;
+  next_run_time: string | null;
+  last_run_time: string | null;
+  is_active: boolean;
+}
+
 export interface SchedulerStatus {
   is_running: boolean;
   next_run_time: string | null;
   cron_expression: string | null;
   timezone: string | null;
-  weekly_next_run_time?: string | null;
-  weekly_cron_expression?: string | null;
+  jobs?: SchedulerJob[];
 }
 
 export interface ScrapeLogEntry {
