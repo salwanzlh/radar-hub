@@ -1,19 +1,21 @@
 import { Link, useLocation } from "react-router-dom";
 import { Newspaper, BrainCircuit, MessageCircle, HeartPulse, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 import { useSidebar } from "./SidebarContext";
 
 const NAV_ITEMS = [
   { label: "Sentiment", href: "/sentiment", icon: MessageCircle },
   { label: "News Articles", href: "/articles", icon: Newspaper },
   { label: "AI Analysis", href: "/analysis", icon: BrainCircuit },
-  { label: "Health Check", href: "/health", icon: HeartPulse },
+  { label: "Health Check", href: "/health", icon: HeartPulse, adminOnly: true },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {
   const { pathname } = useLocation();
   const { collapsed } = useSidebar();
+  const { isAdmin } = useAuth();
 
   return (
     <aside
@@ -48,7 +50,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className={cn("flex-1 py-6 transition-all duration-300", collapsed ? "px-2" : "px-4")}>
         <ul className="space-y-1.5">
-          {NAV_ITEMS.map((item) => {
+          {NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin).map((item) => {
             const isActive = pathname.startsWith(item.href);
 
             return (

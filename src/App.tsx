@@ -27,6 +27,24 @@ function ProtectedRoute() {
   return <Outlet />;
 }
 
+function AdminRoute() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-surface-50 flex items-center justify-center">
+        <div className="text-text-tertiary">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== "admin") {
+    return <Navigate to="/sentiment" replace />;
+  }
+
+  return <Outlet />;
+}
+
 function PublicOnlyRoute() {
   const { user, isLoading } = useAuth();
 
@@ -64,7 +82,7 @@ const router = createBrowserRouter(
             { path: "articles", element: <ArticlesPage /> },
             { path: "analysis", element: <AnalysisPage /> },
             { path: "sentiment", element: <SentimentPage /> },
-            { path: "health", element: <HealthPage /> },
+            { element: <AdminRoute />, children: [{ path: "health", element: <HealthPage /> }] },
             { path: "settings", element: <SettingsPage /> },
             { path: "*", element: <NotFoundPage /> },
           ],
