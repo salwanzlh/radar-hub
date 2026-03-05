@@ -292,6 +292,11 @@ export interface UserInfo {
   updated_at: string;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export const api = {
   auth: {
     verifyPassword: (password: string) =>
@@ -361,6 +366,39 @@ export const api = {
     status: () => get<SchedulerStatus>("/api/v1/scheduler/status"),
     pause: () => post<SchedulerStatus>("/api/v1/scheduler/pause"),
     resume: () => post<SchedulerStatus>("/api/v1/scheduler/resume"),
+  },
+  chat: {
+    stream: async function* (messages: ChatMessage[], mode: "quick" | "advisor"): AsyncGenerator<string> {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(`${API_BASE}/api/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ messages, mode }),
+      });
+      if (!response.ok) throw new ApiError(response.status, "Chat request failed");
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]") return;
+            yield data;
+          }
+        }
+      }
+    },
   },
   users: {
     list: () => get<UserInfo[]>("/api/v1/users"),

@@ -4,6 +4,7 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { useSidebar } from "./SidebarContext";
+import { ChatWidget } from "../chat/ChatWidget";
 import { cn } from "@/lib/utils";
 
 export function LayoutShell() {
@@ -39,6 +40,7 @@ export function LayoutShell() {
           </ErrorBoundary>
         </main>
       </div>
+      <ChatWidget />
     </div>
   );
 }
