@@ -1,9 +1,29 @@
-import { useState, useRef, useEffect, useCallback, type ComponentPropsWithoutRef } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, type ComponentPropsWithoutRef } from "react";
 import { BrainCircuit, X, SquarePen, Send, Loader2, Copy, Check } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { api, type ChatMessage } from "@/lib/api-client";
+
+/**
+ * Trim incomplete markdown table rows during streaming.
+ * A table needs at least a header row + separator row to render.
+ * If the last line is a partial row (no trailing |), remove it.
+ */
+function trimPartialTable(text: string): string {
+  const lines = text.split("\n");
+  // Walk backwards to find and trim any incomplete table row
+  while (lines.length > 0) {
+    const last = lines[lines.length - 1];
+    // If the last line looks like a partial table row (starts with | but doesn't end with |)
+    if (last.startsWith("|") && !last.trimEnd().endsWith("|")) {
+      lines.pop();
+      continue;
+    }
+    break;
+  }
+  return lines.join("\n");
+}
 
 const markdownComponents: Components = {
   h2({ children }: ComponentPropsWithoutRef<"h2">) {
@@ -110,6 +130,23 @@ function CopyButton({ text }: { text: string }) {
     >
       {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
     </button>
+  );
+}
+
+function AssistantContent({ content, streaming }: { content: string; streaming: boolean }) {
+  const safeContent = useMemo(() => (streaming ? trimPartialTable(content) : content), [content, streaming]);
+
+  return (
+    <>
+      <div className="max-w-none">
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{safeContent}</ReactMarkdown>
+      </div>
+      {!streaming && (
+        <div className="flex items-center gap-0.5 mt-2">
+          <CopyButton text={content} />
+        </div>
+      )}
+    </>
   );
 }
 
@@ -328,17 +365,7 @@ export function ChatWidget({ open, onToggle }: ChatWidgetProps) {
                       <span className="text-xs font-semibold text-text-primary">MITRA AI</span>
                       <div className="mt-1">
                         {msg.content ? (
-                          <>
-                            <div className="max-w-none">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{msg.content}</ReactMarkdown>
-                            </div>
-                            {/* Action bar */}
-                            {!isStreaming && (
-                              <div className="flex items-center gap-0.5 mt-2">
-                                <CopyButton text={msg.content} />
-                              </div>
-                            )}
-                          </>
+                          <AssistantContent content={msg.content} streaming={isStreaming} />
                         ) : (
                           <div className="flex items-center gap-2 text-text-tertiary py-1">
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
