@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   CheckCircle2,
   Copy,
@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Activity,
   MessageSquare,
+  RefreshCw,
 } from "lucide-react";
 import {
   AreaChart,
@@ -998,10 +999,22 @@ export default function HealthPage() {
   const [sentimentTab, setSentimentTab] = useState<SentimentTab>("scrape_logs");
   const [searchQuery, setSearchQuery] = useState("");
 
+  const queryClient = useQueryClient();
+
   // Always-fetched queries
   const { data: healthData, isLoading: healthLoading } = useQuery({
     queryKey: ["health-evaluation"],
     queryFn: api.health.evaluation,
+  });
+
+  const triggerMutation = useMutation({
+    mutationFn: api.health.trigger,
+    onSuccess: () => {
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["health-evaluation"] });
+        queryClient.invalidateQueries({ queryKey: ["health-history"] });
+      }, 5000);
+    },
   });
 
   const {
@@ -1043,8 +1056,38 @@ export default function HealthPage() {
     return <p className="text-text-tertiary">Failed to load health evaluation data.</p>;
   }
 
+  const checkedAt = (healthData as Record<string, unknown> | undefined)?.checked_at as string | null | undefined;
+
   return (
     <div className="space-y-6">
+      {/* Header with trigger button */}
+      <div className="flex items-center justify-between">
+        <div>
+          {checkedAt && (
+            <p className="text-xs text-text-tertiary">
+              Last evaluation: {formatRelativeDate(checkedAt)}
+            </p>
+          )}
+          {!checkedAt && (
+            <p className="text-xs text-status-warning">
+              No health evaluation yet. Run one to see results.
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => triggerMutation.mutate()}
+          disabled={triggerMutation.isPending}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors",
+            "bg-brand-accent text-text-inverse hover:bg-brand-accent/90",
+            "disabled:opacity-50 disabled:cursor-not-allowed"
+          )}
+        >
+          <RefreshCw className={cn("w-4 h-4", triggerMutation.isPending && "animate-spin")} />
+          {triggerMutation.isPending ? "Running..." : "Run Evaluation"}
+        </button>
+      </div>
+
       {/* Unified Overview */}
       <UnifiedOverview
         healthData={healthData}

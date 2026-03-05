@@ -406,7 +406,8 @@ export const api = {
     },
   },
   health: {
-    evaluation: () => get<HealthResponse>("/api/v1/health/evaluation"),
+    evaluation: () => get<HealthResponse & { checked_at?: string }>("/api/v1/health/evaluation"),
+    trigger: () => post<{ status: string; message: string }>("/api/v1/health/trigger"),
     history: (limit = 30) => get<HealthCheckHistoryPoint[]>("/api/v1/health/history", { limit: String(limit) }),
     sentimentScrapeLogs: (limit = 20) => get<SentimentScrapeLog[]>("/api/v1/health/sentiment/scrape-logs", { limit: String(limit) }),
     sentimentQualityStats: () => get<SentimentQualityStats>("/api/v1/health/sentiment/quality-stats"),
