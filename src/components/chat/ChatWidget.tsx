@@ -1,8 +1,51 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type ComponentPropsWithoutRef } from "react";
 import { MessageCircle, X, Trash2, Send, Loader2 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import { cn } from "@/lib/utils";
 import { api, type ChatMessage } from "@/lib/api-client";
+
+const markdownComponents: Components = {
+  h2({ children }: ComponentPropsWithoutRef<"h2">) {
+    return <h2 className="text-xs font-bold uppercase tracking-wide text-text-primary mt-3 mb-1.5">{children}</h2>;
+  },
+  h3({ children }: ComponentPropsWithoutRef<"h3">) {
+    return <h3 className="text-sm font-semibold text-text-primary mt-2.5 mb-1">{children}</h3>;
+  },
+  p({ children }: ComponentPropsWithoutRef<"p">) {
+    return <p className="text-sm text-text-secondary leading-relaxed mb-2">{children}</p>;
+  },
+  strong({ children }: ComponentPropsWithoutRef<"strong">) {
+    return <strong className="font-semibold text-text-primary">{children}</strong>;
+  },
+  a({ children, href }: ComponentPropsWithoutRef<"a">) {
+    return <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand-accent hover:underline">{children}</a>;
+  },
+  ul({ children }: ComponentPropsWithoutRef<"ul">) {
+    return <ul className="text-sm text-text-secondary mb-2 space-y-0.5 list-disc list-outside ml-4">{children}</ul>;
+  },
+  ol({ children }: ComponentPropsWithoutRef<"ol">) {
+    return <ol className="text-sm text-text-secondary mb-2 space-y-0.5 list-decimal list-outside ml-4">{children}</ol>;
+  },
+  li({ children }: ComponentPropsWithoutRef<"li">) {
+    return <li className="leading-relaxed">{children}</li>;
+  },
+  hr() {
+    return <hr className="my-2 border-none h-px bg-surface-200" />;
+  },
+  blockquote({ children }: ComponentPropsWithoutRef<"blockquote">) {
+    return <blockquote className="border-l-2 border-brand-accent/40 pl-3 my-2 text-xs text-text-tertiary">{children}</blockquote>;
+  },
+  code({ children, className }: ComponentPropsWithoutRef<"code">) {
+    const isBlock = className?.includes("language-");
+    if (isBlock) {
+      return <code className="block bg-surface-200 rounded-lg px-3 py-2 text-xs text-text-primary overflow-x-auto my-2 whitespace-pre-wrap">{children}</code>;
+    }
+    return <code className="bg-surface-200 rounded px-1 py-0.5 text-xs text-text-primary">{children}</code>;
+  },
+  pre({ children }: ComponentPropsWithoutRef<"pre">) {
+    return <pre className="my-2">{children}</pre>;
+  },
+};
 
 type ChatMode = "quick" | "advisor";
 
@@ -237,11 +280,14 @@ export function ChatWidget() {
                 >
                   {msg.role === "assistant" ? (
                     msg.content ? (
-                      <div className="prose prose-sm prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <div className="max-w-none">
+                        <ReactMarkdown components={markdownComponents}>{msg.content}</ReactMarkdown>
                       </div>
                     ) : (
-                      <Loader2 className="w-4 h-4 animate-spin text-text-tertiary" />
+                      <div className="flex items-center gap-2 text-text-tertiary">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span className="text-xs animate-pulse">Menganalisis data...</span>
+                      </div>
                     )
                   ) : (
                     msg.content
