@@ -282,6 +282,52 @@ export interface HealthResponse {
   source_health: SourceHealthItem[];
 }
 
+export interface HealthCheckHistoryPoint {
+  checked_at: string;
+  total_articles: number;
+  flagged_urls: number;
+  duplicate_groups: number;
+  healthy_sources: number;
+  degraded_sources: number;
+  failing_sources: number;
+}
+
+export interface SentimentScrapeLog {
+  id: string;
+  status: string;
+  started_at: string;
+  finished_at: string;
+  duration_seconds: number;
+  error: string | null;
+  summary: Record<string, number>;
+  log_entries: Array<{ timestamp: string; message: string; counts?: Record<string, number> }>;
+}
+
+export interface SentimentQualityStats {
+  total_comments: number;
+  total_excluded: number;
+  total_active: number;
+  total_classified: number;
+  exclusion_breakdown: Record<string, number>;
+  last_scrape_summary: Record<string, number>;
+  last_scrape_at: string | null;
+}
+
+export interface SentimentAccountHealth {
+  account_id: string;
+  platform: string;
+  account_name: string;
+  is_active: boolean;
+  total_comments: number;
+  recent_comments_7d: number;
+  last_comment_at: string | null;
+  last_error: string | null;
+  url_accessible: boolean;
+  account_url: string | null;
+  status: string;
+  status_reason: string | null;
+}
+
 export interface UserInfo {
   id: string;
   email: string;
@@ -361,6 +407,10 @@ export const api = {
   },
   health: {
     evaluation: () => get<HealthResponse>("/api/v1/health/evaluation"),
+    history: (limit = 30) => get<HealthCheckHistoryPoint[]>("/api/v1/health/history", { limit: String(limit) }),
+    sentimentScrapeLogs: (limit = 20) => get<SentimentScrapeLog[]>("/api/v1/health/sentiment/scrape-logs", { limit: String(limit) }),
+    sentimentQualityStats: () => get<SentimentQualityStats>("/api/v1/health/sentiment/quality-stats"),
+    sentimentAccounts: () => get<SentimentAccountHealth[]>("/api/v1/health/sentiment/accounts"),
   },
   scheduler: {
     status: () => get<SchedulerStatus>("/api/v1/scheduler/status"),
