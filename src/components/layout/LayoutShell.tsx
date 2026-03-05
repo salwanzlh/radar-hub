@@ -1,14 +1,16 @@
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { ChevronsLeft } from "lucide-react";
+import { BrainCircuit, ChevronsLeft } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { useSidebar } from "./SidebarContext";
-import { ChatWidget } from "../chat/ChatWidget";
+import { ChatWidget, CHAT_PANEL_WIDTH } from "../chat/ChatWidget";
 import { cn } from "@/lib/utils";
 
 export function LayoutShell() {
   const { collapsed, toggle } = useSidebar();
+  const [chatOpen, setChatOpen] = useState(false);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -30,8 +32,11 @@ export function LayoutShell() {
       </button>
 
       <div
-        className="flex-1 flex flex-col overflow-hidden transition-[margin-left] duration-300 ease-in-out"
-        style={{ marginLeft: collapsed ? 80 : 280 }}
+        className="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out"
+        style={{
+          marginLeft: collapsed ? 80 : 280,
+          marginRight: chatOpen ? CHAT_PANEL_WIDTH : 0,
+        }}
       >
         <Header />
         <main className="flex-1 overflow-y-auto p-8">
@@ -40,7 +45,19 @@ export function LayoutShell() {
           </ErrorBoundary>
         </main>
       </div>
-      <ChatWidget />
+
+      {/* Chat toggle button */}
+      {!chatOpen && (
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-brand-accent text-black flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer"
+          aria-label="Open AI Assistant"
+        >
+          <BrainCircuit className="w-5 h-5" />
+        </button>
+      )}
+
+      <ChatWidget open={chatOpen} onToggle={() => setChatOpen(!chatOpen)} />
     </div>
   );
 }
