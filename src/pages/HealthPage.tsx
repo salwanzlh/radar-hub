@@ -1056,7 +1056,7 @@ export default function HealthPage() {
     return <p className="text-text-tertiary">Failed to load health evaluation data.</p>;
   }
 
-  const checkedAt = (healthData as Record<string, unknown> | undefined)?.checked_at as string | null | undefined;
+  const checkedAt = (healthData as unknown as Record<string, unknown> | undefined)?.checked_at as string | null | undefined;
 
   return (
     <div className="space-y-6">
