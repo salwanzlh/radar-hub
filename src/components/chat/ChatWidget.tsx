@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, type ComponentPropsWithoutRef } from "react";
-import { BrainCircuit, X, Trash2, Send, Loader2, Copy, Check } from "lucide-react";
+import { BrainCircuit, X, SquarePen, Send, Loader2, Copy, Check } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { cn } from "@/lib/utils";
 import { api, type ChatMessage } from "@/lib/api-client";
@@ -212,10 +212,10 @@ export function ChatWidget({ open, onToggle }: ChatWidgetProps) {
           <button
             onClick={clearChat}
             className="p-1.5 rounded-lg hover:bg-surface-100 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
-            aria-label="Clear chat"
-            title="Clear chat"
+            aria-label="New chat"
+            title="New chat"
           >
-            <Trash2 className="w-4 h-4" />
+            <SquarePen className="w-4 h-4" />
           </button>
           <button
             onClick={onToggle}
