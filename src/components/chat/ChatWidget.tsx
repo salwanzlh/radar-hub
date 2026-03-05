@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, type ComponentPropsWithoutRef } from "react";
 import { BrainCircuit, X, SquarePen, Send, Loader2, Copy, Check } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { api, type ChatMessage } from "@/lib/api-client";
 
@@ -44,6 +45,28 @@ const markdownComponents: Components = {
   },
   pre({ children }: ComponentPropsWithoutRef<"pre">) {
     return <pre className="my-2">{children}</pre>;
+  },
+  table({ children }: ComponentPropsWithoutRef<"table">) {
+    return (
+      <div className="overflow-x-auto my-2 rounded-lg border border-surface-200">
+        <table className="w-full text-xs">{children}</table>
+      </div>
+    );
+  },
+  thead({ children }: ComponentPropsWithoutRef<"thead">) {
+    return <thead className="bg-surface-200 text-text-primary">{children}</thead>;
+  },
+  tbody({ children }: ComponentPropsWithoutRef<"tbody">) {
+    return <tbody className="divide-y divide-surface-200">{children}</tbody>;
+  },
+  tr({ children }: ComponentPropsWithoutRef<"tr">) {
+    return <tr className="hover:bg-surface-100/50">{children}</tr>;
+  },
+  th({ children }: ComponentPropsWithoutRef<"th">) {
+    return <th className="px-2.5 py-1.5 text-left font-semibold whitespace-nowrap">{children}</th>;
+  },
+  td({ children }: ComponentPropsWithoutRef<"td">) {
+    return <td className="px-2.5 py-1.5 text-text-secondary">{children}</td>;
   },
 };
 
@@ -307,7 +330,7 @@ export function ChatWidget({ open, onToggle }: ChatWidgetProps) {
                         {msg.content ? (
                           <>
                             <div className="max-w-none">
-                              <ReactMarkdown components={markdownComponents}>{msg.content}</ReactMarkdown>
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{msg.content}</ReactMarkdown>
                             </div>
                             {/* Action bar */}
                             {!isStreaming && (
