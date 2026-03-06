@@ -5,12 +5,13 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { useSidebar } from "./SidebarContext";
-import { ChatWidget, CHAT_PANEL_WIDTH } from "../chat/ChatWidget";
+import { ChatWidget, CHAT_PANEL_DEFAULT_WIDTH } from "../chat/ChatWidget";
 import { cn } from "@/lib/utils";
 
 export function LayoutShell() {
   const { collapsed, toggle } = useSidebar();
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatWidth, setChatWidth] = useState(CHAT_PANEL_DEFAULT_WIDTH);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -35,7 +36,7 @@ export function LayoutShell() {
         className="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out"
         style={{
           marginLeft: collapsed ? 80 : 280,
-          marginRight: chatOpen ? CHAT_PANEL_WIDTH : 0,
+          marginRight: chatOpen ? chatWidth : 0,
         }}
       >
         <Header />
@@ -57,7 +58,7 @@ export function LayoutShell() {
         </button>
       )}
 
-      <ChatWidget open={chatOpen} onToggle={() => setChatOpen(!chatOpen)} />
+      <ChatWidget open={chatOpen} onToggle={() => setChatOpen(!chatOpen)} width={chatWidth} onWidthChange={setChatWidth} />
     </div>
   );
 }

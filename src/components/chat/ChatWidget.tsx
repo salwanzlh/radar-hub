@@ -150,20 +150,53 @@ function AssistantContent({ content, streaming }: { content: string; streaming: 
   );
 }
 
-export const CHAT_PANEL_WIDTH = 400;
+export const CHAT_PANEL_MIN_WIDTH = 360;
+export const CHAT_PANEL_MAX_WIDTH = 800;
+export const CHAT_PANEL_DEFAULT_WIDTH = 400;
 
 interface ChatWidgetProps {
   open: boolean;
   onToggle: () => void;
+  width: number;
+  onWidthChange: (width: number) => void;
 }
 
-export function ChatWidget({ open, onToggle }: ChatWidgetProps) {
+export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetProps) {
   const [mode, setMode] = useState<ChatMode>("quick");
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsResizing(true);
+      const startX = e.clientX;
+      const startWidth = width;
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        const delta = startX - moveEvent.clientX;
+        const newWidth = Math.min(
+          CHAT_PANEL_MAX_WIDTH,
+          Math.max(CHAT_PANEL_MIN_WIDTH, startWidth + delta)
+        );
+        onWidthChange(newWidth);
+      };
+
+      const onMouseUp = () => {
+        setIsResizing(false);
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [width, onWidthChange]
+  );
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -253,10 +286,16 @@ export function ChatWidget({ open, onToggle }: ChatWidgetProps) {
     <div
       className={cn(
         "fixed top-0 right-0 h-screen z-40 flex flex-col bg-surface-50 border-l border-surface-200 transition-transform duration-300 ease-in-out",
-        open ? "translate-x-0" : "translate-x-full"
+        open ? "translate-x-0" : "translate-x-full",
+        isResizing && "select-none"
       )}
-      style={{ width: CHAT_PANEL_WIDTH }}
+      style={{ width }}
     >
+      {/* Resize handle */}
+      <div
+        onMouseDown={handleResizeStart}
+        className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-brand-accent/30 active:bg-brand-accent/50 transition-colors z-50"
+      />
       {/* Header */}
       <div className="flex items-center justify-between px-4 h-[72px] border-b border-surface-200 shrink-0">
         <div className="flex items-center gap-2.5">
