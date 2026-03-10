@@ -102,6 +102,38 @@ function del<T>(endpoint: string): Promise<T> {
   return request<T>(endpoint, { method: "DELETE" });
 }
 
+async function uploadFile<T>(endpoint: string, file: File): Promise<T> {
+  const url = `${API_BASE}${endpoint}`;
+  const token = localStorage.getItem("access_token");
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: formData,
+    credentials: "include",
+  });
+
+  if (response.status === 401) {
+    localStorage.removeItem("access_token");
+    window.location.href = import.meta.env.BASE_URL + "login";
+    throw new ApiError(401, "Session expired");
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, error.error || error.detail || `Upload failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 // API endpoints
 export interface PaginatedResponse<T> {
   items: T[];
@@ -343,6 +375,90 @@ export interface ChatMessage {
   content: string;
 }
 
+// Pipeline types
+export interface PipelineFile {
+  id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  blob_url: string;
+  status: string;
+  error_message: string | null;
+  uploaded_by: string;
+  created_at: string;
+  structured_tables: PipelineStructuredTable[];
+  unstructured_refs: PipelineUnstructuredRef[];
+}
+
+export interface PipelineFileSummary {
+  id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  status: string;
+  created_at: string;
+}
+
+export interface PipelineStructuredTable {
+  id: string;
+  file_id: string;
+  table_name: string;
+  sheet_name: string | null;
+  detected_header: string | null;
+  column_schema: { name: string; type: string }[];
+  row_count: number;
+  created_at: string;
+}
+
+export interface PipelineUnstructuredRef {
+  id: string;
+  file_id: string;
+  parent_id: string;
+  chunk_count: number;
+  created_at: string;
+}
+
+export interface PipelineJob {
+  id: string;
+  file_id: string;
+  job_type: string;
+  status: string;
+  current_stage: string | null;
+  progress_pct: number;
+  stages_detail: { stage: string; status: string; message?: string }[];
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface DetectedColumn {
+  name: string;
+  type: string;
+}
+
+export interface DetectedTable {
+  sheet_name: string;
+  detected_header: string;
+  suggested_table_name: string;
+  columns: DetectedColumn[];
+  sample_rows: unknown[][];
+  row_count: number;
+  schema_match: string | null;
+}
+
+export interface ParsePreview {
+  file_id: string;
+  file_name: string;
+  tables: DetectedTable[];
+}
+
+export interface TableConfirmItem {
+  detected_header: string;
+  sheet_name: string;
+  target_table: string;
+}
+
 export const api = {
   auth: {
     verifyPassword: (password: string) =>
@@ -462,5 +578,27 @@ export const api = {
     update: (id: string, data: { full_name?: string; role?: string; is_active?: boolean }) =>
       put<UserInfo>(`/api/v1/users/${id}`, data),
     delete: (id: string) => del(`/api/v1/users/${id}`),
+  },
+  pipeline: {
+    upload: (file: File) =>
+      uploadFile<PipelineFile>("/api/v1/pipeline/upload", file),
+    getFiles: (params: Record<string, string>) =>
+      get<PaginatedResponse<PipelineFileSummary>>("/api/v1/pipeline/files", params),
+    getFile: (id: string) =>
+      get<PipelineFile>(`/api/v1/pipeline/files/${id}`),
+    deleteFile: (id: string) =>
+      del(`/api/v1/pipeline/files/${id}`),
+    parse: (id: string) =>
+      post<ParsePreview>(`/api/v1/pipeline/files/${id}/parse`),
+    getPreview: (id: string) =>
+      get<ParsePreview>(`/api/v1/pipeline/files/${id}/preview`),
+    confirm: (id: string, tables: TableConfirmItem[]) =>
+      post<PipelineJob>(`/api/v1/pipeline/files/${id}/confirm`, { tables }),
+    process: (id: string) =>
+      post<PipelineJob>(`/api/v1/pipeline/files/${id}/process`),
+    getJobs: (params: Record<string, string>) =>
+      get<PaginatedResponse<PipelineJob>>("/api/v1/pipeline/jobs", params),
+    getJob: (id: string) =>
+      get<PipelineJob>(`/api/v1/pipeline/jobs/${id}`),
   },
 };
