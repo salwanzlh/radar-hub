@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Newspaper, BrainCircuit, MessageCircle, HeartPulse, Settings } from "lucide-react";
+import { Newspaper, BrainCircuit, MessageCircle, HeartPulse, Settings, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { useSidebar } from "./SidebarContext";
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { label: "News Articles", href: "/articles", icon: Newspaper },
   { label: "AI Analysis", href: "/analysis", icon: BrainCircuit },
   { label: "Health Check", href: "/health", icon: HeartPulse, adminOnly: true },
+  { label: "Data Pipeline", href: "/pipeline", icon: Database, adminOnly: true },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

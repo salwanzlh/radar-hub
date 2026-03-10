@@ -6,6 +6,7 @@ import AnalysisPage from "@/pages/AnalysisPage";
 import SentimentPage from "@/pages/sentiment";
 import HealthPage from "@/pages/HealthPage";
 import SettingsPage from "@/pages/settings";
+import DataPipelinePage from "@/pages/pipeline";
 import LoginPage from "@/pages/LoginPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 
@@ -82,7 +83,10 @@ const router = createBrowserRouter(
             { path: "articles", element: <ArticlesPage /> },
             { path: "analysis", element: <AnalysisPage /> },
             { path: "sentiment", element: <SentimentPage /> },
-            { element: <AdminRoute />, children: [{ path: "health", element: <HealthPage /> }] },
+            { element: <AdminRoute />, children: [
+              { path: "health", element: <HealthPage /> },
+              { path: "pipeline", element: <DataPipelinePage /> },
+            ] },
             { path: "settings", element: <SettingsPage /> },
             { path: "*", element: <NotFoundPage /> },
           ],
