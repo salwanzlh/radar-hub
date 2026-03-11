@@ -19,6 +19,20 @@ import { api } from "@/lib/api-client";
 import type { PricingSource } from "@/lib/api-client";
 import toast from "react-hot-toast";
 
+function b64Encode(str: string): string {
+  return btoa(new TextEncoder().encode(str).reduce((s, b) => s + String.fromCharCode(b), ""));
+}
+
+function b64Decode(str: string): string {
+  try {
+    return new TextDecoder().decode(
+      Uint8Array.from(atob(str), (c) => c.charCodeAt(0))
+    );
+  } catch {
+    return str;
+  }
+}
+
 const JOB_STATUS_COLORS: Record<string, string> = {
   pending: "bg-surface-200 text-text-secondary",
   running: "bg-yellow-50 text-yellow-700",
@@ -46,18 +60,19 @@ function SourceFormModal({
 }) {
   const [brand, setBrand] = useState(source?.brand || "");
   const [websiteName, setWebsiteName] = useState(source?.website_name || "");
-  const [url, setUrl] = useState(source?.url || "");
+  const [url, setUrl] = useState(source ? b64Decode(source.url) : "");
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    const encodedUrl = b64Encode(url);
     try {
       if (source) {
-        await api.pricing.updateSource(source.id, { brand, website_name: websiteName, url });
+        await api.pricing.updateSource(source.id, { brand, website_name: websiteName, url: encodedUrl });
         toast.success("Source updated");
       } else {
-        await api.pricing.createSource({ brand, website_name: websiteName, url });
+        await api.pricing.createSource({ brand, website_name: websiteName, url: encodedUrl });
         toast.success("Source created");
       }
       onSaved();
@@ -88,7 +103,7 @@ function SourceFormModal({
               required
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
-              placeholder="e.g. Toyota"
+              placeholder="e.g. Mitsubishi"
               className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 bg-surface-50 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40 focus:border-brand-accent/40 transition-colors placeholder:text-text-tertiary"
             />
           </div>
@@ -101,7 +116,7 @@ function SourceFormModal({
               required
               value={websiteName}
               onChange={(e) => setWebsiteName(e.target.value)}
-              placeholder="e.g. Toyota Indonesia"
+              placeholder="e.g. Mitsubishi Motors Indonesia"
               className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 bg-surface-50 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40 focus:border-brand-accent/40 transition-colors placeholder:text-text-tertiary"
             />
           </div>
@@ -112,7 +127,7 @@ function SourceFormModal({
               required
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://www.toyota.astra.co.id/product"
+              placeholder="https://www.mitsubishi-motors.co.id/our-cars"
               className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 bg-surface-50 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40 focus:border-brand-accent/40 transition-colors placeholder:text-text-tertiary"
             />
           </div>
@@ -224,12 +239,12 @@ function SourcesSection() {
                     <td className="py-3 pr-4 text-text-secondary">{s.website_name}</td>
                     <td className="py-3 pr-4">
                       <a
-                        href={s.url}
+                        href={b64Decode(s.url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1.5 max-w-[280px] truncate text-xs"
                       >
-                        <span className="truncate">{s.url}</span>
+                        <span className="truncate">{b64Decode(s.url)}</span>
                         <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-60" />
                       </a>
                     </td>
