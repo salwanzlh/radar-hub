@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { Files, ListChecks } from "lucide-react";
+import { Files, ListChecks, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FilesTab } from "./FilesTab";
 import { JobsTab } from "./JobsTab";
+import { PricingTab } from "./PricingTab";
 
-type Tab = "files" | "jobs";
+type Tab = "files" | "jobs" | "pricing";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "files", label: "Files", icon: Files },
   { id: "jobs", label: "Jobs", icon: ListChecks },
+  { id: "pricing", label: "Pricing", icon: DollarSign },
 ];
 
 export default function DataPipelinePage() {
@@ -40,6 +42,7 @@ export default function DataPipelinePage() {
         <div className="p-7">
           {activeTab === "files" && <FilesTab />}
           {activeTab === "jobs" && <JobsTab />}
+          {activeTab === "pricing" && <PricingTab />}
         </div>
       </div>
     </div>

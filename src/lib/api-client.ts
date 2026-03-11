@@ -415,7 +415,18 @@ export interface PipelineUnstructuredRef {
   file_id: string;
   parent_id: string;
   chunk_count: number;
+  transcript_text: string | null;
   created_at: string;
+}
+
+export interface TableData {
+  table_name: string;
+  columns: { name: string; type: string }[];
+  rows: unknown[][];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 export interface PipelineJob {
@@ -445,6 +456,7 @@ export interface DetectedTable {
   sample_rows: unknown[][];
   row_count: number;
   schema_match: string | null;
+  quality_score: number;
 }
 
 export interface ParsePreview {
@@ -457,6 +469,69 @@ export interface TableConfirmItem {
   detected_header: string;
   sheet_name: string;
   target_table: string;
+}
+
+export interface SheetPreview {
+  sheet_name: string;
+  rows: unknown[][];
+  total_rows: number;
+  total_cols: number;
+}
+
+export interface SheetsPreviewResponse {
+  file_id: string;
+  file_name: string;
+  sheets: SheetPreview[];
+}
+
+export interface SheetConfig {
+  sheet_name: string;
+  header_row: number;
+  table_name: string;
+  normalize?: boolean;
+  skip_rows?: number[];
+}
+
+export interface AnalyzeResult {
+  file_id: string;
+  file_name: string;
+  file_type: string;
+  summary: string;
+  script: string;
+  tables: DetectedTable[];
+}
+
+// Pricing types
+export interface PricingSource {
+  id: string;
+  brand: string;
+  website_name: string;
+  url: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PricingDataItem {
+  id: string;
+  source_id: string;
+  brand: string;
+  type: string;
+  otr_price: number;
+  batch_id: string;
+  scraped_at: string;
+}
+
+export interface PricingScrapeJob {
+  id: string;
+  status: string;
+  total_sources: number;
+  sources_completed: number;
+  items_found: number;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
 }
 
 export const api = {
@@ -581,24 +656,74 @@ export const api = {
   },
   pipeline: {
     upload: (file: File) =>
-      uploadFile<PipelineFile>("/api/v1/pipeline/upload", file),
+      uploadFile<PipelineFileSummary>("/api/v1/pipeline/upload", file),
     getFiles: (params: Record<string, string>) =>
       get<PaginatedResponse<PipelineFileSummary>>("/api/v1/pipeline/files", params),
     getFile: (id: string) =>
       get<PipelineFile>(`/api/v1/pipeline/files/${id}`),
     deleteFile: (id: string) =>
       del(`/api/v1/pipeline/files/${id}`),
+    downloadFile: async (id: string) => {
+      const { url, file_name } = await get<{ url: string; file_name: string }>(
+        `/api/v1/pipeline/files/${id}/download`
+      );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file_name;
+      a.target = "_blank";
+      a.click();
+    },
+    getSheetsPreview: (id: string) =>
+      get<SheetsPreviewResponse>(`/api/v1/pipeline/files/${id}/sheets`),
+    analyze: (id: string) =>
+      post<AnalyzeResult>(`/api/v1/pipeline/files/${id}/analyze`),
     parse: (id: string) =>
       post<ParsePreview>(`/api/v1/pipeline/files/${id}/parse`),
+    parseWithConfig: (id: string, sheets: SheetConfig[]) =>
+      post<ParsePreview>(`/api/v1/pipeline/files/${id}/parse`, { sheets }),
     getPreview: (id: string) =>
       get<ParsePreview>(`/api/v1/pipeline/files/${id}/preview`),
-    confirm: (id: string, tables: TableConfirmItem[]) =>
-      post<PipelineJob>(`/api/v1/pipeline/files/${id}/confirm`, { tables }),
+    confirm: (id: string, tables: TableConfirmItem[], sheetConfigs?: SheetConfig[], transformScript?: string) =>
+      post<PipelineJob>(`/api/v1/pipeline/files/${id}/confirm`, {
+        tables,
+        ...(sheetConfigs && { sheet_configs: sheetConfigs }),
+        ...(transformScript && { transform_script: transformScript }),
+      }),
     process: (id: string) =>
       post<PipelineJob>(`/api/v1/pipeline/files/${id}/process`),
     getJobs: (params: Record<string, string>) =>
       get<PaginatedResponse<PipelineJob>>("/api/v1/pipeline/jobs", params),
     getJob: (id: string) =>
       get<PipelineJob>(`/api/v1/pipeline/jobs/${id}`),
+    retryJob: (id: string) =>
+      post<PipelineJob>(`/api/v1/pipeline/jobs/${id}/retry`),
+    getTableData: (tableName: string, page = 1, pageSize = 50, fileId?: string) =>
+      get<TableData>(`/api/v1/pipeline/tables/${tableName}/data`, {
+        page: String(page),
+        page_size: String(pageSize),
+        ...(fileId && { file_id: fileId }),
+      }),
+  },
+  pricing: {
+    getSources: () => get<PricingSource[]>("/api/v1/pricing/sources"),
+    createSource: (data: { brand: string; website_name: string; url: string }) =>
+      post<PricingSource>("/api/v1/pricing/sources", data),
+    updateSource: (id: string, data: Partial<PricingSource>) =>
+      put<PricingSource>(`/api/v1/pricing/sources/${id}`, data),
+    deleteSource: (id: string) => del(`/api/v1/pricing/sources/${id}`),
+    triggerScrape: () => post<PricingScrapeJob>("/api/v1/pricing/scrape"),
+    getJobs: (page = 1, pageSize = 20) =>
+      get<PaginatedResponse<PricingScrapeJob>>("/api/v1/pricing/scrape-jobs", {
+        page: String(page),
+        page_size: String(pageSize),
+      }),
+    getJob: (id: string) => get<PricingScrapeJob>(`/api/v1/pricing/scrape-jobs/${id}`),
+    getData: (page = 1, pageSize = 50, brand?: string) =>
+      get<PaginatedResponse<PricingDataItem>>("/api/v1/pricing/data", {
+        page: String(page),
+        page_size: String(pageSize),
+        ...(brand && { brand }),
+      }),
+    getLatest: () => get<PricingDataItem[]>("/api/v1/pricing/data/latest"),
   },
 };

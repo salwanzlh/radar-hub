@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Loader2, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, Cog } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock, Cog, RotateCcw, X } from "lucide-react";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import { api } from "@/lib/api-client";
 import type { PipelineJob } from "@/lib/api-client";
+import toast from "react-hot-toast";
 
 const JOB_STATUS_STYLES: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
   pending: { icon: Clock, color: "text-text-tertiary", bg: "bg-surface-200" },
@@ -13,7 +14,7 @@ const JOB_STATUS_STYLES: Record<string, { icon: React.ElementType; color: string
 };
 
 function formatDuration(start: string | null, end: string | null): string {
-  if (!start) return "—";
+  if (!start) return "--";
   const s = new Date(start).getTime();
   const e = end ? new Date(end).getTime() : Date.now();
   const sec = Math.floor((e - s) / 1000);
@@ -22,7 +23,70 @@ function formatDuration(start: string | null, end: string | null): string {
   return `${min}m ${sec % 60}s`;
 }
 
-function ActiveJobCard({ job }: { job: PipelineJob }) {
+function ErrorModal({ job, onClose }: { job: PipelineJob; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface-white border border-surface-200 rounded-[20px] max-w-lg w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-surface-200">
+          <div>
+            <h3 className="text-lg font-semibold text-text-primary">Job Failed</h3>
+            <p className="text-xs text-text-tertiary mt-1">
+              {job.job_type} -- {job.started_at ? formatRelativeDate(job.started_at) : "--"}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-surface-100 rounded-lg">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5">
+          {/* Stages */}
+          {job.stages_detail.length > 0 && (
+            <div className="space-y-1.5 mb-4">
+              {job.stages_detail.map((stage, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  {stage.status === "done" ? (
+                    <CheckCircle2 className="w-3 h-3 text-status-success shrink-0" />
+                  ) : stage.status === "running" ? (
+                    <Cog className="w-3 h-3 text-yellow-600 shrink-0" />
+                  ) : (
+                    <XCircle className="w-3 h-3 text-status-error shrink-0" />
+                  )}
+                  <span className="text-text-secondary">{stage.stage}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Error message */}
+          <div className="bg-status-error-light rounded-xl p-4">
+            <p className="text-xs font-medium text-status-error mb-1">Error</p>
+            <p className="text-xs text-status-error whitespace-pre-wrap break-all font-mono leading-relaxed">
+              {job.error_message || "Unknown error"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-surface-200">
+          <button
+            onClick={onClose}
+            className="px-4 py-2.5 text-sm font-medium border border-surface-200 rounded-xl hover:bg-surface-100 transition-colors text-text-secondary"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActiveJobCard({ job, onRetry }: { job: PipelineJob; onRetry?: (id: string) => void }) {
   const statusInfo = JOB_STATUS_STYLES[job.status] || JOB_STATUS_STYLES.pending;
   const StatusIcon = statusInfo.icon;
 
@@ -38,7 +102,7 @@ function ActiveJobCard({ job }: { job: PipelineJob }) {
               Job: {job.job_type}
             </p>
             <p className="text-xs text-text-tertiary">
-              {job.current_stage || job.status} — {formatDuration(job.started_at, job.completed_at)}
+              {job.current_stage || job.status} -- {formatDuration(job.started_at, job.completed_at)}
             </p>
           </div>
         </div>
@@ -89,12 +153,25 @@ function ActiveJobCard({ job }: { job: PipelineJob }) {
           {job.error_message}
         </p>
       )}
+
+      {/* Retry button for failed jobs */}
+      {job.status === "failed" && onRetry && (
+        <button
+          onClick={() => onRetry(job.id)}
+          className="mt-3 flex items-center gap-2 px-3 py-2 text-xs font-medium border border-surface-200 rounded-lg hover:bg-surface-100 transition-colors text-text-secondary"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          Retry
+        </button>
+      )}
     </div>
   );
 }
 
 export function JobsTab() {
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
+  const [errorJob, setErrorJob] = useState<PipelineJob | null>(null);
   const pageSize = 20;
 
   const { data, isLoading } = useQuery({
@@ -112,8 +189,23 @@ export function JobsTab() {
     },
   });
 
+  const retryMutation = useMutation({
+    mutationFn: (jobId: string) => api.pipeline.retryJob(jobId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["pipeline-files"] });
+      setErrorJob(null);
+      toast.success("Job restarted");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const handleRetry = (jobId: string) => {
+    retryMutation.mutate(jobId);
+  };
+
   const activeJobs = data?.items.filter((j) => j.status === "pending" || j.status === "running") || [];
-  const completedJobs = data?.items.filter((j) => j.status !== "pending" && j.status !== "running") || [];
+  const historyJobs = data?.items.filter((j) => j.status === "completed" || j.status === "failed") || [];
   const totalPages = data ? data.total_pages : 1;
 
   if (isLoading) {
@@ -139,13 +231,13 @@ export function JobsTab() {
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-text-secondary">Active Jobs</h3>
           {activeJobs.map((job) => (
-            <ActiveJobCard key={job.id} job={job} />
+            <ActiveJobCard key={job.id} job={job} onRetry={handleRetry} />
           ))}
         </div>
       )}
 
-      {/* Completed Jobs Table */}
-      {completedJobs.length > 0 && (
+      {/* Job History Table */}
+      {historyJobs.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-text-secondary">Job History</h3>
           <div className="border border-surface-200 rounded-[20px] overflow-hidden">
@@ -161,10 +253,18 @@ export function JobsTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-100">
-                  {completedJobs.map((job) => {
+                  {historyJobs.map((job) => {
                     const statusInfo = JOB_STATUS_STYLES[job.status] || JOB_STATUS_STYLES.pending;
+                    const isFailed = job.status === "failed";
                     return (
-                      <tr key={job.id} className="hover:bg-surface-100 transition-colors">
+                      <tr
+                        key={job.id}
+                        onClick={isFailed ? () => setErrorJob(job) : undefined}
+                        className={cn(
+                          "hover:bg-surface-100 transition-colors",
+                          isFailed && "cursor-pointer"
+                        )}
+                      >
                         <td className="px-5 py-3.5 text-text-primary capitalize">{job.job_type}</td>
                         <td className="px-5 py-3.5">
                           <span className={cn(
@@ -176,7 +276,7 @@ export function JobsTab() {
                         </td>
                         <td className="px-5 py-3.5 text-text-secondary">{job.progress_pct}%</td>
                         <td className="px-5 py-3.5 text-right text-text-tertiary text-xs">
-                          {job.started_at ? formatRelativeDate(job.started_at) : "—"}
+                          {job.started_at ? formatRelativeDate(job.started_at) : "--"}
                         </td>
                         <td className="px-5 py-3.5 text-right text-text-tertiary text-xs">
                           {formatDuration(job.started_at, job.completed_at)}
@@ -195,7 +295,7 @@ export function JobsTab() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-4 border-t border-surface-200">
           <p className="text-xs text-text-tertiary">
-            {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, data.total)} of {data.total}
+            {(page - 1) * pageSize + 1}--{Math.min(page * pageSize, data.total)} of {data.total}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -217,6 +317,11 @@ export function JobsTab() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Error detail modal */}
+      {errorJob && (
+        <ErrorModal job={errorJob} onClose={() => setErrorJob(null)} />
       )}
     </div>
   );

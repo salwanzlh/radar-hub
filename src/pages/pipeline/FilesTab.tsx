@@ -1,18 +1,22 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Upload, Trash2, Eye, Loader2, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Upload, Trash2, Eye, Loader2, ChevronLeft, ChevronRight, Search, Database } from "lucide-react";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import { api } from "@/lib/api-client";
-import type { PipelineFileSummary, PipelineFile, ParsePreview } from "@/lib/api-client";
+import type { PipelineFileSummary, PipelineFile, ParsePreview, SheetsPreviewResponse, SheetConfig } from "@/lib/api-client";
 import toast from "react-hot-toast";
 import { PreviewModal } from "./PreviewModal";
+import { SheetSelector } from "./SheetSelector";
+import { JobTracker } from "./JobTracker";
+import { DataPreviewModal } from "./DataPreviewModal";
 
-const ACCEPTED_EXTENSIONS = ".xlsx,.docx,.pdf,.mp3,.mp4";
+const ACCEPTED_EXTENSIONS = ".xlsx,.docx,.pptx,.pdf,.mp3,.mp4";
 
 const FILE_TYPE_OPTIONS = [
   { value: "", label: "All Types" },
   { value: "xlsx", label: "XLSX" },
   { value: "docx", label: "DOCX" },
+  { value: "pptx", label: "PPTX" },
   { value: "pdf", label: "PDF" },
   { value: "mp3", label: "MP3" },
   { value: "mp4", label: "MP4" },
@@ -49,7 +53,10 @@ export function FilesTab() {
   const [fileType, setFileType] = useState("");
   const [status, setStatus] = useState("");
   const [dragOver, setDragOver] = useState(false);
-  const [previewFile, setPreviewFile] = useState<{ fileId: string; preview: ParsePreview } | null>(null);
+  const [previewFile, setPreviewFile] = useState<{ fileId: string; preview: ParsePreview; sheetConfigs?: SheetConfig[]; transformScript?: string } | null>(null);
+  const [sheetSelector, setSheetSelector] = useState<{ fileId: string; data: SheetsPreviewResponse } | null>(null);
+  const [trackingJobId, setTrackingJobId] = useState<string | null>(null);
+  const [dataPreviewFile, setDataPreviewFile] = useState<PipelineFile | null>(null);
   const pageSize = 20;
 
   // Fetch files
@@ -70,31 +77,31 @@ export function FilesTab() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["pipeline-files"] });
       toast.success(`Uploaded: ${result.file_name}`);
-      // Auto-parse XLSX files
+      // For XLSX: open sheet selector for header selection
       if (result.file_type === "xlsx") {
-        parseMutation.mutate(result.id);
+        openSheetSelector(result.id);
       }
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
-  // Parse mutation (XLSX)
-  const parseMutation = useMutation({
-    mutationFn: (fileId: string) => api.pipeline.parse(fileId),
-    onSuccess: (preview) => {
-      queryClient.invalidateQueries({ queryKey: ["pipeline-files"] });
-      setPreviewFile({ fileId: preview.file_id, preview });
-    },
-    onError: (err: Error) => toast.error(`Parse failed: ${err.message}`),
-  });
+  // Open sheet selector (fetch raw sheets data)
+  const openSheetSelector = async (fileId: string) => {
+    try {
+      const sheetsData = await api.pipeline.getSheetsPreview(fileId);
+      setSheetSelector({ fileId, data: sheetsData });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to load sheets");
+    }
+  };
 
   // Process mutation (unstructured)
   const processMutation = useMutation({
     mutationFn: (fileId: string) => api.pipeline.process(fileId),
-    onSuccess: () => {
+    onSuccess: (job) => {
       queryClient.invalidateQueries({ queryKey: ["pipeline-files"] });
       queryClient.invalidateQueries({ queryKey: ["pipeline-jobs"] });
-      toast.success("Processing started");
+      setTrackingJobId(job.id);
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -144,6 +151,14 @@ export function FilesTab() {
     [uploadMutation]
   );
 
+  // SheetSelector → parsed result → open PreviewModal
+  const handleSheetsParsed = (preview: ParsePreview, sheetConfigs: SheetConfig[], transformScript?: string) => {
+    queryClient.invalidateQueries({ queryKey: ["pipeline-files"] });
+    const fileId = sheetSelector!.fileId;
+    setSheetSelector(null);
+    setPreviewFile({ fileId, preview, sheetConfigs, transformScript });
+  };
+
   // Preview modal handlers
   const handleOpenPreview = async (fileId: string) => {
     try {
@@ -154,10 +169,23 @@ export function FilesTab() {
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = (jobId?: string) => {
     queryClient.invalidateQueries({ queryKey: ["pipeline-files"] });
     queryClient.invalidateQueries({ queryKey: ["pipeline-jobs"] });
     setPreviewFile(null);
+    if (jobId) {
+      setTrackingJobId(jobId);
+    }
+  };
+
+  // Open data preview (fetch full file detail with structured_tables)
+  const openDataPreview = async (fileId: string) => {
+    try {
+      const fileDetail = await api.pipeline.getFile(fileId);
+      setDataPreviewFile(fileDetail);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to load file data");
+    }
   };
 
   // Action buttons per file
@@ -168,10 +196,9 @@ export function FilesTab() {
       actions.push(
         <button
           key="parse"
-          onClick={() => parseMutation.mutate(file.id)}
-          disabled={parseMutation.isPending}
+          onClick={() => openSheetSelector(file.id)}
           className="p-1.5 hover:bg-surface-100 rounded-lg text-text-secondary hover:text-text-primary transition-colors"
-          title="Parse XLSX"
+          title="Select Headers & Parse"
         >
           <Search className="w-4 h-4" />
         </button>
@@ -187,6 +214,19 @@ export function FilesTab() {
           title="View Preview"
         >
           <Eye className="w-4 h-4" />
+        </button>
+      );
+    }
+
+    if (file.status === "completed") {
+      actions.push(
+        <button
+          key="data"
+          onClick={() => openDataPreview(file.id)}
+          className="p-1.5 hover:bg-surface-100 rounded-lg text-status-success hover:text-status-success/80 transition-colors"
+          title="View Data"
+        >
+          <Database className="w-4 h-4" />
         </button>
       );
     }
@@ -264,7 +304,7 @@ export function FilesTab() {
                 Drop file here or click to browse
               </p>
               <p className="text-xs text-text-tertiary mt-1">
-                Supports XLSX, DOCX, PDF, MP3, MP4
+                Supports XLSX, DOCX, PPTX, PDF, MP3, MP4
               </p>
             </div>
           </div>
@@ -352,7 +392,7 @@ export function FilesTab() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between pt-4 border-t border-surface-200">
               <p className="text-xs text-text-tertiary">
-                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, data.total)} of {data.total}
+                {(page - 1) * pageSize + 1}--{Math.min(page * pageSize, data.total)} of {data.total}
               </p>
               <div className="flex items-center gap-2">
                 <button
@@ -382,13 +422,41 @@ export function FilesTab() {
         </div>
       )}
 
-      {/* XLSX Preview Modal */}
+      {/* Sheet Selector Modal (Step 1: pick header rows) */}
+      {sheetSelector && (
+        <SheetSelector
+          fileId={sheetSelector.fileId}
+          sheetsData={sheetSelector.data}
+          onClose={() => setSheetSelector(null)}
+          onParsed={handleSheetsParsed}
+        />
+      )}
+
+      {/* XLSX Preview Modal (Step 2: review parsed tables & confirm) */}
       {previewFile && (
         <PreviewModal
           fileId={previewFile.fileId}
           preview={previewFile.preview}
+          sheetConfigs={previewFile.sheetConfigs}
+          transformScript={previewFile.transformScript}
           onClose={() => setPreviewFile(null)}
           onConfirm={handleConfirm}
+        />
+      )}
+
+      {/* Job progress tracker */}
+      {trackingJobId && (
+        <JobTracker
+          jobId={trackingJobId}
+          onClose={() => setTrackingJobId(null)}
+        />
+      )}
+
+      {/* Data preview modal */}
+      {dataPreviewFile && (
+        <DataPreviewModal
+          file={dataPreviewFile}
+          onClose={() => setDataPreviewFile(null)}
         />
       )}
     </div>
