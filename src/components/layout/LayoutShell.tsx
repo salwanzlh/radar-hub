@@ -15,7 +15,7 @@ export function LayoutShell() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar />
+      <Sidebar onChatOpen={() => setChatOpen(true)} />
 
       {/* Floating toggle button — sits at the sidebar edge, half in / half out */}
       <button

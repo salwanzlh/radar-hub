@@ -13,6 +13,7 @@ import {
   Globe,
   Clock,
   Database,
+  Monitor,
 } from "lucide-react";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import { api } from "@/lib/api-client";
@@ -329,7 +330,17 @@ function ScrapeSection() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pricing-jobs"] });
       queryClient.invalidateQueries({ queryKey: ["pricing-data"] });
-      toast.success("Scrape started");
+      toast.success("Scrape started (Firecrawl)");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const playwrightMutation = useMutation({
+    mutationFn: api.pricing.triggerPlaywrightScrape,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pricing-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["pricing-data"] });
+      toast.success("Scrape started (Playwright)");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -348,19 +359,34 @@ function ScrapeSection() {
             <p className="text-xs text-text-tertiary">Manual and scheduled scraping history</p>
           </div>
         </div>
-        <button
-          onClick={() => scrapeMutation.mutate()}
-          disabled={scrapeMutation.isPending || !hasActiveSources}
-          title={!hasActiveSources ? "Add active sources first" : ""}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-accent text-text-inverse hover:bg-brand-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          {scrapeMutation.isPending ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Play className="w-3.5 h-3.5" />
-          )}
-          Scrape Now
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => scrapeMutation.mutate()}
+            disabled={scrapeMutation.isPending || !hasActiveSources}
+            title={!hasActiveSources ? "Add active sources first" : "Scrape using Firecrawl (static)"}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-accent text-text-inverse hover:bg-brand-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {scrapeMutation.isPending ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Play className="w-3.5 h-3.5" />
+            )}
+            Firecrawl
+          </button>
+          <button
+            onClick={() => playwrightMutation.mutate()}
+            disabled={playwrightMutation.isPending || !hasActiveSources}
+            title={!hasActiveSources ? "Add active sources first" : "Scrape using Playwright (browser, better for JS-heavy sites)"}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-500/80 text-white hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {playwrightMutation.isPending ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Monitor className="w-3.5 h-3.5" />
+            )}
+            Playwright
+          </button>
+        </div>
       </div>
 
       <div className="px-5 py-4">

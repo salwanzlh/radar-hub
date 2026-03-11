@@ -7,6 +7,8 @@ import SentimentPage from "@/pages/sentiment";
 import HealthPage from "@/pages/HealthPage";
 import SettingsPage from "@/pages/settings";
 import DataPipelinePage from "@/pages/pipeline";
+import PriceComparisonPage from "@/pages/pipeline/PriceComparisonPage";
+import PositioningRadarPage from "@/pages/PositioningRadarPage";
 import LoginPage from "@/pages/LoginPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 
@@ -83,9 +85,11 @@ const router = createBrowserRouter(
             { path: "articles", element: <ArticlesPage /> },
             { path: "analysis", element: <AnalysisPage /> },
             { path: "sentiment", element: <SentimentPage /> },
+            { path: "positioning-radar", element: <PositioningRadarPage /> },
             { element: <AdminRoute />, children: [
               { path: "health", element: <HealthPage /> },
               { path: "pipeline", element: <DataPipelinePage /> },
+              { path: "pricing", element: <PriceComparisonPage /> },
             ] },
             { path: "settings", element: <SettingsPage /> },
             { path: "*", element: <NotFoundPage /> },

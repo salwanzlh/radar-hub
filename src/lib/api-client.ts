@@ -712,6 +712,7 @@ export const api = {
       put<PricingSource>(`/api/v1/pricing/sources/${id}`, data),
     deleteSource: (id: string) => del(`/api/v1/pricing/sources/${id}`),
     triggerScrape: () => post<PricingScrapeJob>("/api/v1/pricing/scrape"),
+    triggerPlaywrightScrape: () => post<PricingScrapeJob>("/api/v1/pricing/scrape-pw"),
     getJobs: (page = 1, pageSize = 20) =>
       get<PaginatedResponse<PricingScrapeJob>>("/api/v1/pricing/scrape-jobs", {
         page: String(page),
