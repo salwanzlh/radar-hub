@@ -128,7 +128,7 @@ export function JobTracker({ jobId, onClose }: JobTrackerProps) {
   // Determine status for each stage
   const getStageStatus = (
     stage: string,
-    idx: number
+    _idx: number
   ): "done" | "running" | "waiting" | "failed" => {
     const detail = job.stages_detail.find((s) => s.stage === stage);
     if (!detail) {
