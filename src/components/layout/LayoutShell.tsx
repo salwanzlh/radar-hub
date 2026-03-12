@@ -21,13 +21,13 @@ export function LayoutShell() {
       <button
         onClick={toggle}
         className="fixed top-5 z-40 w-7 h-7 bg-surface-white rounded-full shadow-md border border-surface-200 flex items-center justify-center hover:scale-110 hover:shadow-lg hover:border-brand-accent transition-all duration-300 ease-in-out group cursor-pointer"
-        style={{ left: collapsed ? 66 : 266 }}
+        style={{ left: collapsed ? 66 : 260 }}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         <ChevronsLeft
           className={cn(
             "w-3.5 h-3.5 text-text-tertiary group-hover:text-brand-accent transition-transform duration-300",
-            collapsed && "rotate-180"
+            collapsed && "rotate-180",
           )}
         />
       </button>
@@ -35,7 +35,7 @@ export function LayoutShell() {
       <div
         className="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out"
         style={{
-          marginLeft: collapsed ? 80 : 280,
+          marginLeft: collapsed ? 80 : 270,
           marginRight: chatOpen ? chatWidth : 0,
         }}
       >
@@ -58,7 +58,12 @@ export function LayoutShell() {
         </button>
       )}
 
-      <ChatWidget open={chatOpen} onToggle={() => setChatOpen(!chatOpen)} width={chatWidth} onWidthChange={setChatWidth} />
+      <ChatWidget
+        open={chatOpen}
+        onToggle={() => setChatOpen(!chatOpen)}
+        width={chatWidth}
+        onWidthChange={setChatWidth}
+      />
     </div>
   );
 }

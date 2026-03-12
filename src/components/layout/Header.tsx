@@ -1,6 +1,7 @@
 import { useLocation } from "react-router-dom";
-import { LogOut, User } from "lucide-react";
+import { LogOut, Moon, Sun, User } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useTheme } from "@/lib/theme-context";
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Dashboard",
@@ -22,6 +23,7 @@ function getPageTitle(pathname: string): string {
 export function Header() {
   const { pathname } = useLocation();
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const title = getPageTitle(pathname);
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -46,6 +48,13 @@ export function Header() {
             </span>
           )}
         </div>
+        <button
+          onClick={toggleTheme}
+          className="p-2.5 rounded-xl hover:bg-surface-100 text-text-secondary hover:text-brand-accent transition-colors"
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
+        </button>
         <button
           onClick={logout}
           className="p-2.5 rounded-xl hover:bg-surface-100 text-text-secondary hover:text-status-error transition-colors"

@@ -9,6 +9,7 @@ import SettingsPage from "@/pages/settings";
 import DataPipelinePage from "@/pages/pipeline";
 import PriceComparisonPage from "@/pages/pipeline/PriceComparisonPage";
 import PositioningRadarPage from "@/pages/PositioningRadarPage";
+import MarketingPlanPage from "@/pages/MarketingPlanPage";
 import LoginPage from "@/pages/LoginPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 
@@ -86,6 +87,7 @@ const router = createBrowserRouter(
             { path: "analysis", element: <AnalysisPage /> },
             { path: "sentiment", element: <SentimentPage /> },
             { path: "positioning-radar", element: <PositioningRadarPage /> },
+            { path: "marketing-plan", element: <MarketingPlanPage /> },
             { element: <AdminRoute />, children: [
               { path: "health", element: <HealthPage /> },
               { path: "pipeline", element: <DataPipelinePage /> },

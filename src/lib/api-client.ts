@@ -534,6 +534,34 @@ export interface PricingScrapeJob {
   created_at: string;
 }
 
+export interface MarketingPlanSection {
+  id: string;
+  section_type: string;
+  content: string | null;
+  ai_draft: string | null;
+  cited_articles: Record<string, unknown>[] | null;
+  updated_at: string;
+}
+
+export interface MarketingPlan {
+  id: string;
+  lineup_id: string;
+  version: number;
+  status: string;
+  model_used: string | null;
+  token_usage: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+  sections: MarketingPlanSection[];
+}
+
+export interface MarketingPlanBrief {
+  id: string;
+  version: number;
+  status: string;
+  created_at: string;
+}
+
 export const api = {
   auth: {
     verifyPassword: (password: string) =>
@@ -703,6 +731,35 @@ export const api = {
         page_size: String(pageSize),
         ...(fileId && { file_id: fileId }),
       }),
+  },
+  marketingPlan: {
+    generate: (lineup_id: string) =>
+      post<MarketingPlan>("/api/v1/marketing-plans/generate", { lineup_id }),
+    listByLineup: (lineup_id: string) =>
+      get<MarketingPlanBrief[]>(`/api/v1/marketing-plans/lineup/${lineup_id}`),
+    get: (plan_id: string) =>
+      get<MarketingPlan>(`/api/v1/marketing-plans/${plan_id}`),
+    updateSection: (plan_id: string, section_type: string, content: string) =>
+      put<MarketingPlanSection>(`/api/v1/marketing-plans/${plan_id}/sections/${section_type}`, { content }),
+    updateStatus: (plan_id: string, status: string) =>
+      put<MarketingPlan>(`/api/v1/marketing-plans/${plan_id}/status`, { status }),
+    generateKV: (planId: string, data: { product_name: string; product_slug: string; pillar_name: string; key_message: string }) =>
+      post<{ image: string; format: string }>(`/api/v1/marketing-plans/${planId}/generate-kv`, data),
+    downloadPdf: async (planId: string, filename?: string) => {
+      const token = localStorage.getItem("access_token");
+      const url = `${API_BASE}/api/v1/marketing-plans/${planId}/export-pdf`;
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+      if (!res.ok) throw new ApiError(res.status, "Failed to download PDF");
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename || "marketing-plan.pdf";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    },
   },
   pricing: {
     getSources: () => get<PricingSource[]>("/api/v1/pricing/sources"),

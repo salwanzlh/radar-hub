@@ -14,6 +14,7 @@ import {
   HardDrive,
   Globe,
   Radar,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -88,6 +89,7 @@ const NAV_SECTIONS: NavItem[] = [
     children: [
       { label: "Discovery Feed", href: "/analysis", icon: Rss },
       { label: "Positioning Radar", href: "/positioning-radar", icon: Radar },
+      { label: "Marketing Plan", href: "/marketing-plan", icon: FileText },
       { label: "Chat (Widget)", icon: MessageSquare, action: "open-chat" },
     ],
   },
@@ -102,9 +104,20 @@ const BOTTOM_ITEMS: NavLink[] = [
 
 function Tooltip({ label }: { label: string }) {
   return (
-    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-[#1c1c1c] text-white/90 text-[11px] font-medium rounded-lg opacity-0 group-hover/nav:opacity-100 pointer-events-none transition-opacity duration-150 whitespace-nowrap z-50 border border-white/[0.08] shadow-[0_8px_32px_-4px_rgba(0,0,0,0.7)]">
+    <div
+      className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 text-[11px] font-medium rounded-lg opacity-0 group-hover/nav:opacity-100 pointer-events-none transition-opacity duration-150 whitespace-nowrap z-50"
+      style={{
+        background: "var(--th-tooltip-bg)",
+        color: "var(--th-tooltip-text)",
+        border: `1px solid var(--th-tooltip-border)`,
+        boxShadow: "var(--th-tooltip-shadow)",
+      }}
+    >
       {label}
-      <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-[#1c1c1c]" />
+      <div
+        className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent"
+        style={{ borderRightColor: "var(--th-tooltip-bg)" }}
+      />
     </div>
   );
 }
@@ -130,9 +143,16 @@ function CollapsedFlyout({ section, pathname, isAdmin, onChatOpen }: {
   });
 
   return (
-    <div className="absolute left-full top-0 ml-3 py-2 px-1.5 bg-[#181818] rounded-xl border border-white/[0.08] shadow-[0_16px_48px_-8px_rgba(0,0,0,0.8)] opacity-0 group-hover/section:opacity-100 pointer-events-none group-hover/section:pointer-events-auto transition-all duration-200 z-50 min-w-[190px]">
-      <div className="px-3 pb-1.5 mb-1 border-b border-white/[0.06]">
-        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/40">{section.label}</span>
+    <div
+      className="absolute left-full top-0 ml-3 py-2 px-1.5 rounded-xl opacity-0 group-hover/section:opacity-100 pointer-events-none group-hover/section:pointer-events-auto transition-all duration-200 z-50 min-w-[190px]"
+      style={{
+        background: "var(--th-flyout-bg)",
+        border: `1px solid var(--th-flyout-border)`,
+        boxShadow: "var(--th-flyout-shadow)",
+      }}
+    >
+      <div className="px-3 pb-1.5 mb-1" style={{ borderBottom: `1px solid var(--th-sidebar-divider)` }}>
+        <span className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: "var(--th-flyout-label)" }}>{section.label}</span>
       </div>
       {allLinks.map((item, idx) => {
         if (item.adminOnly && !isAdmin) return null;
@@ -147,7 +167,10 @@ function CollapsedFlyout({ section, pathname, isAdmin, onChatOpen }: {
             {isAction(item) ? (
               <button
                 onClick={() => item.action === "open-chat" && onChatOpen?.()}
-                className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.05] transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                style={{ color: "var(--th-flyout-text)" }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--th-flyout-text-hover)"; e.currentTarget.style.background = "var(--th-sidebar-item-hover)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--th-flyout-text)"; e.currentTarget.style.background = "transparent"; }}
               >
                 <item.icon className="w-3.5 h-3.5" />
                 {item.label}
@@ -157,10 +180,11 @@ function CollapsedFlyout({ section, pathname, isAdmin, onChatOpen }: {
                 to={item.href}
                 className={cn(
                   "flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors",
-                  pathname.startsWith(item.href)
-                    ? "text-brand-accent bg-brand-accent/[0.08]"
-                    : "text-white/50 hover:text-white/80 hover:bg-white/[0.05]"
+                  pathname.startsWith(item.href) && "text-brand-accent bg-brand-accent/[0.08]"
                 )}
+                style={pathname.startsWith(item.href) ? {} : { color: "var(--th-flyout-text)" }}
+                onMouseEnter={(e) => { if (!pathname.startsWith(item.href)) { e.currentTarget.style.color = "var(--th-flyout-text-hover)"; e.currentTarget.style.background = "var(--th-sidebar-item-hover)"; } }}
+                onMouseLeave={(e) => { if (!pathname.startsWith(item.href)) { e.currentTarget.style.color = "var(--th-flyout-text)"; e.currentTarget.style.background = "transparent"; } }}
               >
                 <item.icon className="w-3.5 h-3.5" />
                 {item.label}
@@ -218,21 +242,23 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
 
     const inner = (
       <>
-        {/* Left accent rail */}
         <span
           className={cn(
             "absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] rounded-full transition-all duration-300",
-            active
-              ? "h-5 bg-brand-accent shadow-[0_0_10px_rgba(212,255,0,0.5)]"
-              : "h-0 bg-transparent"
+            active ? "h-5" : "h-0"
           )}
+          style={active ? {
+            background: "var(--th-brand-accent)",
+            boxShadow: `0 0 10px rgba(var(--th-brand-accent-rgb), 0.5)`,
+          } : {}}
         />
-        <span className={cn(
-          "w-[18px] h-[18px] rounded-md flex items-center justify-center shrink-0 transition-all duration-200",
-          active
-            ? "bg-brand-accent/[0.12] text-brand-accent"
-            : "text-white/55"
-        )}>
+        <span
+          className="w-[18px] h-[18px] rounded-md flex items-center justify-center shrink-0 transition-all duration-200"
+          style={{
+            background: active ? "rgba(var(--th-brand-accent-rgb), 0.12)" : "transparent",
+            color: active ? "var(--th-brand-accent)" : "var(--th-sidebar-icon-muted)",
+          }}
+        >
           <item.icon className="w-[14px] h-[14px]" />
         </span>
         <span
@@ -249,10 +275,25 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
     const cls = cn(
       "relative flex items-center rounded-lg text-[12px] font-medium transition-all duration-200 group/leaf",
       collapsed ? "justify-center py-2.5 px-2" : "py-[7px] pr-3",
-      active
-        ? "text-white bg-white/[0.08]"
-        : "text-white/65 hover:text-white/90 hover:bg-white/[0.06]"
     );
+
+    const baseStyle = {
+      color: active ? "var(--th-sidebar-text-active)" : "var(--th-sidebar-text)",
+      background: active ? "var(--th-sidebar-item-active)" : "transparent",
+    };
+
+    const handleEnter = (e: React.MouseEvent<HTMLElement>) => {
+      if (!active) {
+        e.currentTarget.style.color = "var(--th-sidebar-text-hover)";
+        e.currentTarget.style.background = "var(--th-sidebar-item-hover)";
+      }
+    };
+    const handleLeave = (e: React.MouseEvent<HTMLElement>) => {
+      if (!active) {
+        e.currentTarget.style.color = "var(--th-sidebar-text)";
+        e.currentTarget.style.background = "transparent";
+      }
+    };
 
     if (isAct) {
       return (
@@ -260,7 +301,9 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
           <button
             onClick={() => item.action === "open-chat" && onChatOpen?.()}
             className={cn(cls, "w-full")}
-            style={collapsed ? {} : { paddingLeft: pl }}
+            style={collapsed ? baseStyle : { ...baseStyle, paddingLeft: pl }}
+            onMouseEnter={handleEnter}
+            onMouseLeave={handleLeave}
           >
             {inner}
           </button>
@@ -271,7 +314,13 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
 
     return (
       <li key={item.href} className="relative group/nav">
-        <Link to={item.href} className={cls} style={collapsed ? {} : { paddingLeft: pl }}>
+        <Link
+          to={item.href}
+          className={cls}
+          style={collapsed ? baseStyle : { ...baseStyle, paddingLeft: pl }}
+          onMouseEnter={handleEnter}
+          onMouseLeave={handleLeave}
+        >
           {inner}
         </Link>
         {collapsed && <Tooltip label={item.label} />}
@@ -290,37 +339,37 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
       <li key={sg.label}>
         <button
           onClick={() => toggleSubGroup(sg.label)}
-          className={cn(
-            "w-full flex items-center gap-2 py-[7px] pl-4 pr-2 rounded-lg text-[12px] font-medium transition-all duration-200 mt-0.5",
-            sgActive
-              ? "text-white bg-white/[0.07]"
-              : "text-white/70 hover:text-white/90 hover:bg-white/[0.06]"
-          )}
+          className="w-full flex items-center gap-2 py-[7px] pl-4 pr-2 rounded-lg text-[12px] font-medium transition-all duration-200 mt-0.5"
+          style={{
+            color: sgActive ? "var(--th-sidebar-text-active)" : "var(--th-sidebar-text)",
+            background: sgActive ? "var(--th-sidebar-item-active)" : "transparent",
+          }}
+          onMouseEnter={(e) => { if (!sgActive) { e.currentTarget.style.color = "var(--th-sidebar-text-hover)"; e.currentTarget.style.background = "var(--th-sidebar-item-hover)"; } }}
+          onMouseLeave={(e) => { if (!sgActive) { e.currentTarget.style.color = "var(--th-sidebar-text)"; e.currentTarget.style.background = "transparent"; } }}
         >
-          <span className={cn(
-            "w-[18px] h-[18px] rounded-md flex items-center justify-center shrink-0 transition-all duration-200",
-            sgActive ? "text-brand-accent/80" : "text-white/50"
-          )}>
+          <span
+            className="w-[18px] h-[18px] rounded-md flex items-center justify-center shrink-0 transition-all duration-200"
+            style={{ color: sgActive ? "var(--th-brand-accent)" : "var(--th-sidebar-icon-submuted)" }}
+          >
             <SubIcon className="w-[14px] h-[14px]" />
           </span>
           <span className="flex-1 text-left">{sg.label}</span>
           <ChevronDown
             className={cn(
               "w-3.5 h-3.5 transition-transform duration-300 shrink-0",
-              sgActive ? "text-white/50" : "text-white/35",
               !sgExpanded && "-rotate-90"
             )}
+            style={{ color: sgActive ? "var(--th-sidebar-icon-submuted)" : "var(--th-sidebar-icon-subgroup)" }}
           />
         </button>
 
-        {/* Dropdown content */}
         <div
           className={cn(
             "overflow-hidden transition-all duration-300 ease-in-out",
             sgExpanded ? "max-h-[300px] opacity-100" : "max-h-0 opacity-0"
           )}
         >
-          <div className="relative ml-[25px] mt-0.5 pl-2.5 border-l border-white/[0.1]">
+          <div className="relative ml-[25px] mt-0.5 pl-2.5" style={{ borderLeft: `1px solid var(--th-sidebar-divider)` }}>
             <ul className="space-y-[1px]">
               {sg.children.map((sub) => renderLeaf(sub, 1))}
             </ul>
@@ -340,28 +389,28 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
 
     return (
       <div key={section.label} className={cn("relative", collapsed && "group/section")}>
-        {/* Section header */}
         <button
           onClick={() => !collapsed && toggleSection(section.label)}
           className={cn(
             "w-full flex items-center transition-all duration-200 relative",
             collapsed ? "justify-center py-3 px-2 rounded-xl" : "px-3 py-2.5 rounded-xl",
-            active
-              ? "text-white"
-              : "text-white/70 hover:text-white/90"
           )}
+          style={{ color: active ? "var(--th-sidebar-text-active)" : "var(--th-sidebar-text)" }}
+          onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = "var(--th-sidebar-text-hover)"; }}
+          onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = "var(--th-sidebar-text)"; }}
         >
-          {/* Ambient glow when section is active */}
           {active && (
-            <div className="absolute inset-0 rounded-xl bg-brand-accent/[0.03] pointer-events-none" />
+            <div
+              className="absolute inset-0 rounded-xl pointer-events-none"
+              style={{ background: "rgba(var(--th-brand-accent-rgb), 0.03)" }}
+            />
           )}
           <div
-            className={cn(
-              "relative w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0 transition-all duration-300",
-              active
-                ? "bg-brand-accent text-black shadow-[0_0_20px_rgba(212,255,0,0.2)]"
-                : "bg-white/[0.08] text-current"
-            )}
+            className="relative w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0 transition-all duration-300"
+            style={active
+              ? { background: "var(--th-brand-accent)", color: "var(--th-text-inverse)", boxShadow: `0 0 20px rgba(var(--th-brand-accent-rgb), 0.2)` }
+              : { background: "var(--th-sidebar-item-hover)", color: "inherit" }
+            }
           >
             <section.icon className="w-4 h-4" />
           </div>
@@ -376,14 +425,14 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
           {!collapsed && (
             <ChevronDown
               className={cn(
-                "w-3.5 h-3.5 text-white/40 transition-transform duration-300 shrink-0",
+                "w-3.5 h-3.5 transition-transform duration-300 shrink-0",
                 !expanded && "-rotate-90"
               )}
+              style={{ color: "var(--th-sidebar-icon-subgroup)" }}
             />
           )}
         </button>
 
-        {/* Collapsed: flyout popover */}
         {collapsed && (
           <CollapsedFlyout
             section={section}
@@ -393,7 +442,6 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
           />
         )}
 
-        {/* Expanded children */}
         {!collapsed && (
           <div
             className={cn(
@@ -401,7 +449,7 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
               expanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
             )}
           >
-            <div className="mt-1 ml-[23px] pl-3 border-l border-white/[0.1]">
+            <div className="mt-1 ml-[23px] pl-3" style={{ borderLeft: `1px solid var(--th-sidebar-divider)` }}>
               <ul className="space-y-[1px]">
                 {section.children.map((child) => {
                   if (isSubGroup(child)) return renderSubGroup(child);
@@ -428,12 +476,15 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
           className={cn(
             "relative flex items-center rounded-lg text-[12px] font-medium transition-all duration-200",
             collapsed ? "justify-center py-2.5 px-2" : "px-3 py-2",
-            active
-              ? "text-white/90 bg-white/[0.07]"
-              : "text-white/50 hover:text-white/70 hover:bg-white/[0.05]"
           )}
+          style={{
+            color: active ? "var(--th-sidebar-text-hover)" : "var(--th-sidebar-icon-submuted)",
+            background: active ? "var(--th-sidebar-item-active)" : "transparent",
+          }}
+          onMouseEnter={(e) => { if (!active) { e.currentTarget.style.color = "var(--th-sidebar-text)"; e.currentTarget.style.background = "var(--th-sidebar-item-hover)"; } }}
+          onMouseLeave={(e) => { if (!active) { e.currentTarget.style.color = "var(--th-sidebar-icon-submuted)"; e.currentTarget.style.background = "transparent"; } }}
         >
-          <item.icon className={cn("w-4 h-4 shrink-0", active && "text-brand-accent/60")} />
+          <item.icon className={cn("w-4 h-4 shrink-0")} style={active ? { color: "var(--th-brand-accent)" } : {}} />
           <span
             className={cn(
               "overflow-hidden whitespace-nowrap transition-all duration-300",
@@ -454,9 +505,12 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
     <aside
       className={cn(
         "flex flex-col h-screen fixed left-0 top-0 z-30 transition-all duration-300 ease-in-out overflow-hidden",
-        "bg-[#131313] border-r border-white/[0.07]",
         collapsed ? "w-20" : "w-[272px]"
       )}
+      style={{
+        background: "var(--th-sidebar-bg)",
+        borderRight: `1px solid var(--th-sidebar-border)`,
+      }}
     >
       {/* ── Logo ───────────────────────────────────────── */}
       <div
@@ -466,8 +520,14 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
         )}
       >
         <div className="flex items-center">
-          <div className="relative w-9 h-9 bg-brand-accent rounded-[12px] flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(212,255,0,0.15)]">
-            <span className="text-black font-bold text-sm tracking-tight">M</span>
+          <div
+            className="relative w-9 h-9 rounded-[12px] flex items-center justify-center shrink-0"
+            style={{
+              background: "var(--th-brand-accent)",
+              boxShadow: `0 0 20px rgba(var(--th-brand-accent-rgb), 0.15)`,
+            }}
+          >
+            <span style={{ color: "var(--th-text-inverse)" }} className="font-bold text-sm tracking-tight">M</span>
           </div>
           <div
             className={cn(
@@ -475,8 +535,8 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
               collapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[200px] opacity-100 ml-3"
             )}
           >
-            <h1 className="text-white font-bold text-[17px] leading-none tracking-[0.04em]">MITRA</h1>
-            <p className="text-white/40 text-[9px] leading-none mt-1.5 uppercase tracking-[0.18em] font-medium">
+            <h1 className="font-bold text-[17px] leading-none tracking-[0.04em]" style={{ color: "var(--th-sidebar-text-active)" }}>MITRA</h1>
+            <p className="text-[9px] leading-none mt-1.5 uppercase tracking-[0.18em] font-medium" style={{ color: "var(--th-sidebar-text-muted)" }}>
               Marketing Intelligence
             </p>
           </div>
@@ -484,8 +544,8 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
       </div>
 
       {/* ── Divider ────────────────────────────────────── */}
-      <div className={cn("mx-4 h-px", collapsed ? "mx-2" : "mx-5")}>
-        <div className="h-full bg-gradient-to-r from-transparent via-white/[0.1] to-transparent" />
+      <div className={cn("h-px", collapsed ? "mx-2" : "mx-5")}>
+        <div className="h-full" style={{ background: `linear-gradient(to right, transparent, var(--th-sidebar-divider), transparent)` }} />
       </div>
 
       {/* ── Main navigation ────────────────────────────── */}
@@ -503,7 +563,7 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
       {/* ── Bottom items ───────────────────────────────── */}
       <div className={cn("py-2 transition-all duration-300", collapsed ? "px-2" : "px-3")}>
         <div className={cn("mx-2 mb-2 h-px", collapsed ? "mx-0" : "")}>
-          <div className="h-full bg-gradient-to-r from-transparent via-white/[0.1] to-transparent" />
+          <div className="h-full" style={{ background: `linear-gradient(to right, transparent, var(--th-sidebar-divider), transparent)` }} />
         </div>
         <ul className="space-y-[2px]">
           {BOTTOM_ITEMS.map(renderBottomLink)}
@@ -517,8 +577,8 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
           collapsed ? "max-h-0 opacity-0 p-0" : "max-h-16 opacity-100 px-6 pb-4 pt-1"
         )}
       >
-        <p className="text-white/30 text-[10px] font-medium tracking-wide">Mitsubishi Motors Indonesia</p>
-        <p className="text-white/20 text-[9px] mt-0.5 tracking-wider">Alert Management v0.1</p>
+        <p className="text-[10px] font-medium tracking-wide" style={{ color: "var(--th-sidebar-footer-text)" }}>Mitsubishi Motors Indonesia</p>
+        <p className="text-[9px] mt-0.5 tracking-wider" style={{ color: "var(--th-sidebar-footer-sub)" }}>Alert Management v0.1</p>
       </div>
     </aside>
   );

@@ -4,41 +4,159 @@
   --font-play: 'Play', system-ui, sans-serif;
 }
 
+/* ─── Dark theme (default) ─── */
+.dark {
+  --th-brand-accent: #D4FF00;
+  --th-brand-accent-hover: #BFEA00;
+  --th-brand-accent-light: #1A2600;
+  --th-brand-accent-rgb: 212, 255, 0;
+
+  --th-surface-50: #0A0A0A;
+  --th-surface-white: #141414;
+  --th-surface-100: #1A1A1A;
+  --th-surface-200: #262626;
+  --th-surface-300: #3A3A3A;
+
+  --th-text-primary: #F0F0F0;
+  --th-text-secondary: #A0A0A0;
+  --th-text-tertiary: #666666;
+  --th-text-inverse: #111111;
+
+  --th-sidebar-bg: #131313;
+  --th-sidebar-border: rgba(255, 255, 255, 0.07);
+  --th-sidebar-divider: rgba(255, 255, 255, 0.1);
+  --th-sidebar-text: rgba(255, 255, 255, 0.65);
+  --th-sidebar-text-hover: rgba(255, 255, 255, 0.9);
+  --th-sidebar-text-muted: rgba(255, 255, 255, 0.4);
+  --th-sidebar-text-active: #FFFFFF;
+  --th-sidebar-item-hover: rgba(255, 255, 255, 0.06);
+  --th-sidebar-item-active: rgba(255, 255, 255, 0.08);
+  --th-sidebar-icon-muted: rgba(255, 255, 255, 0.55);
+  --th-sidebar-icon-submuted: rgba(255, 255, 255, 0.5);
+  --th-sidebar-icon-subgroup: rgba(255, 255, 255, 0.35);
+  --th-sidebar-footer-text: rgba(255, 255, 255, 0.3);
+  --th-sidebar-footer-sub: rgba(255, 255, 255, 0.2);
+
+  --th-flyout-bg: #181818;
+  --th-flyout-border: rgba(255, 255, 255, 0.08);
+  --th-flyout-shadow: 0 16px 48px -8px rgba(0, 0, 0, 0.8);
+  --th-flyout-label: rgba(255, 255, 255, 0.4);
+  --th-flyout-text: rgba(255, 255, 255, 0.5);
+  --th-flyout-text-hover: rgba(255, 255, 255, 0.8);
+
+  --th-tooltip-bg: #1c1c1c;
+  --th-tooltip-border: rgba(255, 255, 255, 0.08);
+  --th-tooltip-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.7);
+  --th-tooltip-text: rgba(255, 255, 255, 0.9);
+
+  --th-status-success: #22C55E;
+  --th-status-success-light: #0D2818;
+  --th-status-warning: #FACC15;
+  --th-status-warning-light: #2A2400;
+  --th-status-error: #EF4444;
+  --th-status-error-light: #2D1212;
+  --th-status-info: #3B82F6;
+  --th-status-info-light: #111C2E;
+
+  --th-shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --th-shadow-card-hover: 0 0 0 1px rgba(255, 255, 255, 0.10), 0 4px 16px -4px rgba(0, 0, 0, 0.4);
+  --th-shadow-dropdown: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 32px -4px rgba(0, 0, 0, 0.6);
+}
+
+/* ─── Light theme ─── */
+.light {
+  --th-brand-accent: #ED0000;
+  --th-brand-accent-hover: #CC0000;
+  --th-brand-accent-light: #FFF0F0;
+  --th-brand-accent-rgb: 237, 0, 0;
+
+  --th-surface-50: #F5F5F5;
+  --th-surface-white: #FFFFFF;
+  --th-surface-100: #F0F0F0;
+  --th-surface-200: #E5E5E5;
+  --th-surface-300: #D4D4D4;
+
+  --th-text-primary: #111111;
+  --th-text-secondary: #555555;
+  --th-text-tertiary: #999999;
+  --th-text-inverse: #FFFFFF;
+
+  --th-sidebar-bg: #FFFFFF;
+  --th-sidebar-border: rgba(0, 0, 0, 0.08);
+  --th-sidebar-divider: rgba(0, 0, 0, 0.08);
+  --th-sidebar-text: rgba(0, 0, 0, 0.6);
+  --th-sidebar-text-hover: rgba(0, 0, 0, 0.85);
+  --th-sidebar-text-muted: rgba(0, 0, 0, 0.35);
+  --th-sidebar-text-active: #111111;
+  --th-sidebar-item-hover: rgba(0, 0, 0, 0.04);
+  --th-sidebar-item-active: rgba(237, 0, 0, 0.06);
+  --th-sidebar-icon-muted: rgba(0, 0, 0, 0.45);
+  --th-sidebar-icon-submuted: rgba(0, 0, 0, 0.4);
+  --th-sidebar-icon-subgroup: rgba(0, 0, 0, 0.3);
+  --th-sidebar-footer-text: rgba(0, 0, 0, 0.35);
+  --th-sidebar-footer-sub: rgba(0, 0, 0, 0.25);
+
+  --th-flyout-bg: #FFFFFF;
+  --th-flyout-border: rgba(0, 0, 0, 0.1);
+  --th-flyout-shadow: 0 16px 48px -8px rgba(0, 0, 0, 0.15);
+  --th-flyout-label: rgba(0, 0, 0, 0.4);
+  --th-flyout-text: rgba(0, 0, 0, 0.5);
+  --th-flyout-text-hover: rgba(0, 0, 0, 0.8);
+
+  --th-tooltip-bg: #1c1c1c;
+  --th-tooltip-border: rgba(0, 0, 0, 0.1);
+  --th-tooltip-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.15);
+  --th-tooltip-text: rgba(255, 255, 255, 0.9);
+
+  --th-status-success: #16A34A;
+  --th-status-success-light: #DCFCE7;
+  --th-status-warning: #CA8A04;
+  --th-status-warning-light: #FEF9C3;
+  --th-status-error: #DC2626;
+  --th-status-error-light: #FEE2E2;
+  --th-status-info: #2563EB;
+  --th-status-info-light: #DBEAFE;
+
+  --th-shadow-card: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --th-shadow-card-hover: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 4px 16px -4px rgba(0, 0, 0, 0.1);
+  --th-shadow-dropdown: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 12px 32px -4px rgba(0, 0, 0, 0.12);
+}
+
 @theme inline {
-  /* ─── Primary palette ("Do." design language) ─── */
+  /* ─── Brand (resolved from theme vars) ─── */
   --color-brand-charcoal: #111111;
   --color-brand-charcoal-light: #1E1E1E;
-  --color-brand-accent: #D4FF00;
-  --color-brand-accent-hover: #BFEA00;
-  --color-brand-accent-light: #1A2600;
+  --color-brand-accent: var(--th-brand-accent);
+  --color-brand-accent-hover: var(--th-brand-accent-hover);
+  --color-brand-accent-light: var(--th-brand-accent-light);
 
-  /* Legacy aliases so existing brand-red classes still work */
-  --color-brand-red: #D4FF00;
-  --color-brand-red-hover: #BFEA00;
-  --color-brand-red-light: #1A2600;
+  /* Legacy aliases */
+  --color-brand-red: var(--th-brand-accent);
+  --color-brand-red-hover: var(--th-brand-accent-hover);
+  --color-brand-red-light: var(--th-brand-accent-light);
 
-  /* ─── Surfaces (dark mode) ─── */
-  --color-surface-white: #141414;
-  --color-surface-50: #0A0A0A;
-  --color-surface-100: #1A1A1A;
-  --color-surface-200: #262626;
-  --color-surface-300: #3A3A3A;
+  /* ─── Surfaces ─── */
+  --color-surface-white: var(--th-surface-white);
+  --color-surface-50: var(--th-surface-50);
+  --color-surface-100: var(--th-surface-100);
+  --color-surface-200: var(--th-surface-200);
+  --color-surface-300: var(--th-surface-300);
 
   /* ─── Text ─── */
-  --color-text-primary: #F0F0F0;
-  --color-text-secondary: #A0A0A0;
-  --color-text-tertiary: #666666;
-  --color-text-inverse: #111111;
+  --color-text-primary: var(--th-text-primary);
+  --color-text-secondary: var(--th-text-secondary);
+  --color-text-tertiary: var(--th-text-tertiary);
+  --color-text-inverse: var(--th-text-inverse);
 
   /* ─── Status ─── */
-  --color-status-success: #22C55E;
-  --color-status-success-light: #0D2818;
-  --color-status-warning: #FACC15;
-  --color-status-warning-light: #2A2400;
-  --color-status-error: #EF4444;
-  --color-status-error-light: #2D1212;
-  --color-status-info: #3B82F6;
-  --color-status-info-light: #111C2E;
+  --color-status-success: var(--th-status-success);
+  --color-status-success-light: var(--th-status-success-light);
+  --color-status-warning: var(--th-status-warning);
+  --color-status-warning-light: var(--th-status-warning-light);
+  --color-status-error: var(--th-status-error);
+  --color-status-error-light: var(--th-status-error-light);
+  --color-status-info: var(--th-status-info);
+  --color-status-info-light: var(--th-status-info-light);
 
   /* ─── Category colors ─── */
   --color-cat-ev: #B8A8FF;
@@ -49,10 +167,10 @@
   /* ─── Typography ─── */
   --font-sans: var(--font-play), "Play", system-ui, -apple-system, sans-serif;
 
-  /* ─── Shadows (border-via-shadow for dark mode) ─── */
-  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.06);
-  --shadow-card-hover: 0 0 0 1px rgba(255, 255, 255, 0.10), 0 4px 16px -4px rgba(0, 0, 0, 0.4);
-  --shadow-dropdown: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 32px -4px rgba(0, 0, 0, 0.6);
+  /* ─── Shadows ─── */
+  --shadow-card: var(--th-shadow-card);
+  --shadow-card-hover: var(--th-shadow-card-hover);
+  --shadow-dropdown: var(--th-shadow-dropdown);
 
   /* ─── Spacing ─── */
   --spacing-sidebar: 280px;
@@ -65,6 +183,7 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Buttons */
