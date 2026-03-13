@@ -22,7 +22,7 @@ import { SentimentBadge } from "./SentimentPage";
 /* --- Tab 1: Overview --- */
 
 export function OverviewTab({ selectedProduct }: { selectedProduct?: string }) {
-  const [days, setDays] = useState(7);
+  const [days, setDays] = useState(0);
 
   const { data: stats, isLoading: statsLoading } = useQuery<SentimentStats>({
     queryKey: ["sentiment-stats", days, selectedProduct],
@@ -139,6 +139,7 @@ export function OverviewTab({ selectedProduct }: { selectedProduct?: string }) {
           onChange={(e) => setDays(Number(e.target.value))}
           className="px-3.5 py-2 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary"
         >
+          <option value={0}>All data</option>
           <option value={7}>Last 7 days</option>
           <option value={14}>Last 14 days</option>
           <option value={30}>Last 30 days</option>
