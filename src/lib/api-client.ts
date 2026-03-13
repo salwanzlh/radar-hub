@@ -534,6 +534,15 @@ export interface PricingScrapeJob {
   created_at: string;
 }
 
+export interface RadarBrand {
+  brand: string;
+  variant_count: number;
+  avg_price: number;
+  min_price: number;
+  max_price: number;
+  price_range: number;
+}
+
 export interface MarketingPlanSection {
   id: string;
   section_type: string;
@@ -785,12 +794,15 @@ export const api = {
         page_size: String(pageSize),
       }),
     getJob: (id: string) => get<PricingScrapeJob>(`/api/v1/pricing/scrape-jobs/${id}`),
-    getData: (page = 1, pageSize = 50, brand?: string) =>
+    getData: (page = 1, pageSize = 50, brand?: string, sortBy = "scraped_at", sortDir = "desc") =>
       get<PaginatedResponse<PricingDataItem>>("/api/v1/pricing/data", {
         page: String(page),
         page_size: String(pageSize),
+        sort_by: sortBy,
+        sort_dir: sortDir,
         ...(brand && { brand }),
       }),
     getLatest: () => get<PricingDataItem[]>("/api/v1/pricing/data/latest"),
+    getRadar: () => get<RadarBrand[]>("/api/v1/pricing/data/radar"),
   },
 };

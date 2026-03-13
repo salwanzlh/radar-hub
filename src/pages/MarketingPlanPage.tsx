@@ -58,8 +58,8 @@ function useReportComponents(): Components {
 
     h3({ children }: ComponentPropsWithoutRef<"h3">) {
       return (
-        <div className="mt-8 mb-4">
-          <h3 className="text-xl font-bold text-text-primary leading-snug">
+        <div>
+          <h3 className="text-[42px] font-bold text-text-primary leading-snug">
             {children}
           </h3>
         </div>
@@ -268,7 +268,7 @@ function ProductCommunicationView({
 
         return (
           <div key={pillar.name} className="mb-3 pb-3 border-b border-surface-100 last:border-b-0">
-            <div className="grid grid-cols-5 gap-6 items-center">
+            <div className="grid grid-cols-5 gap-6 items-start">
               {/* Left: KV image */}
               <div className="col-span-2">
                 <KVImagePanel

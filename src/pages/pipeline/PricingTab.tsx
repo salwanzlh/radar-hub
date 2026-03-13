@@ -14,6 +14,9 @@ import {
   Clock,
   Database,
   Monitor,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import { api } from "@/lib/api-client";
@@ -509,13 +512,34 @@ function ScrapeSection() {
 }
 
 // --- Pricing Data Section ---
+type SortKey = "brand" | "type" | "otr_price" | "scraped_at";
+
 function DataSection() {
   const [page, setPage] = useState(1);
   const [brandFilter, setBrandFilter] = useState("");
+  const [sortBy, setSortBy] = useState<SortKey>("scraped_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function handleSort(col: SortKey) {
+    if (sortBy === col) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(col);
+      setSortDir(col === "otr_price" ? "desc" : "asc");
+    }
+    setPage(1);
+  }
+
+  function SortIcon({ col }: { col: SortKey }) {
+    if (sortBy !== col) return <ArrowUpDown className="w-3 h-3 opacity-30" />;
+    return sortDir === "asc"
+      ? <ArrowUp className="w-3 h-3 text-brand-accent" />
+      : <ArrowDown className="w-3 h-3 text-brand-accent" />;
+  }
 
   const { data, isLoading } = useQuery({
-    queryKey: ["pricing-data", page, brandFilter],
-    queryFn: () => api.pricing.getData(page, 50, brandFilter || undefined),
+    queryKey: ["pricing-data", page, brandFilter, sortBy, sortDir],
+    queryFn: () => api.pricing.getData(page, 50, brandFilter || undefined, sortBy, sortDir),
   });
 
   const brands = useQuery({
@@ -576,12 +600,26 @@ function DataSection() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-surface-100 text-left">
-                    <th className="pb-3 pr-4 font-medium text-text-tertiary text-xs uppercase tracking-wider">Brand</th>
-                    <th className="pb-3 pr-4 font-medium text-text-tertiary text-xs uppercase tracking-wider">Type / Model</th>
-                    <th className="pb-3 pr-4 font-medium text-text-tertiary text-xs uppercase tracking-wider text-right">
-                      OTR Price
-                    </th>
-                    <th className="pb-3 font-medium text-text-tertiary text-xs uppercase tracking-wider">Scraped</th>
+                    {([
+                      { key: "brand" as SortKey, label: "Brand", align: "" },
+                      { key: "type" as SortKey, label: "Type / Model", align: "" },
+                      { key: "otr_price" as SortKey, label: "OTR Price", align: "text-right" },
+                      { key: "scraped_at" as SortKey, label: "Scraped", align: "" },
+                    ]).map((col) => (
+                      <th
+                        key={col.key}
+                        onClick={() => handleSort(col.key)}
+                        className={cn(
+                          "pb-3 pr-4 font-medium text-text-tertiary text-xs uppercase tracking-wider cursor-pointer select-none hover:text-text-secondary transition-colors",
+                          col.align,
+                        )}
+                      >
+                        <span className={cn("inline-flex items-center gap-1", col.align === "text-right" && "justify-end w-full")}>
+                          {col.label}
+                          <SortIcon col={col.key} />
+                        </span>
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -642,9 +680,9 @@ function DataSection() {
 export function PricingTab() {
   return (
     <div className="space-y-5">
+      <DataSection />
       <SourcesSection />
       <ScrapeSection />
-      <DataSection />
     </div>
   );
 }
