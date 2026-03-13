@@ -647,7 +647,14 @@ export const api = {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: "include",
-        body: JSON.stringify({ messages, mode }),
+        body: JSON.stringify({
+          messages: messages.map((m) => ({
+            role: m.role,
+            content: btoa(unescape(encodeURIComponent(m.content))),
+          })),
+          mode,
+          encoded: true,
+        }),
       });
       if (!response.ok) throw new ApiError(response.status, "Chat request failed");
       const reader = response.body?.getReader();

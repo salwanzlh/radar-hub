@@ -317,7 +317,7 @@ export default function MarketingPlanPage() {
 
   const effectiveLineupId = selectedLineupId || lineups[0]?.id || null;
 
-  const { data: planVersions = [] } = useQuery({
+  const { data: planVersions = [], isLoading: versionsLoading } = useQuery({
     queryKey: ["marketing-plan-versions", effectiveLineupId],
     queryFn: () => api.marketingPlan.listByLineup(effectiveLineupId!),
     enabled: !!effectiveLineupId,
@@ -573,14 +573,14 @@ export default function MarketingPlanPage() {
       )}
 
       {/* Loading */}
-      {planLoading && effectivePlanId && (
+      {(versionsLoading || (planLoading && effectivePlanId)) && (
         <div className="bg-surface-white rounded-[20px] shadow-card p-12 flex items-center justify-center">
           <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
         </div>
       )}
 
       {/* Empty state */}
-      {!effectivePlanId && !planLoading && effectiveLineupId && (
+      {!effectivePlanId && !planLoading && !versionsLoading && effectiveLineupId && (
         <div className="bg-surface-white rounded-[20px] shadow-card p-12 text-center">
           <div className="w-14 h-14 rounded-2xl bg-surface-100 flex items-center justify-center mx-auto mb-4">
             <FileText className="w-6 h-6 text-text-tertiary" />
