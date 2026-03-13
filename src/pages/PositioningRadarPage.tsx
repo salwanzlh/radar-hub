@@ -10,7 +10,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
   Label,
 } from "recharts";
 import { api, type RadarBrand, type PricingDataItem } from "@/lib/api-client";
