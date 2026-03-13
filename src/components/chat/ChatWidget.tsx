@@ -303,7 +303,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
             <BrainCircuit className="w-4 h-4 text-brand-accent" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-text-primary leading-none">MITRA AI</h2>
+            <h2 className="text-sm font-semibold text-text-primary leading-none">RadarHub AI</h2>
             <p className="text-[10px] text-text-tertiary mt-0.5">Marketing Intelligence</p>
           </div>
         </div>
@@ -362,7 +362,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
             <div>
               <p className="text-text-secondary text-sm font-medium mb-1">
                 {mode === "quick"
-                  ? "Tanyakan seputar berita dan data MITRA"
+                  ? "Tanyakan seputar berita dan data RadarHub"
                   : "Dapatkan analisis dan rekomendasi strategis"}
               </p>
               <p className="text-text-tertiary text-xs leading-relaxed">
@@ -401,7 +401,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
                       <BrainCircuit className="w-3.5 h-3.5 text-brand-accent" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <span className="text-xs font-semibold text-text-primary">MITRA AI</span>
+                      <span className="text-xs font-semibold text-text-primary">RadarHub AI</span>
                       <div className="mt-1">
                         {msg.content ? (
                           <AssistantContent content={msg.content} streaming={isStreaming} />

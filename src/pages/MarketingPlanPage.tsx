@@ -5,6 +5,7 @@ import {
   Monitor,
   Megaphone,
   MapPin,
+  Lock,
   Loader2,
   Pencil,
   Save,
@@ -22,10 +23,10 @@ import toast from "react-hot-toast";
 import ReactMarkdown, { type Components } from "react-markdown";
 
 const TABS = [
-  { key: "product_communication", label: "Product Communication", icon: MessageSquareText },
-  { key: "digital_activities", label: "Digital Activities", icon: Monitor },
-  { key: "atl_marcomm", label: "ATL & Marcomm", icon: Megaphone },
-  { key: "btl", label: "BTL", icon: MapPin },
+  { key: "product_communication", label: "Product Communication", icon: MessageSquareText, disabled: false },
+  { key: "digital_activities", label: "Digital Activities", icon: Monitor, disabled: true },
+  { key: "atl_marcomm", label: "ATL & Marcomm", icon: Megaphone, disabled: true },
+  { key: "btl", label: "BTL", icon: MapPin, disabled: true },
 ] as const;
 
 type SectionKey = (typeof TABS)[number]["key"];
@@ -56,17 +57,11 @@ function useReportComponents(): Components {
     },
 
     h3({ children }: ComponentPropsWithoutRef<"h3">) {
-      counterRef.current++;
       return (
-        <div className="mt-6 mb-3">
-          <div className="flex items-start gap-3">
-            <span className="w-6 h-6 bg-brand-accent/15 text-text-primary rounded-md flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5">
-              {counterRef.current}
-            </span>
-            <h3 className="text-[15px] font-semibold text-text-primary leading-snug">
-              {children}
-            </h3>
-          </div>
+        <div className="mt-8 mb-4">
+          <h3 className="text-xl font-bold text-text-primary leading-snug">
+            {children}
+          </h3>
         </div>
       );
     },
@@ -98,6 +93,10 @@ function useReportComponents(): Components {
           {children}
         </blockquote>
       );
+    },
+
+    hr() {
+      return null;
     },
   };
 }
@@ -261,14 +260,14 @@ function ProductCommunicationView({
 
         if (isSummary) {
           return (
-            <div key={pillar.name} className="mb-6 pb-6 border-b border-surface-100 last:border-b-0">
+            <div key={pillar.name} className="mb-3 pb-3 border-b border-surface-100 last:border-b-0">
               <ReactMarkdown components={components}>{pillar.markdown}</ReactMarkdown>
             </div>
           );
         }
 
         return (
-          <div key={pillar.name} className="mb-6 pb-6 border-b border-surface-100 last:border-b-0">
+          <div key={pillar.name} className="mb-3 pb-3 border-b border-surface-100 last:border-b-0">
             <div className="grid grid-cols-5 gap-6 items-center">
               {/* Left: KV image */}
               <div className="col-span-2">
@@ -550,18 +549,23 @@ export default function MarketingPlanPage() {
             return (
               <button
                 key={tab.key}
-                onClick={() => { setActiveTab(tab.key); setEditMode(false); }}
+                onClick={() => { if (!tab.disabled) { setActiveTab(tab.key); setEditMode(false); } }}
+                disabled={tab.disabled}
+                title={tab.disabled ? "Coming soon" : undefined}
                 className={cn(
                   "flex items-center gap-2 px-5 py-3 rounded-t-xl text-sm font-medium whitespace-nowrap transition-colors relative",
-                  isActive
-                    ? "bg-surface-white text-text-primary shadow-card"
-                    : "text-text-tertiary hover:text-text-secondary hover:bg-surface-white/50"
+                  tab.disabled
+                    ? "text-text-tertiary/40 cursor-not-allowed"
+                    : isActive
+                      ? "bg-surface-white text-text-primary shadow-card"
+                      : "text-text-tertiary hover:text-text-secondary hover:bg-surface-white/50"
                 )}
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}
-                {hasContent && <span className="w-2 h-2 rounded-full bg-status-success" />}
-                {isActive && <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-brand-accent rounded-full" />}
+                {tab.disabled && <Lock className="w-3 h-3" />}
+                {!tab.disabled && hasContent && <span className="w-2 h-2 rounded-full bg-status-success" />}
+                {!tab.disabled && isActive && <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-brand-accent rounded-full" />}
               </button>
             );
           })}

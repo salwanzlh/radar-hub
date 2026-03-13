@@ -28,8 +28,8 @@ export default function LoginPage() {
     <div className="min-h-screen bg-surface-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-surface-white border border-surface-200 rounded-[20px] p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-brand-accent tracking-tight">MITRA</h1>
-          <p className="text-sm text-text-tertiary mt-1">Marketing Intelligence & Trend Research Assistant</p>
+          <h1 className="text-3xl font-bold text-brand-accent tracking-tight">RadarHub</h1>
+          <p className="text-sm text-text-tertiary mt-1">Market Intelligence & Strategic Insights</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">

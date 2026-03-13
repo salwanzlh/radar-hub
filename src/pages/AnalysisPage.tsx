@@ -145,7 +145,7 @@ export default function AnalysisPage() {
   const handleDownloadPdf = async (report: LineupReport) => {
     setIsDownloadingPdf(true);
     try {
-      const filename = `MITRA_${report.lineup.slug}_${report.date_from}_${report.date_to}.pdf`;
+      const filename = `RadarHub_${report.lineup.slug}_${report.date_from}_${report.date_to}.pdf`;
       await api.lineupAnalysis.downloadPdf(report.id, filename);
       toast.success("PDF downloaded!");
     } catch (err) {

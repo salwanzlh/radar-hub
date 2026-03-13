@@ -527,7 +527,7 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
               boxShadow: `0 0 20px rgba(var(--th-brand-accent-rgb), 0.15)`,
             }}
           >
-            <span style={{ color: "var(--th-text-inverse)" }} className="font-bold text-sm tracking-tight">M</span>
+            <span style={{ color: "var(--th-text-inverse)" }} className="font-bold text-sm tracking-tight">R</span>
           </div>
           <div
             className={cn(
@@ -535,9 +535,9 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
               collapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[200px] opacity-100 ml-3"
             )}
           >
-            <h1 className="font-bold text-[17px] leading-none tracking-[0.04em]" style={{ color: "var(--th-sidebar-text-active)" }}>MITRA</h1>
-            <p className="text-[9px] leading-none mt-1.5 uppercase tracking-[0.18em] font-medium" style={{ color: "var(--th-sidebar-text-muted)" }}>
-              Marketing Intelligence
+            <h1 className="font-bold text-[17px] leading-none tracking-[0.04em]" style={{ color: "var(--th-sidebar-text-active)" }}>RadarHub</h1>
+            <p className="text-[9px] leading-tight mt-1.5 uppercase tracking-[0.18em] font-medium" style={{ color: "var(--th-sidebar-text-muted)" }}>
+              Market Intelligence<br />Strategic Insights
             </p>
           </div>
         </div>

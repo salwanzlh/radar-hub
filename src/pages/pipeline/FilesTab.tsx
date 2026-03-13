@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Upload, Trash2, Eye, Loader2, ChevronLeft, ChevronRight, Search, Database } from "lucide-react";
+import { Upload, Trash2, Eye, Loader2, ChevronLeft, ChevronRight, Search, Database, Lock, X } from "lucide-react";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import { api } from "@/lib/api-client";
 import type { PipelineFileSummary, PipelineFile, ParsePreview, SheetsPreviewResponse, SheetConfig } from "@/lib/api-client";
@@ -25,6 +25,7 @@ const FILE_TYPE_OPTIONS = [
 const STATUS_OPTIONS = [
   { value: "", label: "All Status" },
   { value: "uploaded", label: "Uploaded" },
+  { value: "password_required", label: "Password Required" },
   { value: "parsing", label: "Parsing" },
   { value: "preview_ready", label: "Preview Ready" },
   { value: "processing", label: "Processing" },
@@ -34,6 +35,7 @@ const STATUS_OPTIONS = [
 
 const STATUS_COLORS: Record<string, string> = {
   uploaded: "bg-surface-200 text-text-secondary",
+  password_required: "bg-orange-50 text-orange-700",
   parsing: "bg-yellow-50 text-yellow-700",
   preview_ready: "bg-blue-50 text-blue-700",
   processing: "bg-yellow-50 text-yellow-700",
@@ -57,6 +59,8 @@ export function FilesTab() {
   const [sheetSelector, setSheetSelector] = useState<{ fileId: string; data: SheetsPreviewResponse } | null>(null);
   const [trackingJobId, setTrackingJobId] = useState<string | null>(null);
   const [dataPreviewFile, setDataPreviewFile] = useState<PipelineFile | null>(null);
+  const [passwordModal, setPasswordModal] = useState<{ fileId: string; fileName: string } | null>(null);
+  const [passwordInput, setPasswordInput] = useState("");
   const pageSize = 20;
 
   // Fetch files
@@ -76,13 +80,32 @@ export function FilesTab() {
     mutationFn: (file: File) => api.pipeline.upload(file),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["pipeline-files"] });
-      toast.success(`Uploaded: ${result.file_name}`);
-      // For XLSX: open sheet selector for header selection
-      if (result.file_type === "xlsx") {
-        openSheetSelector(result.id);
+      if (result.status === "password_required") {
+        setPasswordModal({ fileId: result.id, fileName: result.file_name });
+        setPasswordInput("");
+      } else {
+        toast.success(`Uploaded: ${result.file_name}`);
+        if (result.file_type === "xlsx") {
+          openSheetSelector(result.id);
+        }
       }
     },
     onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Password mutation
+  const passwordMutation = useMutation({
+    mutationFn: ({ fileId, password }: { fileId: string; password: string }) =>
+      api.pipeline.submitPassword(fileId, password),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline-files"] });
+      toast.success(`Password accepted: ${result.file_name}`);
+      setPasswordModal(null);
+      setPasswordInput("");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
   });
 
   // Open sheet selector (fetch raw sheets data)
@@ -227,6 +250,19 @@ export function FilesTab() {
           title="View Data"
         >
           <Database className="w-4 h-4" />
+        </button>
+      );
+    }
+
+    if (file.status === "password_required") {
+      actions.push(
+        <button
+          key="password"
+          onClick={() => { setPasswordModal({ fileId: file.id, fileName: file.file_name }); setPasswordInput(""); }}
+          className="p-1.5 hover:bg-orange-50 rounded-lg text-orange-600 hover:text-orange-700 transition-colors"
+          title="Enter Password"
+        >
+          <Lock className="w-4 h-4" />
         </button>
       );
     }
@@ -458,6 +494,71 @@ export function FilesTab() {
           file={dataPreviewFile}
           onClose={() => setDataPreviewFile(null)}
         />
+      )}
+
+      {/* Password modal */}
+      {passwordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-surface-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+                  <Lock className="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary">Password Required</h3>
+                  <p className="text-xs text-text-tertiary mt-0.5 truncate max-w-[200px]">{passwordModal.fileName}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setPasswordModal(null); setPasswordInput(""); }}
+                className="p-1.5 hover:bg-surface-100 rounded-lg text-text-tertiary transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-text-secondary mb-4">
+              This PDF is password-protected. Please enter the password to continue.
+            </p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (passwordInput.trim()) {
+                  passwordMutation.mutate({ fileId: passwordModal.fileId, password: passwordInput });
+                }
+              }}
+            >
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="Enter PDF password"
+                autoFocus
+                className="w-full px-4 py-2.5 bg-surface-50 border border-surface-200 rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-accent/50 transition-colors"
+              />
+              <div className="flex gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => { setPasswordModal(null); setPasswordInput(""); }}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-text-secondary bg-surface-50 hover:bg-surface-100 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!passwordInput.trim() || passwordMutation.isPending}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-text-inverse bg-brand-accent hover:bg-brand-accent/90 rounded-xl transition-colors disabled:opacity-50"
+                >
+                  {passwordMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                  ) : (
+                    "Unlock"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

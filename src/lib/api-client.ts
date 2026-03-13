@@ -685,6 +685,8 @@ export const api = {
   pipeline: {
     upload: (file: File) =>
       uploadFile<PipelineFileSummary>("/api/v1/pipeline/upload", file),
+    submitPassword: (id: string, password: string) =>
+      post<PipelineFileSummary>(`/api/v1/pipeline/files/${id}/password`, { password }),
     getFiles: (params: Record<string, string>) =>
       get<PaginatedResponse<PipelineFileSummary>>("/api/v1/pipeline/files", params),
     getFile: (id: string) =>

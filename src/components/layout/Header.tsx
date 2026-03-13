@@ -17,7 +17,7 @@ function getPageTitle(pathname: string): string {
   for (const [path, title] of Object.entries(PAGE_TITLES)) {
     if (pathname.startsWith(path) && path !== "/") return title;
   }
-  return "MITRA";
+  return "RadarHub";
 }
 
 export function Header() {
