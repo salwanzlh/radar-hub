@@ -272,7 +272,7 @@ function PriceListTab({ data, isLoading }: { data: PricingDataItem[]; isLoading:
 // ---------------------------------------------------------------------------
 // Main Page
 // ---------------------------------------------------------------------------
-export default function PositioningRadarPage() {
+export function PricingRadarContent() {
   const [activeTab, setActiveTab] = useState<Tab>("value-map");
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
 
@@ -496,4 +496,8 @@ function ValueMapTab({
       </div>
     </div>
   );
+}
+
+export default function PositioningRadarPage() {
+  return <PricingRadarContent />;
 }
