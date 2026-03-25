@@ -1,8 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, ChevronsDownUp, ChevronsUpDown, GitCompareArrows, Loader2 } from "lucide-react";
-import { api, type AtoaVehicle, type AtoaComparison } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
+import { Search, Plus, ChevronsDownUp, ChevronsUpDown, GitCompareArrows } from "lucide-react";
+import { api, type AtoaVehicle } from "@/lib/api-client";
 import toast from "react-hot-toast";
 
 import { SummaryCards } from "./SummaryCards";
@@ -106,16 +105,7 @@ export function AtoaPage() {
     });
   }, [comparison, baseId, compId]);
 
-  // ── Computed: brand groups ──
-  const brandGroups = useMemo(() => {
-    const groups = new Map<string, AtoaVehicle[]>();
-    for (const vehicle of vehicles) {
-      const existing = groups.get(vehicle.maker) ?? [];
-      existing.push(vehicle);
-      groups.set(vehicle.maker, existing);
-    }
-    return groups;
-  }, [vehicles]);
+
 
   // ── Computed: visible vehicle IDs ──
   const visibleVehicleIds = useMemo(() => {
