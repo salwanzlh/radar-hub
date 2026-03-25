@@ -571,6 +571,74 @@ export interface MarketingPlanBrief {
   created_at: string;
 }
 
+// ── A2A Comparison Types ────────────────────────────────
+
+export interface AtoaFeature {
+  id: string
+  category_id: string
+  sub_item: string
+  remark: string | null
+  detail: string | null
+  weight: number
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface AtoaCategory {
+  id: string
+  name: string
+  display_order: number
+  created_at: string
+  updated_at: string
+  features: AtoaFeature[]
+}
+
+export interface AtoaVehicle {
+  id: string
+  segment: string | null
+  model_year: string | null
+  maker: string
+  model: string
+  trim: string | null
+  engine_displacement: string | null
+  fuel: string | null
+  transmission: string | null
+  drive_system: string | null
+  seat_capacity: number | null
+  retail_price: number
+  display_order: number
+  feature_ids: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface AtoaComparison {
+  categories: AtoaCategory[]
+  vehicles: AtoaVehicle[]
+}
+
+export interface AtoaMetrics {
+  base_value: number
+  comp_value: number
+  vi_percent: number
+  va_percent: number
+}
+
+export interface AtoaRadarPoint {
+  vehicle_id: string
+  maker: string
+  model: string
+  trim: string | null
+  segment: string | null
+  value: number
+  price: number
+  quadrant: string | null
+  is_base: boolean
+  vi_percent: number | null
+  va_percent: number | null
+}
+
 export const api = {
   auth: {
     verifyPassword: (password: string) =>
@@ -804,5 +872,51 @@ export const api = {
       }),
     getLatest: () => get<PricingDataItem[]>("/api/v1/pricing/data/latest"),
     getRadar: () => get<RadarBrand[]>("/api/v1/pricing/data/radar"),
+  },
+  atoa: {
+    getComparison: () =>
+      get<AtoaComparison>('/api/v1/atoa/comparison'),
+
+    getVehicles: () =>
+      get<AtoaVehicle[]>('/api/v1/atoa/vehicles'),
+
+    getMetrics: (baseId: string, compId: string) =>
+      get<AtoaMetrics>(`/api/v1/atoa/metrics?base_id=${baseId}&comp_id=${compId}`),
+
+    getRadar: (baseId: string) =>
+      get<AtoaRadarPoint[]>(`/api/v1/atoa/radar?base_id=${baseId}`),
+
+    createCategory: (data: { name: string }) =>
+      post<AtoaCategory>('/api/v1/atoa/categories', data),
+
+    updateCategory: (id: string, data: { name?: string; display_order?: number }) =>
+      put<AtoaCategory>(`/api/v1/atoa/categories/${id}`, data),
+
+    deleteCategory: (id: string) =>
+      del(`/api/v1/atoa/categories/${id}`),
+
+    createFeature: (data: { category_id: string; sub_item: string; remark?: string; detail?: string; weight?: number }) =>
+      post<AtoaFeature>('/api/v1/atoa/features', data),
+
+    updateFeature: (id: string, data: { sub_item?: string; remark?: string; detail?: string; weight?: number; display_order?: number }) =>
+      put<AtoaFeature>(`/api/v1/atoa/features/${id}`, data),
+
+    deleteFeature: (id: string) =>
+      del(`/api/v1/atoa/features/${id}`),
+
+    createVehicle: (data: { maker: string; model: string; retail_price: number; segment?: string; model_year?: string; trim?: string; engine_displacement?: string; fuel?: string; transmission?: string; drive_system?: string; seat_capacity?: number }) =>
+      post<AtoaVehicle>('/api/v1/atoa/vehicles', data),
+
+    updateVehicle: (id: string, data: Partial<{ maker: string; model: string; retail_price: number; segment: string; model_year: string; trim: string; engine_displacement: string; fuel: string; transmission: string; drive_system: string; seat_capacity: number; display_order: number }>) =>
+      put<AtoaVehicle>(`/api/v1/atoa/vehicles/${id}`, data),
+
+    deleteVehicle: (id: string) =>
+      del(`/api/v1/atoa/vehicles/${id}`),
+
+    toggleFeature: (vehicleId: string, featureId: string) =>
+      post<AtoaVehicle>(`/api/v1/atoa/vehicles/${vehicleId}/toggle-feature`, { feature_id: featureId }),
+
+    bulkToggle: (vehicleId: string, featureIds: string[], action: 'add' | 'remove') =>
+      post<AtoaVehicle>(`/api/v1/atoa/vehicles/${vehicleId}/bulk-toggle`, { feature_ids: featureIds, action }),
   },
 };
