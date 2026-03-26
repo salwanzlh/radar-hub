@@ -407,6 +407,7 @@ export function FilesTab() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-surface-100 border-b border-surface-200">
+                    <th className="text-left px-5 py-3 font-medium text-text-secondary">ID</th>
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Name</th>
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Type</th>
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Size</th>
@@ -418,6 +419,9 @@ export function FilesTab() {
                 <tbody className="divide-y divide-surface-100">
                   {data.items.map((file) => (
                     <tr key={file.id} className="hover:bg-surface-100 transition-colors">
+                      <td className="px-5 py-3.5 text-text-tertiary text-xs font-mono max-w-[100px] truncate" title={file.id}>
+                        {file.id.slice(0, 8)}
+                      </td>
                       <td className="px-5 py-3.5 font-medium text-text-primary max-w-[300px] truncate">
                         {file.file_name}
                       </td>
