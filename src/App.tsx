@@ -8,6 +8,7 @@ import HealthPage from "@/pages/HealthPage";
 import SettingsPage from "@/pages/settings";
 import DataPipelinePage from "@/pages/pipeline";
 import PriceComparisonPage from "@/pages/pipeline/PriceComparisonPage";
+import { AtoaPage } from "@/pages/atoa";
 import { RadarPage } from "@/pages/radar";
 import MarketingPlanPage from "@/pages/MarketingPlanPage";
 import LoginPage from "@/pages/LoginPage";
@@ -86,7 +87,7 @@ const router = createBrowserRouter(
             { path: "articles", element: <ArticlesPage /> },
             { path: "analysis", element: <AnalysisPage /> },
             { path: "sentiment", element: <SentimentPage /> },
-            { path: "atoa", element: <Navigate to="/pipeline" replace /> },
+            { path: "atoa", element: <AtoaPage /> },
             { path: "radar", element: <RadarPage /> },
             { path: "positioning-radar", element: <Navigate to="/radar" replace /> },
             { path: "marketing-plan", element: <MarketingPlanPage /> },
