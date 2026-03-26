@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Trash2, Plus } from "lucide-react";
-import { api, type AtoaCategory, type AtoaVehicle } from "@/lib/api-client";
+import { ChevronDown, ChevronRight, Trash2, Plus, Pencil, Check, X } from "lucide-react";
+import { api, type AtoaCategory, type AtoaVehicle, type AtoaFeature } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { VehicleHeader } from "./VehicleHeader";
 import toast from "react-hot-toast";
@@ -250,6 +250,135 @@ export function ComparisonTable({
   );
 }
 
+/* ─── Feature Name Cell with Inline Edit ─── */
+
+function FeatureNameCell({
+  feature,
+  isDiff,
+  onDeleteFeature,
+}: {
+  feature: AtoaFeature;
+  isDiff: boolean;
+  onDeleteFeature: (id: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [editSubItem, setEditSubItem] = useState(feature.sub_item);
+  const [editRemark, setEditRemark] = useState(feature.remark ?? "");
+  const [editWeight, setEditWeight] = useState(String(feature.weight ?? 0));
+
+  const updateMutation = useMutation({
+    mutationFn: (data: { sub_item?: string; remark?: string; weight?: number }) =>
+      api.atoa.updateFeature(feature.id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["atoa-comparison"] });
+      setEditing(false);
+      toast.success("Feature updated");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const handleSave = () => {
+    updateMutation.mutate({
+      sub_item: editSubItem.trim() || feature.sub_item,
+      remark: editRemark.trim() || undefined,
+      weight: parseInt(editWeight, 10) || 0,
+    });
+  };
+
+  const handleCancel = () => {
+    setEditSubItem(feature.sub_item);
+    setEditRemark(feature.remark ?? "");
+    setEditWeight(String(feature.weight ?? 0));
+    setEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleSave();
+    if (e.key === "Escape") handleCancel();
+  };
+
+  if (editing) {
+    return (
+      <>
+        <td className={cn("sticky left-0 z-10 px-4 py-1.5", isDiff ? "bg-status-warning/[0.06]" : "bg-surface-white")}>
+          <div className="flex items-center gap-1.5">
+            <input
+              autoFocus
+              value={editSubItem}
+              onChange={(e) => setEditSubItem(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="flex-1 min-w-0 px-2 py-1 text-sm bg-surface-50 border border-surface-200 rounded-lg text-text-primary focus:outline-none focus:border-brand-accent/50"
+              placeholder="Sub item"
+            />
+            <input
+              value={editRemark}
+              onChange={(e) => setEditRemark(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="w-28 px-2 py-1 text-xs bg-surface-50 border border-surface-200 rounded-lg text-text-secondary focus:outline-none focus:border-brand-accent/50"
+              placeholder="Remark"
+            />
+            <button onClick={handleSave} disabled={updateMutation.isPending} className="p-1 text-status-success hover:bg-status-success-light rounded transition-colors" title="Save">
+              <Check className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={handleCancel} className="p-1 text-text-tertiary hover:bg-surface-200 rounded transition-colors" title="Cancel">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </td>
+        <td className="px-2 py-1.5 text-center">
+          <input
+            value={editWeight}
+            onChange={(e) => setEditWeight(e.target.value)}
+            onKeyDown={handleKeyDown}
+            type="number"
+            className="w-12 px-1 py-1 text-[11px] text-center bg-surface-50 border border-surface-200 rounded-lg text-text-primary focus:outline-none focus:border-brand-accent/50"
+          />
+        </td>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <td className={cn("sticky left-0 z-10 px-4 py-2", isDiff ? "bg-status-warning/[0.06]" : "bg-surface-white")}>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-text-primary">{feature.sub_item}</span>
+          {feature.remark && (
+            <span className="text-xs text-text-tertiary hidden sm:inline" title={feature.remark}>
+              — {feature.remark}
+            </span>
+          )}
+          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+            {isDiff && (
+              <span className="px-1.5 py-0.5 text-[9px] font-bold bg-status-warning/20 text-status-warning rounded-full uppercase">
+                diff
+              </span>
+            )}
+            <button
+              onClick={() => setEditing(true)}
+              className="p-0.5 text-text-tertiary hover:text-brand-accent hover:bg-surface-100 rounded transition-colors opacity-0 group-hover:opacity-100"
+              title="Edit feature"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => onDeleteFeature(feature.id)}
+              className="p-0.5 text-text-tertiary hover:text-status-error hover:bg-status-error-light rounded transition-colors opacity-0 group-hover:opacity-100"
+              title="Delete feature"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      </td>
+      <td className="px-2 py-2 text-center">
+        <span className="text-[10px] font-medium text-text-tertiary">{feature.weight || '-'}</span>
+      </td>
+    </>
+  );
+}
+
 /* ─── Category Section Sub-component ─── */
 
 interface CategorySectionProps {
@@ -368,33 +497,11 @@ function CategorySection({
               isDiff && "bg-status-warning/[0.04]"
             )}
           >
-            <td className={cn("sticky left-0 z-10 px-4 py-2", isDiff ? "bg-status-warning/[0.06]" : "bg-surface-white")}>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-text-primary">{feature.sub_item}</span>
-                {feature.remark && (
-                  <span className="text-xs text-text-tertiary hidden sm:inline" title={feature.remark}>
-                    — {feature.remark}
-                  </span>
-                )}
-                <div className="ml-auto flex items-center gap-1.5 shrink-0">
-                  {isDiff && (
-                    <span className="px-1.5 py-0.5 text-[9px] font-bold bg-status-warning/20 text-status-warning rounded-full uppercase">
-                      diff
-                    </span>
-                  )}
-                  <button
-                    onClick={() => onDeleteFeature(feature.id)}
-                    className="p-0.5 text-text-tertiary hover:text-status-error hover:bg-status-error-light rounded transition-colors opacity-0 group-hover:opacity-100"
-                    title="Delete feature"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            </td>
-            <td className="px-2 py-2 text-center">
-              <span className="text-[10px] font-medium text-text-tertiary">{feature.weight || '-'}</span>
-            </td>
+            <FeatureNameCell
+              feature={feature}
+              isDiff={!!isDiff}
+              onDeleteFeature={onDeleteFeature}
+            />
             {visibleVehicles.map((vehicle) => {
               const isChecked = vehicle.feature_ids.includes(feature.id);
               return (
