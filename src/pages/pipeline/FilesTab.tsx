@@ -76,6 +76,8 @@ export function FilesTab() {
       }),
   });
 
+  const UNSTRUCTURED_TYPES = new Set(["docx", "pptx", "pdf", "mp3", "mp4"]);
+
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: (file: File) => api.pipeline.upload(file),
@@ -84,11 +86,16 @@ export function FilesTab() {
       if (result.status === "password_required") {
         setPasswordModal({ fileId: result.id, fileName: result.file_name });
         setPasswordInput("");
+      } else if (result.file_type === "xlsx") {
+        toast.success(`Uploaded: ${result.file_name}`);
+        openSheetSelector(result.id);
+      } else if (UNSTRUCTURED_TYPES.has(result.file_type)) {
+        toast.success(`Uploaded: ${result.file_name} — starting processing...`);
+        const isAudioVideo = result.file_type === "mp3" || result.file_type === "mp4";
+        const provider = isAudioVideo ? (transcriptionProviders[result.id] ?? "gemini") : undefined;
+        processMutation.mutate({ fileId: result.id, provider });
       } else {
         toast.success(`Uploaded: ${result.file_name}`);
-        if (result.file_type === "xlsx") {
-          openSheetSelector(result.id);
-        }
       }
     },
     onError: (err: Error) => toast.error(err.message),
