@@ -142,7 +142,7 @@ export function AddFeatureModal({ isOpen, onClose, categoryId, categories }: Add
               />
             </div>
             <div>
-              <label className={labelClass}>Weight</label>
+              <label className={labelClass}>Value</label>
               <input
                 type="number"
                 placeholder="0"
