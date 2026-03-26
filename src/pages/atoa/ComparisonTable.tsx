@@ -277,6 +277,13 @@ function CategorySection({
   onDeleteCategory,
   onDeleteFeature,
 }: CategorySectionProps) {
+  // Count features that differ between base and comp
+  const baseVehicle = baseId ? visibleVehicles.find((v) => v.id === baseId) : null;
+  const compVehicle = compId ? visibleVehicles.find((v) => v.id === compId) : null;
+  const diffCount = baseVehicle && compVehicle
+    ? category.features.filter((f) => baseVehicle.feature_ids.includes(f.id) !== compVehicle.feature_ids.includes(f.id)).length
+    : 0;
+
   return (
     <>
       {/* Category header row */}
@@ -297,6 +304,11 @@ function CategorySection({
             <span className="text-[10px] text-text-tertiary ml-1">
               ({category.features.length})
             </span>
+            {diffCount > 0 && (
+              <span className="px-1.5 py-0.5 text-[9px] font-bold bg-status-warning/20 text-status-warning rounded-full">
+                {diffCount} diff
+              </span>
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -343,14 +355,27 @@ function CategorySection({
 
       {/* Feature rows */}
       {!isCollapsed &&
-        category.features.map((feature) => (
+        category.features.map((feature) => {
+          const baseHas = baseId ? visibleVehicles.find((v) => v.id === baseId)?.feature_ids.includes(feature.id) : undefined;
+          const compHas = compId ? visibleVehicles.find((v) => v.id === compId)?.feature_ids.includes(feature.id) : undefined;
+          const isDiff = baseId && compId && baseHas !== undefined && compHas !== undefined && baseHas !== compHas;
+
+          return (
           <tr
             key={feature.id}
-            className="border-b border-surface-50 hover:bg-surface-50/30 transition-colors group"
+            className={cn(
+              "border-b border-surface-50 hover:bg-surface-50/30 transition-colors group",
+              isDiff && "bg-status-warning/[0.04]"
+            )}
           >
-            <td className="sticky left-0 z-10 bg-surface-white px-4 py-2">
+            <td className={cn("sticky left-0 z-10 px-4 py-2", isDiff ? "bg-status-warning/[0.06]" : "bg-surface-white")}>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-text-primary">{feature.sub_item}</span>
+                {isDiff && (
+                  <span className="px-1 py-0.5 text-[8px] font-bold bg-status-warning/20 text-status-warning rounded-full uppercase">
+                    diff
+                  </span>
+                )}
                 {feature.remark && (
                   <span className="text-[10px] text-text-tertiary hidden sm:inline" title={feature.remark}>
                     — {feature.remark}
@@ -411,7 +436,8 @@ function CategorySection({
               );
             })}
           </tr>
-        ))}
+          );
+        })}
     </>
   );
 }
