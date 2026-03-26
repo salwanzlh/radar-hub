@@ -15,7 +15,6 @@ import {
   Globe,
   Radar,
   FileText,
-  GitCompareArrows,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -89,7 +88,6 @@ const NAV_SECTIONS: NavItem[] = [
     icon: BrainCircuit,
     children: [
       { label: "Discovery Feed", href: "/analysis", icon: Rss },
-      { label: "A2A Comparison", href: "/atoa", icon: GitCompareArrows },
       { label: "Positioning Radar", href: "/radar", icon: Radar },
       { label: "Marketing Plan", href: "/marketing-plan", icon: FileText },
       { label: "Chat (Widget)", icon: MessageSquare, action: "open-chat" },
