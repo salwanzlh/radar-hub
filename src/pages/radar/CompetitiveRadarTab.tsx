@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Crosshair, ArrowRight, AlertTriangle, BarChart3 } from "lucide-react";
 import {
   ScatterChart,
@@ -747,9 +747,15 @@ function ChartLegend({ brands }: { brands: string[] }) {
 
 export function CompetitiveRadarTab() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Selection state
-  const [compId, setCompId] = useState<string | null>(null);
+  // Read base/comp from URL query params (synced from A2A page)
+  const urlBase = searchParams.get("base");
+  const urlComp = searchParams.get("comp");
+
+  // Selection state — initialized from URL params
+  const [baseId, setBaseId] = useState<string | null>(urlBase);
+  const [compId, setCompId] = useState<string | null>(urlComp);
   const [activeBrands, setActiveBrands] = useState<Set<string>>(new Set());
 
   // Fetch all radar points
@@ -774,12 +780,12 @@ export function CompetitiveRadarTab() {
     return map;
   }, [allVehicles]);
 
-  // Derive base vehicle: first Mitsubishi, or first vehicle
-  const baseId = useMemo(() => {
-    if (!allPoints?.length) return null;
+  // Auto-select base if not set (from URL or click): first Mitsubishi, or first vehicle
+  useEffect(() => {
+    if (baseId || !allPoints?.length) return;
     const mitsu = allPoints.find((p) => p.maker === "Mitsubishi");
-    return mitsu?.vehicle_id ?? allPoints[0].vehicle_id;
-  }, [allPoints]);
+    setBaseId(mitsu?.vehicle_id ?? allPoints[0].vehicle_id);
+  }, [allPoints, baseId]);
 
   // Unique brands with counts
   const { brands, brandCounts } = useMemo(() => {
@@ -924,13 +930,37 @@ export function CompetitiveRadarTab() {
       if (!entry?.payload) return;
       const id = entry.payload.vehicle_id;
 
-      // Don't allow clicking the base vehicle
-      if (id === baseId) return;
+      // Click on current base → deselect base (clear both)
+      if (id === baseId) {
+        setBaseId(null);
+        setCompId(null);
+        setSearchParams({}, { replace: true });
+        return;
+      }
 
-      // Toggle: click same = deselect, click new = select
-      setCompId((prev) => (prev === id ? null : id));
+      // Click on current comp → deselect comp
+      if (id === compId) {
+        setCompId(null);
+        const params: Record<string, string> = {};
+        if (baseId) params.base = baseId;
+        setSearchParams(params, { replace: true });
+        return;
+      }
+
+      // No base set → set as base
+      if (!baseId) {
+        setBaseId(id);
+        setSearchParams({ base: id }, { replace: true });
+        return;
+      }
+
+      // Base set, no comp → set as comp
+      setCompId(id);
+      const params: Record<string, string> = { base: baseId };
+      params.comp = id;
+      setSearchParams(params, { replace: true });
     },
-    [baseId],
+    [baseId, compId, setSearchParams],
   );
 
   // Loading state
