@@ -780,12 +780,7 @@ export function CompetitiveRadarTab() {
     return map;
   }, [allVehicles]);
 
-  // Auto-select base if not set (from URL or click): first Mitsubishi, or first vehicle
-  useEffect(() => {
-    if (baseId || !allPoints?.length) return;
-    const mitsu = allPoints.find((p) => p.maker === "Mitsubishi");
-    setBaseId(mitsu?.vehicle_id ?? allPoints[0].vehicle_id);
-  }, [allPoints, baseId]);
+  // No auto-select — user clicks dots or arrives via URL params from A2A page
 
   // Unique brands with counts
   const { brands, brandCounts } = useMemo(() => {
