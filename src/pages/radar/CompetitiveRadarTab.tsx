@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Crosshair, Filter, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Crosshair, ArrowRight, AlertTriangle, BarChart3 } from "lucide-react";
 import {
   ScatterChart,
   Scatter,
@@ -12,16 +13,35 @@ import {
   ResponsiveContainer,
   Label,
 } from "recharts";
-import { api, type AtoaRadarPoint } from "@/lib/api-client";
+import { api, type AtoaRadarPoint, type AtoaVehicle } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Constants
+// Brand Colors
+// ---------------------------------------------------------------------------
+
+const BRAND_COLORS: Record<string, string> = {
+  Mitsubishi: "#ED0000",
+  Toyota: "#8B8B8B",
+  HYUNDAI: "#002C5F",
+  Honda: "#CC0000",
+  Suzuki: "#003399",
+  NISSAN: "#C3002F",
+  Daihatsu: "#E60012",
+};
+
+function getBrandColor(maker: string): string {
+  return BRAND_COLORS[maker] ?? "#6B7280";
+}
+
+// ---------------------------------------------------------------------------
+// Quadrant Logic
 // ---------------------------------------------------------------------------
 
 interface QuadrantConfig {
   label: string;
   color: string;
+  bgColor: string;
   description: string;
 }
 
@@ -29,40 +49,45 @@ const QUADRANT_CONFIG: Record<string, QuadrantConfig> = {
   "high-threat": {
     label: "High Threat",
     color: "#EF4444",
+    bgColor: "rgba(239, 68, 68, 0.15)",
     description:
-      "Cheaper with more features. Consider adjusting pricing or enhancing features.",
+      "Cheaper and more features. Consider adjusting pricing or enhancing features.",
   },
   "price-pressure": {
     label: "Price Pressure",
     color: "#F59E0B",
+    bgColor: "rgba(245, 158, 11, 0.15)",
     description:
       "Undercuts on price but fewer features. Emphasize your feature advantages.",
   },
   "value-pressure": {
     label: "Value Pressure",
-    color: "#A855F7",
+    color: "#F59E0B",
+    bgColor: "rgba(245, 158, 11, 0.15)",
     description:
       "Pricier but offers more features. Close the feature gap.",
   },
   favorable: {
     label: "Favorable",
     color: "#22C55E",
+    bgColor: "rgba(34, 197, 94, 0.15)",
     description:
       "More expensive with fewer features. Maintain current positioning.",
   },
 };
 
-function getQuadrantConfig(quadrant: string | null): QuadrantConfig {
+function getQuadrantConfig(quadrant: string): QuadrantConfig {
   return (
-    QUADRANT_CONFIG[quadrant ?? ""] ?? {
+    QUADRANT_CONFIG[quadrant] ?? {
       label: "Unknown",
       color: "#6B7280",
+      bgColor: "rgba(107, 114, 128, 0.15)",
       description: "",
     }
   );
 }
 
-function getQuadrant(
+function computeQuadrant(
   price: number,
   value: number,
   basePrice: number,
@@ -76,80 +101,163 @@ function getQuadrant(
   return "favorable";
 }
 
-function formatIDR(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
+// ---------------------------------------------------------------------------
+// Formatting Utilities
+// ---------------------------------------------------------------------------
+
+/** Format price as "Rp 334.740" (Indonesian thousands with dot separator) */
+function formatPriceIDR(value: number): string {
+  const formatted = new Intl.NumberFormat("id-ID", {
     maximumFractionDigits: 0,
   }).format(value);
+  return `Rp ${formatted}`;
 }
 
-function formatShortIDR(value: number): string {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}jt`;
+/** Format price for axis ticks: "220K", "330K" */
+function formatAxisPrice(value: number): string {
+  if (value >= 1_000) return `${Math.round(value)}K`;
   return String(value);
 }
 
-function vehicleLabel(point: AtoaRadarPoint): string {
-  const parts = [point.maker, point.model];
-  if (point.trim) parts.push(point.trim);
-  return parts.join(" ");
+/** Format feature value for display: "137K", "149K" */
+function formatFeatureValue(value: number): string {
+  if (value >= 1_000) return `${Math.round(value / 1_000)}K`;
+  return String(Math.round(value));
+}
+
+/** Format axis feature value ticks: "49K", "74K" */
+function formatAxisFeature(value: number): string {
+  if (value >= 1_000) return `${Math.round(value / 1_000)}K`;
+  return String(Math.round(value));
+}
+
+/** Format price difference: "Rp -3.640" or "Rp +3.640" */
+function formatPriceDiff(diff: number): string {
+  const sign = diff > 0 ? "+" : "";
+  const formatted = new Intl.NumberFormat("id-ID", {
+    maximumFractionDigits: 0,
+  }).format(Math.abs(diff));
+  return `Rp ${sign}${diff < 0 ? "-" : ""}${formatted}`;
+}
+
+/** Format feature difference: "+12K", "-5K" */
+function formatFeatureDiff(diff: number): string {
+  const sign = diff >= 0 ? "+" : "";
+  if (Math.abs(diff) >= 1_000) {
+    return `${sign}${Math.round(diff / 1_000)}K`;
+  }
+  return `${sign}${Math.round(diff)}`;
 }
 
 // ---------------------------------------------------------------------------
-// Custom Scatter Dot
+// Types
+// ---------------------------------------------------------------------------
+
+interface EnrichedPoint extends AtoaRadarPoint {
+  _role: "base" | "comp" | "normal";
+  _brandColor: string;
+}
+
+// ---------------------------------------------------------------------------
+// Custom Scatter Dot (SVG)
 // ---------------------------------------------------------------------------
 
 interface DotProps {
   cx?: number;
   cy?: number;
-  payload?: AtoaRadarPoint & { _isV1?: boolean; _isV2?: boolean };
+  payload?: EnrichedPoint;
 }
 
-function CompetitiveDot({ cx = 0, cy = 0, payload }: DotProps) {
+function PositioningDot({ cx = 0, cy = 0, payload }: DotProps) {
   if (!payload) return null;
 
-  // Vehicle 1 (base) — large accent dot
-  if (payload._isV1) {
+  const brandColor = payload._brandColor;
+
+  if (payload._role === "base") {
     return (
-      <circle
-        cx={cx}
-        cy={cy}
-        r={10}
-        fill="var(--th-brand-accent)"
-        stroke="var(--th-brand-accent)"
-        strokeWidth={2}
-        fillOpacity={0.9}
-        style={{ cursor: "pointer" }}
-      />
+      <g style={{ cursor: "pointer" }}>
+        {/* Outer ring */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={14}
+          fill="none"
+          stroke="#3B82F6"
+          strokeWidth={2}
+          strokeOpacity={0.6}
+        />
+        {/* Filled inner dot */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={9}
+          fill={brandColor}
+          stroke={brandColor}
+          strokeWidth={1.5}
+        />
+        {/* "BASE" label above */}
+        <text
+          x={cx}
+          y={cy - 20}
+          textAnchor="middle"
+          fill="#3B82F6"
+          fontSize={9}
+          fontWeight={700}
+          letterSpacing="0.05em"
+        >
+          BASE
+        </text>
+      </g>
     );
   }
 
-  // Vehicle 2 — large blue dot
-  if (payload._isV2) {
+  if (payload._role === "comp") {
     return (
-      <circle
-        cx={cx}
-        cy={cy}
-        r={10}
-        fill="#3B82F6"
-        stroke="#3B82F6"
-        strokeWidth={2}
-        fillOpacity={0.9}
-        style={{ cursor: "pointer" }}
-      />
+      <g style={{ cursor: "pointer" }}>
+        {/* Dashed outer ring */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={14}
+          fill="none"
+          stroke={brandColor}
+          strokeWidth={2}
+          strokeDasharray="4 3"
+        />
+        {/* Filled inner dot */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={8}
+          fill={brandColor}
+          stroke={brandColor}
+          strokeWidth={1.5}
+        />
+        {/* "COMP" label above */}
+        <text
+          x={cx}
+          y={cy - 20}
+          textAnchor="middle"
+          fill={brandColor}
+          fontSize={9}
+          fontWeight={700}
+          letterSpacing="0.05em"
+        >
+          COMP
+        </text>
+      </g>
     );
   }
 
-  // Others — small gray dot
+  // Normal dot — small solid
   return (
     <circle
       cx={cx}
       cy={cy}
       r={5}
-      fill="var(--th-text-tertiary)"
-      fillOpacity={0.4}
-      stroke="var(--th-text-tertiary)"
+      fill={brandColor}
+      fillOpacity={0.8}
+      stroke={brandColor}
       strokeWidth={1}
       style={{ cursor: "pointer" }}
     />
@@ -165,7 +273,7 @@ function RadarChartTooltip({
   payload,
 }: {
   active?: boolean;
-  payload?: Array<{ payload: AtoaRadarPoint & { _isV1?: boolean; _isV2?: boolean } }>;
+  payload?: Array<{ payload: EnrichedPoint }>;
 }) {
   if (!active || !payload?.[0]) return null;
   const d = payload[0].payload;
@@ -173,29 +281,29 @@ function RadarChartTooltip({
   return (
     <div className="rounded-lg border border-surface-100 bg-surface-white p-3 shadow-lg text-xs space-y-1">
       <div className="font-semibold text-text-primary text-sm">
-        {vehicleLabel(d)}
+        {d.maker} {d.model}
       </div>
-      {d._isV1 && (
-        <div className="text-brand-accent font-medium text-[10px] uppercase tracking-wider">
-          Vehicle 1
-        </div>
+      {d.trim && (
+        <div className="text-text-secondary">{d.trim}</div>
       )}
-      {d._isV2 && (
-        <div className="text-blue-500 font-medium text-[10px] uppercase tracking-wider">
-          Vehicle 2
+      {d._role !== "normal" && (
+        <div
+          className="font-medium text-[10px] uppercase tracking-wider"
+          style={{ color: d._role === "base" ? "#3B82F6" : d._brandColor }}
+        >
+          {d._role === "base" ? "Base Vehicle" : "Competitor (Selected)"}
         </div>
-      )}
-      {d.segment && (
-        <div className="text-text-tertiary">{d.segment}</div>
       )}
       <div className="flex justify-between gap-6">
         <span className="text-text-secondary">Feature Value</span>
-        <span className="text-text-primary font-medium">{d.value}</span>
+        <span className="text-text-primary font-medium">
+          {formatFeatureValue(d.value)}
+        </span>
       </div>
       <div className="flex justify-between gap-6">
         <span className="text-text-secondary">Retail Price</span>
         <span className="text-text-primary font-medium">
-          {formatIDR(d.price)}
+          {formatPriceIDR(d.price)}
         </span>
       </div>
     </div>
@@ -203,119 +311,360 @@ function RadarChartTooltip({
 }
 
 // ---------------------------------------------------------------------------
-// Comparison Panel (2 vehicles)
+// Summary Cards
 // ---------------------------------------------------------------------------
 
-function ComparisonPanel({
-  v1,
-  v2,
+function SummaryCards({
+  base,
+  comp,
+  vi,
+  va,
 }: {
-  v1: AtoaRadarPoint;
-  v2: AtoaRadarPoint;
+  base: AtoaRadarPoint;
+  comp: AtoaRadarPoint | null;
+  vi: number;
+  va: number;
 }) {
-  const quadrant = getQuadrant(v2.price, v2.value, v1.price, v1.value);
-  const config = getQuadrantConfig(quadrant);
-
-  const priceDiff = v2.price - v1.price;
-  const featureDiff = v2.value - v1.value;
-  const vi = v1.price ? ((v2.price / v1.price) * 100) : 0;
-  const va = v1.price ? (((v2.price - (v2.value - v1.value)) / v1.price) * 100) : 0;
+  const viLabel = vi < 100 ? "Selected cheaper" : vi > 100 ? "Selected pricier" : "Same price";
+  const vaLabel = va < 100 ? "Selected has more value" : va > 100 ? "Base has more value" : "Same value";
 
   return (
-    <div className="space-y-5">
-      {/* Vehicle 1 */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-3 h-3 rounded-full bg-brand-accent" />
-          <span className="text-[10px] text-text-tertiary uppercase tracking-wider">Vehicle 1</span>
+    <div className="grid grid-cols-4 gap-4">
+      {/* Base Vehicle */}
+      <div className="bg-surface-white rounded-xl shadow-card p-4">
+        <div className="text-[10px] text-text-tertiary uppercase tracking-wider mb-2 font-medium">
+          Base Vehicle
         </div>
-        <p className="text-sm font-semibold text-text-primary">{vehicleLabel(v1)}</p>
-        {v1.segment && <p className="text-xs text-text-tertiary">{v1.segment}</p>}
+        <div className="text-sm font-semibold text-text-primary">
+          {base.model}
+        </div>
+        <div className="text-xs text-text-secondary mt-1">
+          {base.maker} · {formatPriceIDR(base.price)}
+        </div>
       </div>
 
-      {/* Vehicle 2 */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-3 h-3 rounded-full bg-blue-500" />
-          <span className="text-[10px] text-text-tertiary uppercase tracking-wider">Vehicle 2</span>
+      {/* Competitor */}
+      <div className="bg-surface-white rounded-xl shadow-card p-4">
+        <div className="text-[10px] text-text-tertiary uppercase tracking-wider mb-2 font-medium">
+          Competitor
         </div>
-        <p className="text-sm font-semibold text-text-primary">{vehicleLabel(v2)}</p>
-        {v2.segment && <p className="text-xs text-text-tertiary">{v2.segment}</p>}
+        {comp ? (
+          <>
+            <div className="text-sm font-semibold text-text-primary">
+              {comp.model}
+            </div>
+            <div className="text-xs text-text-secondary mt-1">
+              {comp.trim && <span>{comp.trim} · </span>}
+              {comp.maker} · {formatPriceIDR(comp.price)}
+            </div>
+          </>
+        ) : (
+          <div className="text-xs text-text-tertiary mt-1">
+            Click a dot to select
+          </div>
+        )}
       </div>
 
-      {/* Quadrant badge */}
+      {/* Value Index */}
+      <div className="bg-surface-white rounded-xl shadow-card p-4">
+        <div className="text-[10px] text-text-tertiary uppercase tracking-wider mb-2 font-medium">
+          Value Index (VI)
+        </div>
+        <div className="text-lg font-bold text-text-primary">
+          {comp ? `${vi.toFixed(1)}%` : "--"}
+        </div>
+        {comp && (
+          <div className="text-[10px] text-text-secondary mt-1">
+            {viLabel}
+          </div>
+        )}
+      </div>
+
+      {/* Value Advantage */}
+      <div className="bg-surface-white rounded-xl shadow-card p-4">
+        <div className="text-[10px] text-text-tertiary uppercase tracking-wider mb-2 font-medium">
+          Value Advantage (VA)
+        </div>
+        <div className="text-lg font-bold text-text-primary">
+          {comp ? `${va.toFixed(1)}%` : "--"}
+        </div>
+        {comp && (
+          <div className="text-[10px] text-text-secondary mt-1">
+            {vaLabel}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Brand Chips Bar
+// ---------------------------------------------------------------------------
+
+function BrandChipsBar({
+  brands,
+  brandCounts,
+  activeBrands,
+  onToggle,
+  onShowAll,
+}: {
+  brands: string[];
+  brandCounts: Record<string, number>;
+  activeBrands: Set<string>;
+  onToggle: (brand: string) => void;
+  onShowAll: () => void;
+}) {
+  if (brands.length === 0) return null;
+
+  const allActive = activeBrands.size === brands.length;
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      {brands.map((brand) => {
+        const active = activeBrands.has(brand);
+        const color = getBrandColor(brand);
+        const count = brandCounts[brand] ?? 0;
+
+        return (
+          <button
+            key={brand}
+            onClick={() => onToggle(brand)}
+            className={cn(
+              "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
+              active
+                ? "text-white border-transparent"
+                : "border-surface-200 text-text-tertiary bg-transparent hover:bg-surface-100",
+            )}
+            style={active ? { backgroundColor: color, borderColor: color } : undefined}
+          >
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: active ? "#fff" : color }}
+            />
+            {brand}
+            <span
+              className={cn(
+                "text-[10px] tabular-nums",
+                active ? "opacity-70" : "text-text-tertiary",
+              )}
+            >
+              {count}
+            </span>
+          </button>
+        );
+      })}
+
+      <button
+        onClick={onShowAll}
+        className={cn(
+          "ml-auto px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
+          allActive
+            ? "bg-surface-200 text-text-primary border-surface-200"
+            : "border-surface-200 text-text-secondary hover:bg-surface-100",
+        )}
+      >
+        All
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Position Assessment Panel (right side)
+// ---------------------------------------------------------------------------
+
+function PositionAssessment({
+  base,
+  comp,
+  baseVehicle,
+  compVehicle,
+  vi,
+  va,
+}: {
+  base: AtoaRadarPoint;
+  comp: AtoaRadarPoint;
+  baseVehicle: AtoaVehicle | null;
+  compVehicle: AtoaVehicle | null;
+  vi: number;
+  va: number;
+}) {
+  const quadrant = computeQuadrant(comp.price, comp.value, base.price, base.value);
+  const config = getQuadrantConfig(quadrant);
+  const priceDiff = comp.price - base.price;
+  const featureDiff = comp.value - base.value;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
       <div>
+        <div className="flex items-center gap-2 mb-3">
+          <AlertTriangle className="w-4 h-4 text-text-tertiary" />
+          <h3 className="text-sm font-semibold text-text-primary">
+            Position Assessment
+          </h3>
+        </div>
+
+        {/* Comp vehicle info */}
+        <div className="mb-3">
+          <div className="text-sm font-semibold text-text-primary">
+            {comp.maker} {comp.model}
+          </div>
+          {comp.trim && (
+            <div className="text-xs text-text-secondary">{comp.trim}</div>
+          )}
+        </div>
+
+        {/* Quadrant badge */}
         <span
           className="inline-block px-3 py-1 rounded-full text-xs font-semibold"
-          style={{ backgroundColor: `${config.color}20`, color: config.color }}
+          style={{ backgroundColor: config.bgColor, color: config.color }}
         >
           {config.label}
         </span>
+
         <p className="text-xs text-text-secondary leading-relaxed mt-2">
           {config.description}
         </p>
       </div>
 
-      {/* Metrics grid */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-surface-100 rounded-lg p-3">
-          <div className="text-[10px] text-text-tertiary uppercase tracking-wider mb-1">VI%</div>
-          <div className="text-sm font-semibold text-text-primary">{vi.toFixed(1)}%</div>
+      {/* Metrics */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between py-1.5">
+          <span className="text-xs text-text-secondary">Value Index (VI)</span>
+          <span className="text-xs font-semibold text-text-primary tabular-nums">
+            {vi.toFixed(1)}%
+          </span>
         </div>
-        <div className="bg-surface-100 rounded-lg p-3">
-          <div className="text-[10px] text-text-tertiary uppercase tracking-wider mb-1">VA%</div>
-          <div className="text-sm font-semibold text-text-primary">{va.toFixed(1)}%</div>
+        <div className="flex items-center justify-between py-1.5">
+          <span className="text-xs text-text-secondary">Value Advantage (VA)</span>
+          <span className="text-xs font-semibold text-text-primary tabular-nums">
+            {va.toFixed(1)}%
+          </span>
         </div>
-        <div className="bg-surface-100 rounded-lg p-3">
-          <div className="text-[10px] text-text-tertiary uppercase tracking-wider mb-1">Price Diff</div>
-          <div className={cn(
-            "text-sm font-semibold",
-            priceDiff > 0 ? "text-status-error" : priceDiff < 0 ? "text-status-success" : "text-text-primary",
-          )}>
-            {priceDiff > 0 ? "+" : ""}{formatShortIDR(priceDiff)}
-          </div>
+        <div className="flex items-center justify-between py-1.5">
+          <span className="text-xs text-text-secondary">Price Diff</span>
+          <span
+            className={cn(
+              "text-xs font-semibold tabular-nums",
+              priceDiff > 0
+                ? "text-status-error"
+                : priceDiff < 0
+                  ? "text-status-success"
+                  : "text-text-primary",
+            )}
+          >
+            {formatPriceDiff(priceDiff)}
+          </span>
         </div>
-        <div className="bg-surface-100 rounded-lg p-3">
-          <div className="text-[10px] text-text-tertiary uppercase tracking-wider mb-1">Feature Diff</div>
-          <div className={cn(
-            "text-sm font-semibold",
-            featureDiff > 0 ? "text-status-error" : featureDiff < 0 ? "text-status-success" : "text-text-primary",
-          )}>
-            {featureDiff > 0 ? "+" : ""}{featureDiff}
-          </div>
+        <div className="flex items-center justify-between py-1.5">
+          <span className="text-xs text-text-secondary">Feature Diff</span>
+          <span
+            className={cn(
+              "text-xs font-semibold tabular-nums",
+              featureDiff > 0
+                ? "text-status-error"
+                : featureDiff < 0
+                  ? "text-status-success"
+                  : "text-text-primary",
+            )}
+          >
+            {formatFeatureDiff(featureDiff)}
+          </span>
         </div>
       </div>
 
-      {/* Comparison table */}
+      {/* Divider */}
+      <div className="border-t border-surface-100" />
+
+      {/* Value For Money Table */}
       <div>
-        <h4 className="text-[10px] text-text-tertiary uppercase tracking-wider mb-2">
-          Side by Side
-        </h4>
+        <div className="flex items-center gap-2 mb-3">
+          <BarChart3 className="w-4 h-4 text-text-tertiary" />
+          <h3 className="text-sm font-semibold text-text-primary">
+            Value For Money
+          </h3>
+        </div>
+
         <div className="border border-surface-100 rounded-lg overflow-hidden">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-surface-100 bg-surface-100/50">
-                <th className="px-3 py-2 text-left text-text-tertiary font-medium">Metric</th>
-                <th className="px-3 py-2 text-right text-text-tertiary font-medium">V1</th>
-                <th className="px-3 py-2 text-right text-text-tertiary font-medium">V2</th>
+                <th className="px-3 py-2 text-left text-text-tertiary font-medium" />
+                <th className="px-3 py-2 text-right text-text-tertiary font-medium">
+                  Base
+                </th>
+                <th className="px-3 py-2 text-right text-text-tertiary font-medium">
+                  Selected
+                </th>
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-surface-50">
-                <td className="px-3 py-2 text-text-secondary">Price</td>
-                <td className="px-3 py-2 text-right text-text-primary font-mono">{formatShortIDR(v1.price)}</td>
-                <td className="px-3 py-2 text-right text-text-primary font-mono">{formatShortIDR(v2.price)}</td>
-              </tr>
-              <tr className="border-b border-surface-50">
-                <td className="px-3 py-2 text-text-secondary">Feature Value</td>
-                <td className="px-3 py-2 text-right text-text-primary font-mono">{v1.value}</td>
-                <td className="px-3 py-2 text-right text-text-primary font-mono">{v2.value}</td>
-              </tr>
-              <tr>
-                <td className="px-3 py-2 text-text-secondary">Segment</td>
-                <td className="px-3 py-2 text-right text-text-primary">{v1.segment ?? "-"}</td>
-                <td className="px-3 py-2 text-right text-text-primary">{v2.segment ?? "-"}</td>
-              </tr>
+              <ComparisonRow
+                label="Maker"
+                baseVal={base.maker}
+                compVal={comp.maker}
+              />
+              <ComparisonRow
+                label="Model"
+                baseVal={base.model}
+                compVal={comp.model}
+              />
+              <ComparisonRow
+                label="Grade"
+                baseVal={base.trim ?? "-"}
+                compVal={comp.trim ?? "-"}
+              />
+              <ComparisonRow
+                label="Engine"
+                baseVal={baseVehicle?.engine_displacement ?? "-"}
+                compVal={compVehicle?.engine_displacement ?? "-"}
+              />
+              <ComparisonRow
+                label="Fuel"
+                baseVal={baseVehicle?.fuel ?? "-"}
+                compVal={compVehicle?.fuel ?? "-"}
+              />
+              <ComparisonRow
+                label="Trans."
+                baseVal={baseVehicle?.transmission ?? "-"}
+                compVal={compVehicle?.transmission ?? "-"}
+              />
+              <ComparisonRow
+                label="Drive"
+                baseVal={baseVehicle?.drive_system ?? "-"}
+                compVal={compVehicle?.drive_system ?? "-"}
+              />
+              <ComparisonRow
+                label="Seats"
+                baseVal={baseVehicle?.seat_capacity != null ? String(baseVehicle.seat_capacity) : "-"}
+                compVal={compVehicle?.seat_capacity != null ? String(compVehicle.seat_capacity) : "-"}
+              />
+              <ComparisonRow
+                label="Price"
+                baseVal={formatPriceIDR(base.price)}
+                compVal={formatPriceIDR(comp.price)}
+                mono
+              />
+              <ComparisonRow
+                label="Value"
+                baseVal={formatFeatureValue(base.value)}
+                compVal={formatFeatureValue(comp.value)}
+                mono
+              />
+              <ComparisonRow
+                label="VI"
+                baseVal="100%"
+                compVal={`${vi.toFixed(1)}%`}
+                mono
+              />
+              <ComparisonRow
+                label="VA"
+                baseVal="100%"
+                compVal={`${va.toFixed(1)}%`}
+                mono
+                last
+              />
             </tbody>
           </table>
         </div>
@@ -324,40 +673,70 @@ function ComparisonPanel({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Brand Chip Bar
-// ---------------------------------------------------------------------------
-
-function BrandChipFilter({
-  brands,
-  hiddenBrands,
-  onToggle,
+function ComparisonRow({
+  label,
+  baseVal,
+  compVal,
+  mono = false,
+  last = false,
 }: {
-  brands: string[];
-  hiddenBrands: Set<string>;
-  onToggle: (brand: string) => void;
+  label: string;
+  baseVal: string;
+  compVal: string;
+  mono?: boolean;
+  last?: boolean;
 }) {
-  if (brands.length === 0) return null;
-
   return (
-    <div className="flex flex-wrap gap-2 mt-4">
-      {brands.map((brand) => {
-        const hidden = hiddenBrands.has(brand);
-        return (
-          <button
-            key={brand}
-            onClick={() => onToggle(brand)}
-            className={cn(
-              "px-3 py-1 rounded-full text-xs font-medium transition-colors border",
-              hidden
-                ? "border-surface-200 text-text-tertiary bg-transparent"
-                : "border-surface-200 text-text-primary bg-surface-100",
-            )}
-          >
-            {brand}
-          </button>
-        );
-      })}
+    <tr className={last ? "" : "border-b border-surface-50"}>
+      <td className="px-3 py-2 text-text-secondary">{label}</td>
+      <td className={cn("px-3 py-2 text-right text-text-primary", mono && "font-mono text-[11px]")}>
+        {baseVal}
+      </td>
+      <td className={cn("px-3 py-2 text-right text-text-primary", mono && "font-mono text-[11px]")}>
+        {compVal}
+      </td>
+    </tr>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Chart Legend
+// ---------------------------------------------------------------------------
+
+function ChartLegend({ brands }: { brands: string[] }) {
+  return (
+    <div className="flex items-center gap-4 flex-wrap mt-4 px-2">
+      {/* Brand colors */}
+      {brands.map((brand) => (
+        <div key={brand} className="flex items-center gap-1.5 text-[10px] text-text-secondary">
+          <span
+            className="w-2.5 h-2.5 rounded-full"
+            style={{ backgroundColor: getBrandColor(brand) }}
+          />
+          {brand}
+        </div>
+      ))}
+
+      {/* Separator */}
+      <div className="w-px h-3 bg-surface-200" />
+
+      {/* Base icon */}
+      <div className="flex items-center gap-1.5 text-[10px] text-text-secondary">
+        <svg width="12" height="12" viewBox="0 0 12 12">
+          <circle cx="6" cy="6" r="5" fill="none" stroke="#3B82F6" strokeWidth="1.5" />
+          <circle cx="6" cy="6" r="3" fill="#6B7280" />
+        </svg>
+        Base
+      </div>
+
+      {/* Comp icon */}
+      <div className="flex items-center gap-1.5 text-[10px] text-text-secondary">
+        <svg width="12" height="12" viewBox="0 0 12 12">
+          <circle cx="6" cy="6" r="5" fill="none" stroke="#6B7280" strokeWidth="1.5" strokeDasharray="3 2" />
+          <circle cx="6" cy="6" r="3" fill="#6B7280" />
+        </svg>
+        Selected
+      </div>
     </div>
   );
 }
@@ -367,75 +746,124 @@ function BrandChipFilter({
 // ---------------------------------------------------------------------------
 
 export function CompetitiveRadarTab() {
-  // Selection: up to 2 vehicles
-  const [selectedIds, setSelectedIds] = useState<[string | null, string | null]>([null, null]);
-  const [hiddenBrands, setHiddenBrands] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
 
-  // Filters
-  const [filterSegment, setFilterSegment] = useState("");
-  const [filterModel, setFilterModel] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  // Selection state
+  const [compId, setCompId] = useState<string | null>(null);
+  const [activeBrands, setActiveBrands] = useState<Set<string>>(new Set());
 
-  // Fetch all radar points on mount
-  const { data: allPoints, isLoading } = useQuery({
+  // Fetch all radar points
+  const { data: allPoints, isLoading: loadingRadar } = useQuery({
     queryKey: ["atoa-radar-all"],
     queryFn: () => api.atoa.getRadarAll(),
   });
 
-  // Unique segments and models for filters
-  const { segments, models } = useMemo(() => {
-    if (!allPoints) return { segments: [], models: [] };
-    const segSet = new Set<string>();
-    const modSet = new Set<string>();
-    for (const p of allPoints) {
-      if (p.segment) segSet.add(p.segment);
-      modSet.add(`${p.maker} ${p.model}`);
+  // Fetch vehicles for detailed fields (engine, fuel, etc.)
+  const { data: allVehicles } = useQuery({
+    queryKey: ["atoa-vehicles"],
+    queryFn: () => api.atoa.getVehicles(),
+  });
+
+  // Vehicle lookup map
+  const vehicleMap = useMemo(() => {
+    if (!allVehicles) return new Map<string, AtoaVehicle>();
+    const map = new Map<string, AtoaVehicle>();
+    for (const v of allVehicles) {
+      map.set(v.id, v);
     }
-    return {
-      segments: Array.from(segSet).sort(),
-      models: Array.from(modSet).sort(),
-    };
+    return map;
+  }, [allVehicles]);
+
+  // Derive base vehicle: first Mitsubishi, or first vehicle
+  const baseId = useMemo(() => {
+    if (!allPoints?.length) return null;
+    const mitsu = allPoints.find((p) => p.maker === "Mitsubishi");
+    return mitsu?.vehicle_id ?? allPoints[0].vehicle_id;
   }, [allPoints]);
 
-  // Unique brands
-  const brands = useMemo(() => {
-    if (!allPoints) return [];
-    const set = new Set<string>();
-    for (const p of allPoints) set.add(p.maker);
-    return Array.from(set).sort();
+  // Unique brands with counts
+  const { brands, brandCounts } = useMemo(() => {
+    if (!allPoints) return { brands: [], brandCounts: {} as Record<string, number> };
+    const counts: Record<string, number> = {};
+    for (const p of allPoints) {
+      counts[p.maker] = (counts[p.maker] ?? 0) + 1;
+    }
+    // Sort: Mitsubishi first, then alphabetical
+    const sorted = Object.keys(counts).sort((a, b) => {
+      if (a === "Mitsubishi") return -1;
+      if (b === "Mitsubishi") return 1;
+      return a.localeCompare(b);
+    });
+    return { brands: sorted, brandCounts: counts };
   }, [allPoints]);
 
-  // Apply filters
+  // Initialize all brands as active when data loads
+  useEffect(() => {
+    if (brands.length > 0 && activeBrands.size === 0) {
+      setActiveBrands(new Set(brands));
+    }
+  }, [brands, activeBrands.size]);
+
+  // Filter points by active brands
   const filteredPoints = useMemo(() => {
     if (!allPoints) return [];
-    return allPoints.filter((p) => {
-      if (hiddenBrands.has(p.maker)) return false;
-      if (filterSegment && p.segment !== filterSegment) return false;
-      if (filterModel && `${p.maker} ${p.model}` !== filterModel) return false;
-      return true;
-    });
-  }, [allPoints, hiddenBrands, filterSegment, filterModel]);
+    return allPoints.filter((p) => activeBrands.has(p.maker));
+  }, [allPoints, activeBrands]);
 
-  // Enrich points with selection flags
-  const [v1Id, v2Id] = selectedIds;
+  // Base and comp points
+  const basePoint = useMemo(
+    () => allPoints?.find((p) => p.vehicle_id === baseId) ?? null,
+    [allPoints, baseId],
+  );
+  const compPoint = useMemo(
+    () => allPoints?.find((p) => p.vehicle_id === compId) ?? null,
+    [allPoints, compId],
+  );
 
-  const enrichedPoints = useMemo(() => {
+  // Vehicle details for comparison table
+  const baseVehicle = baseId ? vehicleMap.get(baseId) ?? null : null;
+  const compVehicle = compId ? vehicleMap.get(compId) ?? null : null;
+
+  // Compute VI and VA
+  const { vi, va } = useMemo(() => {
+    if (!basePoint || !compPoint) return { vi: 0, va: 0 };
+    const viVal = basePoint.price !== 0
+      ? (compPoint.price / basePoint.price) * 100
+      : 0;
+    const vaVal = basePoint.price !== 0
+      ? ((compPoint.price - (compPoint.value - basePoint.value)) / basePoint.price) * 100
+      : 0;
+    return { vi: viVal, va: vaVal };
+  }, [basePoint, compPoint]);
+
+  // Enrich points with roles and brand colors
+  const enrichedPoints: EnrichedPoint[] = useMemo(() => {
     return filteredPoints.map((p) => ({
       ...p,
-      _isV1: p.vehicle_id === v1Id,
-      _isV2: p.vehicle_id === v2Id,
+      _role:
+        p.vehicle_id === baseId
+          ? ("base" as const)
+          : p.vehicle_id === compId
+            ? ("comp" as const)
+            : ("normal" as const),
+      _brandColor: getBrandColor(p.maker),
     }));
-  }, [filteredPoints, v1Id, v2Id]);
+  }, [filteredPoints, baseId, compId]);
 
-  const v1Point = useMemo(() => allPoints?.find((p) => p.vehicle_id === v1Id) ?? null, [allPoints, v1Id]);
-  const v2Point = useMemo(() => allPoints?.find((p) => p.vehicle_id === v2Id) ?? null, [allPoints, v2Id]);
+  // Sort: normals first, then comp, then base (so base draws on top)
+  const sortedPoints = useMemo(() => {
+    const order: Record<string, number> = { normal: 0, comp: 1, base: 2 };
+    return [...enrichedPoints].sort(
+      (a, b) => (order[a._role] ?? 0) - (order[b._role] ?? 0),
+    );
+  }, [enrichedPoints]);
 
   // Axis domains
   const { xDomain, yDomain } = useMemo(() => {
     if (!filteredPoints.length) {
       return {
-        xDomain: [0, 100] as [number, number],
-        yDomain: [0, 1_000_000_000] as [number, number],
+        xDomain: [0, 200] as [number, number],
+        yDomain: [0, 500] as [number, number],
       };
     }
     const values = filteredPoints.map((p) => p.value);
@@ -444,63 +872,69 @@ export function CompetitiveRadarTab() {
     const maxVal = Math.max(...values);
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
-    const valPad = (maxVal - minVal) * 0.1 || 5;
-    const pricePad = (maxPrice - minPrice) * 0.1 || 50_000_000;
+    const valPad = (maxVal - minVal) * 0.12 || 10;
+    const pricePad = (maxPrice - minPrice) * 0.12 || 50;
     return {
-      xDomain: [Math.max(0, Math.floor(minVal - valPad)), Math.ceil(maxVal + valPad)] as [number, number],
-      yDomain: [Math.max(0, Math.floor(minPrice - pricePad)), Math.ceil(maxPrice + pricePad)] as [number, number],
+      xDomain: [
+        Math.max(0, Math.floor(minVal - valPad)),
+        Math.ceil(maxVal + valPad),
+      ] as [number, number],
+      yDomain: [
+        Math.max(0, Math.floor(minPrice - pricePad)),
+        Math.ceil(maxPrice + pricePad),
+      ] as [number, number],
     };
   }, [filteredPoints]);
 
-  // Quadrant reference lines (only when V1 is selected)
-  const showQuadrants = v1Point != null;
-
-  const handleBrandToggle = useCallback((brand: string) => {
-    setHiddenBrands((prev) => {
-      const next = new Set(prev);
-      if (next.has(brand)) next.delete(brand);
-      else next.add(brand);
-      return next;
+  // Visible brands (those that are currently active)
+  const visibleBrands = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of filteredPoints) set.add(p.maker);
+    return Array.from(set).sort((a, b) => {
+      if (a === "Mitsubishi") return -1;
+      if (b === "Mitsubishi") return 1;
+      return a.localeCompare(b);
     });
-  }, []);
+  }, [filteredPoints]);
 
-  const handleDotClick = useCallback(
-    (entry: { payload?: AtoaRadarPoint }) => {
-      if (!entry?.payload) return;
-      const id = entry.payload.vehicle_id;
-
-      setSelectedIds((prev) => {
-        const [prevV1, prevV2] = prev;
-
-        // Clicking same dot deselects it
-        if (prevV1 === id) return [prevV2, null];
-        if (prevV2 === id) return [prevV1, null];
-
-        // If no V1 yet, set V1
-        if (!prevV1) return [id, null];
-
-        // If V1 set but no V2, set V2
-        if (!prevV2) return [prevV1, id];
-
-        // Both set — replace V2
-        return [prevV1, id];
+  // Handlers
+  const handleBrandToggle = useCallback(
+    (brand: string) => {
+      setActiveBrands((prev) => {
+        const next = new Set(prev);
+        if (next.has(brand)) {
+          // Don't allow deactivating all brands
+          if (next.size <= 1) return prev;
+          next.delete(brand);
+        } else {
+          next.add(brand);
+        }
+        return next;
       });
     },
     [],
   );
 
-  const clearSelection = useCallback(() => {
-    setSelectedIds([null, null]);
-  }, []);
+  const handleShowAll = useCallback(() => {
+    setActiveBrands(new Set(brands));
+  }, [brands]);
 
-  const clearFilters = useCallback(() => {
-    setFilterSegment("");
-    setFilterModel("");
-    setHiddenBrands(new Set());
-  }, []);
+  const handleDotClick = useCallback(
+    (entry: { payload?: EnrichedPoint }) => {
+      if (!entry?.payload) return;
+      const id = entry.payload.vehicle_id;
+
+      // Don't allow clicking the base vehicle
+      if (id === baseId) return;
+
+      // Toggle: click same = deselect, click new = select
+      setCompId((prev) => (prev === id ? null : id));
+    },
+    [baseId],
+  );
 
   // Loading state
-  if (isLoading) {
+  if (loadingRadar) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-sm text-text-tertiary">Loading radar data...</div>
@@ -515,211 +949,301 @@ export function CompetitiveRadarTab() {
         <div className="w-16 h-16 rounded-2xl bg-surface-100 flex items-center justify-center mb-4">
           <Crosshair className="w-8 h-8 text-text-tertiary" />
         </div>
-        <h2 className="text-lg font-semibold text-text-primary mb-2">No Vehicles</h2>
+        <h2 className="text-lg font-semibold text-text-primary mb-2">
+          No Vehicles
+        </h2>
         <p className="text-sm text-text-tertiary max-w-md">
-          No vehicles available for competitive radar. Add vehicles in the A2A Comparison page first.
+          No vehicles available for competitive radar. Add vehicles in the A2A
+          Comparison page first.
         </p>
       </div>
     );
   }
 
-  const hasActiveFilters = filterSegment || filterModel || hiddenBrands.size > 0;
-
   return (
-    <div className="flex gap-6">
-      {/* Left: Chart area */}
-      <div className="flex-1 bg-surface-white rounded-[20px] shadow-card p-7">
-        {/* Toolbar */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <p className="text-sm text-text-secondary">
-              Click any 2 vehicles to compare.
-              {v1Id && !v2Id && (
-                <span className="text-brand-accent ml-1">Select a second vehicle.</span>
-              )}
-            </p>
-          </div>
+    <div className="space-y-5">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
           <div className="flex items-center gap-2">
-            {(v1Id || v2Id) && (
-              <button
-                onClick={clearSelection}
-                className="px-3 py-1.5 text-xs font-medium text-text-secondary bg-surface-100 hover:bg-surface-200 rounded-lg transition-colors"
-              >
-                Clear Selection
-              </button>
-            )}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors",
-                showFilters || hasActiveFilters
-                  ? "bg-brand-accent text-black"
-                  : "bg-surface-100 text-text-secondary hover:bg-surface-200",
-              )}
-            >
-              <Filter className="w-3.5 h-3.5" />
-              Filters
-              {hasActiveFilters && (
-                <span className="w-4 h-4 rounded-full bg-black/20 text-[10px] flex items-center justify-center">
-                  {(filterSegment ? 1 : 0) + (filterModel ? 1 : 0) + hiddenBrands.size}
-                </span>
-              )}
-            </button>
+            <Crosshair className="w-5 h-5 text-text-secondary" />
+            <h1 className="text-lg font-semibold text-text-primary">
+              Positioning Radar
+            </h1>
           </div>
+          <p className="text-xs text-text-secondary mt-1">
+            All vehicles mapped by Feature Value vs Retail Price
+          </p>
         </div>
-
-        {/* Filter panel */}
-        {showFilters && (
-          <div className="flex items-center gap-3 mb-4 p-3 bg-surface-50 rounded-xl border border-surface-100">
-            <select
-              value={filterSegment}
-              onChange={(e) => setFilterSegment(e.target.value)}
-              className="px-3 py-1.5 text-xs border border-surface-200 rounded-lg bg-surface-white text-text-primary focus:outline-none"
-            >
-              <option value="">All Segments</option>
-              {segments.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-            <select
-              value={filterModel}
-              onChange={(e) => setFilterModel(e.target.value)}
-              className="px-3 py-1.5 text-xs border border-surface-200 rounded-lg bg-surface-white text-text-primary focus:outline-none"
-            >
-              <option value="">All Models</option>
-              {models.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="flex items-center gap-1 px-2 py-1 text-[10px] text-text-tertiary hover:text-text-primary transition-colors"
-              >
-                <X className="w-3 h-3" />
-                Clear
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Chart */}
-        {filteredPoints.length > 0 ? (
-          <>
-            <div className="rounded-2xl border border-surface-100 bg-surface-50/30 p-4">
-              <ResponsiveContainer width="100%" height={480}>
-                <ScatterChart margin={{ top: 20, right: 30, bottom: 30, left: 30 }}>
-                  {/* Quadrant backgrounds (only when V1 selected) */}
-                  {showQuadrants && v1Point && (
-                    <>
-                      <ReferenceArea x1={xDomain[0]} x2={v1Point.value} y1={v1Point.price} y2={yDomain[1]} fill="#22C55E" fillOpacity={0.06} />
-                      <ReferenceArea x1={v1Point.value} x2={xDomain[1]} y1={v1Point.price} y2={yDomain[1]} fill="#A855F7" fillOpacity={0.06} />
-                      <ReferenceArea x1={xDomain[0]} x2={v1Point.value} y1={yDomain[0]} y2={v1Point.price} fill="#F59E0B" fillOpacity={0.06} />
-                      <ReferenceArea x1={v1Point.value} x2={xDomain[1]} y1={yDomain[0]} y2={v1Point.price} fill="#EF4444" fillOpacity={0.06} />
-                    </>
-                  )}
-
-                  <XAxis
-                    type="number"
-                    dataKey="value"
-                    name="Feature Value"
-                    domain={xDomain}
-                    tick={{ fontSize: 11, fill: "var(--th-text-secondary)" }}
-                    tickLine={false}
-                    axisLine={{ stroke: "var(--th-surface-200)" }}
-                  >
-                    <Label
-                      value="FEATURE VALUE"
-                      position="bottom"
-                      offset={10}
-                      style={{ fontSize: 11, fill: "var(--th-text-tertiary)", letterSpacing: "0.05em" }}
-                    />
-                  </XAxis>
-                  <YAxis
-                    type="number"
-                    dataKey="price"
-                    name="Retail Price"
-                    domain={yDomain}
-                    tick={{ fontSize: 11, fill: "var(--th-text-secondary)" }}
-                    tickFormatter={formatShortIDR}
-                    tickLine={false}
-                    axisLine={{ stroke: "var(--th-surface-200)" }}
-                  >
-                    <Label
-                      value="RETAIL PRICE"
-                      angle={-90}
-                      position="insideLeft"
-                      offset={-15}
-                      style={{ fontSize: 11, fill: "var(--th-text-tertiary)", letterSpacing: "0.05em" }}
-                    />
-                  </YAxis>
-
-                  {/* Crosshair at V1 */}
-                  {v1Point && (
-                    <>
-                      <ReferenceLine x={v1Point.value} stroke="#3B82F6" strokeOpacity={0.3} strokeDasharray="6 4" />
-                      <ReferenceLine y={v1Point.price} stroke="#3B82F6" strokeOpacity={0.3} strokeDasharray="6 4" />
-                    </>
-                  )}
-
-                  <Tooltip content={<RadarChartTooltip />} cursor={false} />
-
-                  <Scatter
-                    data={enrichedPoints}
-                    shape={(props: DotProps) => <CompetitiveDot {...props} />}
-                    onClick={handleDotClick}
-                  />
-                </ScatterChart>
-              </ResponsiveContainer>
-            </div>
-
-            <BrandChipFilter
-              brands={brands}
-              hiddenBrands={hiddenBrands}
-              onToggle={handleBrandToggle}
-            />
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-sm text-text-tertiary">
-              No vehicles match the current filters.
-            </p>
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="mt-3 px-4 py-2 text-xs font-medium text-text-secondary bg-surface-100 hover:bg-surface-200 rounded-lg transition-colors"
-              >
-                Clear Filters
-              </button>
-            )}
-          </div>
-        )}
+        <button
+          onClick={() => navigate("/atoa")}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary bg-surface-100 hover:bg-surface-200 rounded-lg transition-colors"
+        >
+          Edit in A2A
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
-      {/* Right: Assessment panel */}
-      <div className="w-80 shrink-0 bg-surface-white rounded-[20px] shadow-card p-7">
-        {v1Point && v2Point ? (
-          <ComparisonPanel v1={v1Point} v2={v2Point} />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center p-6">
-            <div className="w-12 h-12 rounded-xl bg-surface-100 flex items-center justify-center mb-3">
-              <Crosshair className="w-6 h-6 text-text-tertiary" />
-            </div>
-            <p className="text-sm text-text-tertiary">
-              {!v1Id
-                ? "Click any vehicle to start comparing"
-                : "Click a second vehicle to see the comparison"}
-            </p>
-            {v1Point && (
-              <div className="mt-4 text-xs text-text-secondary">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-brand-accent" />
-                  {vehicleLabel(v1Point)}
-                </span>
-              </div>
-            )}
+      {/* Summary Cards */}
+      {basePoint && (
+        <SummaryCards base={basePoint} comp={compPoint} vi={vi} va={va} />
+      )}
+
+      {/* Brand Chips */}
+      <BrandChipsBar
+        brands={brands}
+        brandCounts={brandCounts}
+        activeBrands={activeBrands}
+        onToggle={handleBrandToggle}
+        onShowAll={handleShowAll}
+      />
+
+      {/* Main Two-Column Layout */}
+      <div className="flex gap-5">
+        {/* Left: Chart */}
+        <div className="flex-1 bg-surface-white rounded-[20px] shadow-card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Crosshair className="w-4 h-4 text-text-tertiary" />
+            <h3 className="text-sm font-semibold text-text-primary">
+              Competitive Position Map
+            </h3>
+            <span className="text-[10px] text-text-tertiary ml-1">
+              Click any dot to inspect
+            </span>
           </div>
-        )}
+
+          {filteredPoints.length > 0 ? (
+            <>
+              <div className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
+                <ResponsiveContainer width="100%" height={480}>
+                  <ScatterChart margin={{ top: 30, right: 40, bottom: 40, left: 40 }}>
+                    {/* Quadrant backgrounds (relative to BASE) */}
+                    {basePoint && (
+                      <>
+                        {/* Top-left: Favorable (green) */}
+                        <ReferenceArea
+                          x1={xDomain[0]}
+                          x2={basePoint.value}
+                          y1={basePoint.price}
+                          y2={yDomain[1]}
+                          fill="#22C55E"
+                          fillOpacity={0.04}
+                        />
+                        {/* Top-right: Value Pressure (yellow) */}
+                        <ReferenceArea
+                          x1={basePoint.value}
+                          x2={xDomain[1]}
+                          y1={basePoint.price}
+                          y2={yDomain[1]}
+                          fill="#F59E0B"
+                          fillOpacity={0.04}
+                        />
+                        {/* Bottom-left: Price Pressure (yellow) */}
+                        <ReferenceArea
+                          x1={xDomain[0]}
+                          x2={basePoint.value}
+                          y1={yDomain[0]}
+                          y2={basePoint.price}
+                          fill="#F59E0B"
+                          fillOpacity={0.04}
+                        />
+                        {/* Bottom-right: High Threat (red) */}
+                        <ReferenceArea
+                          x1={basePoint.value}
+                          x2={xDomain[1]}
+                          y1={yDomain[0]}
+                          y2={basePoint.price}
+                          fill="#EF4444"
+                          fillOpacity={0.04}
+                        />
+                      </>
+                    )}
+
+                    <XAxis
+                      type="number"
+                      dataKey="value"
+                      name="Feature Value"
+                      domain={xDomain}
+                      tick={{ fontSize: 10, fill: "var(--th-text-secondary)" }}
+                      tickLine={false}
+                      axisLine={{ stroke: "var(--th-surface-200)" }}
+                      tickFormatter={formatAxisFeature}
+                    >
+                      <Label
+                        value="Feature Value"
+                        position="bottom"
+                        offset={15}
+                        style={{
+                          fontSize: 11,
+                          fill: "var(--th-text-tertiary)",
+                          fontWeight: 500,
+                        }}
+                      />
+                    </XAxis>
+
+                    <YAxis
+                      type="number"
+                      dataKey="price"
+                      name="Retail Price"
+                      domain={yDomain}
+                      tick={{ fontSize: 10, fill: "var(--th-text-secondary)" }}
+                      tickFormatter={formatAxisPrice}
+                      tickLine={false}
+                      axisLine={{ stroke: "var(--th-surface-200)" }}
+                    >
+                      <Label
+                        value="Retail Price (in Thousand IDR)"
+                        angle={-90}
+                        position="insideLeft"
+                        offset={-20}
+                        style={{
+                          fontSize: 11,
+                          fill: "var(--th-text-tertiary)",
+                          fontWeight: 500,
+                        }}
+                      />
+                    </YAxis>
+
+                    {/* Crosshair at BASE position */}
+                    {basePoint && (
+                      <>
+                        <ReferenceLine
+                          x={basePoint.value}
+                          stroke="#ED0000"
+                          strokeOpacity={0.4}
+                          strokeDasharray="6 4"
+                        />
+                        <ReferenceLine
+                          y={basePoint.price}
+                          stroke="#ED0000"
+                          strokeOpacity={0.4}
+                          strokeDasharray="6 4"
+                        />
+                      </>
+                    )}
+
+                    {/* Quadrant labels at corners */}
+                    {basePoint && (
+                      <>
+                        {/* Favorable: top-left */}
+                        <text
+                          x="15%"
+                          y="8%"
+                          textAnchor="middle"
+                          fill="#22C55E"
+                          fontSize={10}
+                          fontWeight={600}
+                          opacity={0.7}
+                        >
+                          Favorable
+                        </text>
+                        {/* Value Pressure: top-right */}
+                        <text
+                          x="85%"
+                          y="8%"
+                          textAnchor="middle"
+                          fill="#F59E0B"
+                          fontSize={10}
+                          fontWeight={600}
+                          opacity={0.7}
+                        >
+                          Value Pressure
+                        </text>
+                        {/* Price Pressure: bottom-left */}
+                        <text
+                          x="15%"
+                          y="92%"
+                          textAnchor="middle"
+                          fill="#F59E0B"
+                          fontSize={10}
+                          fontWeight={600}
+                          opacity={0.7}
+                        >
+                          Price Pressure
+                        </text>
+                        {/* High Threat: bottom-right */}
+                        <text
+                          x="85%"
+                          y="92%"
+                          textAnchor="middle"
+                          fill="#EF4444"
+                          fontSize={10}
+                          fontWeight={600}
+                          opacity={0.7}
+                        >
+                          High Threat
+                        </text>
+                      </>
+                    )}
+
+                    <Tooltip
+                      content={<RadarChartTooltip />}
+                      cursor={false}
+                    />
+
+                    <Scatter
+                      data={sortedPoints}
+                      shape={(props: DotProps) => <PositioningDot {...props} />}
+                      onClick={handleDotClick}
+                    />
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+
+              <ChartLegend brands={visibleBrands} />
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <p className="text-sm text-text-tertiary">
+                No vehicles match the current brand filters.
+              </p>
+              <button
+                onClick={handleShowAll}
+                className="mt-3 px-4 py-2 text-xs font-medium text-text-secondary bg-surface-100 hover:bg-surface-200 rounded-lg transition-colors"
+              >
+                Show All Brands
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Assessment Panel */}
+        <div className="w-80 shrink-0 bg-surface-white rounded-[20px] shadow-card p-6 overflow-y-auto max-h-[700px]">
+          {basePoint && compPoint ? (
+            <PositionAssessment
+              base={basePoint}
+              comp={compPoint}
+              baseVehicle={baseVehicle}
+              compVehicle={compVehicle}
+              vi={vi}
+              va={va}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center p-6">
+              <div className="w-12 h-12 rounded-xl bg-surface-100 flex items-center justify-center mb-3">
+                <Crosshair className="w-6 h-6 text-text-tertiary" />
+              </div>
+              <p className="text-sm text-text-secondary mb-1">
+                Position Assessment
+              </p>
+              <p className="text-xs text-text-tertiary">
+                Click any vehicle dot on the chart to see its competitive
+                assessment against the base vehicle.
+              </p>
+              {basePoint && (
+                <div className="mt-4 text-xs text-text-secondary">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: getBrandColor(basePoint.maker) }}
+                    />
+                    Base: {basePoint.maker} {basePoint.model}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
