@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, ChevronsDownUp, ChevronsUpDown, GitCompareArrows } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Search, Plus, ChevronsDownUp, ChevronsUpDown, GitCompareArrows, Radar } from "lucide-react";
 import { api, type AtoaVehicle } from "@/lib/api-client";
 import toast from "react-hot-toast";
 
@@ -15,6 +16,7 @@ type FilterMode = "all" | "base" | "comp" | "basecomp";
 
 export function AtoaPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // ── State ──
   const [baseId, setBaseId] = useState<string | null>(null);
@@ -267,8 +269,27 @@ export function AtoaPage() {
     );
   }
 
+  const handleViewRadar = useCallback(() => {
+    const params = new URLSearchParams();
+    if (baseId) params.set("base", baseId);
+    if (compId) params.set("comp", compId);
+    navigate(`/radar?${params.toString()}`);
+  }, [baseId, compId, navigate]);
+
   return (
     <div className="space-y-6">
+      {/* Header with View in Radar */}
+      <div className="flex items-center justify-between">
+        <div />
+        <button
+          onClick={handleViewRadar}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary bg-surface-100 hover:bg-surface-200 rounded-lg transition-colors"
+        >
+          <Radar className="w-3.5 h-3.5" />
+          View in Radar
+        </button>
+      </div>
+
       {/* Summary Cards */}
       <SummaryCards
         baseVehicle={baseVehicle}

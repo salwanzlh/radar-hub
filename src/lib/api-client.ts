@@ -883,6 +883,9 @@ export const api = {
     getMetrics: (baseId: string, compId: string) =>
       get<AtoaMetrics>(`/api/v1/atoa/metrics?base_id=${baseId}&comp_id=${compId}`),
 
+    getRadarAll: () =>
+      get<AtoaRadarPoint[]>('/api/v1/atoa/radar-all'),
+
     getRadar: (baseId: string) =>
       get<AtoaRadarPoint[]>(`/api/v1/atoa/radar?base_id=${baseId}`),
 

@@ -26,9 +26,9 @@ export function VehicleHeader({
   return (
     <th
       className={cn(
-        "px-3 py-3 text-center min-w-[110px] max-w-[130px] border-b border-surface-200 relative",
-        isBase && "bg-brand-accent/5",
-        isComp && "bg-status-info/5"
+        "px-3 py-3 text-center min-w-[110px] max-w-[130px] border-b border-surface-200 relative bg-surface-white",
+        isBase && "!bg-brand-accent/5",
+        isComp && "!bg-status-info/5"
       )}
     >
       {/* Accent border indicator */}
