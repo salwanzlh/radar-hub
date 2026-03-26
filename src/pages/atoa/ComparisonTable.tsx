@@ -134,6 +134,9 @@ export function ComparisonTable({
             <th className="sticky left-0 z-30 bg-surface-white px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider border-b border-surface-200 min-w-[200px]">
               Feature
             </th>
+            <th className="bg-surface-white px-2 py-3 text-center text-xs font-semibold text-text-secondary uppercase tracking-wider border-b border-surface-200 min-w-[50px]">
+              Val
+            </th>
             {visibleVehicles.map((vehicle) => (
               <VehicleHeader
                 key={vehicle.id}
@@ -155,7 +158,7 @@ export function ComparisonTable({
             onClick={() => setShowVehicleInfo((prev) => !prev)}
           >
             <td
-              colSpan={visibleVehicles.length + 1}
+              colSpan={visibleVehicles.length + 2}
               className="sticky left-0 z-10 bg-surface-100 px-4 py-2 text-xs font-semibold text-text-secondary uppercase tracking-wider"
             >
               <div className="flex items-center gap-1.5">
@@ -174,6 +177,7 @@ export function ComparisonTable({
                 <td className="sticky left-0 z-10 bg-surface-white px-4 py-2 text-xs text-text-secondary font-medium">
                   {field.label}
                 </td>
+                <td />
                 {visibleVehicles.map((vehicle) => {
                   const value = vehicle[field.key];
                   let display: string;
@@ -226,6 +230,7 @@ export function ComparisonTable({
             <td className="sticky left-0 z-10 bg-surface-100 px-4 py-3 text-xs font-bold text-text-primary uppercase tracking-wider">
               Total
             </td>
+            <td className="bg-surface-100 px-2 py-3" />
             {visibleVehicles.map((vehicle) => (
               <td
                 key={vehicle.id}
@@ -314,6 +319,7 @@ function CategorySection({
             </button>
           </div>
         </td>
+        <td className="bg-surface-100/70 px-2 py-2" />
         {visibleVehicles.map((vehicle) => {
           const checkedCount = category.features.filter((f) =>
             vehicle.feature_ids.includes(f.id)
@@ -345,11 +351,6 @@ function CategorySection({
             <td className="sticky left-0 z-10 bg-surface-white px-4 py-2">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-text-primary">{feature.sub_item}</span>
-                {feature.weight > 0 && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-surface-100 text-text-tertiary rounded">
-                    {feature.weight}
-                  </span>
-                )}
                 {feature.remark && (
                   <span className="text-[10px] text-text-tertiary hidden sm:inline" title={feature.remark}>
                     — {feature.remark}
@@ -363,6 +364,9 @@ function CategorySection({
                   <Trash2 className="w-3 h-3" />
                 </button>
               </div>
+            </td>
+            <td className="px-2 py-2 text-center">
+              <span className="text-[10px] font-medium text-text-tertiary">{feature.weight || '-'}</span>
             </td>
             {visibleVehicles.map((vehicle) => {
               const isChecked = vehicle.feature_ids.includes(feature.id);
