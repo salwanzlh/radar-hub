@@ -129,7 +129,7 @@ export function ComparisonTable({
     <div className="overflow-auto max-h-[calc(100vh-320px)]">
       <table className="w-full text-sm border-collapse">
         <thead className="sticky top-0 z-20">
-          <tr>
+          <tr className="bg-surface-white">
             {/* Sticky feature column header */}
             <th className="sticky left-0 z-30 bg-surface-white px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider border-b border-surface-200 min-w-[200px]">
               Feature
