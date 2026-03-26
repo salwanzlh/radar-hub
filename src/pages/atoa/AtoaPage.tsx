@@ -212,6 +212,13 @@ export function AtoaPage() {
     setAddFeatureCategoryId(undefined);
   }, []);
 
+  const handleViewRadar = useCallback(() => {
+    const params = new URLSearchParams();
+    if (baseId) params.set("base", baseId);
+    if (compId) params.set("comp", compId);
+    navigate(`/radar?${params.toString()}`);
+  }, [baseId, compId, navigate]);
+
   // ── Loading state ──
   if (comparisonLoading) {
     return (
@@ -268,13 +275,6 @@ export function AtoaPage() {
       </div>
     );
   }
-
-  const handleViewRadar = useCallback(() => {
-    const params = new URLSearchParams();
-    if (baseId) params.set("base", baseId);
-    if (compId) params.set("comp", compId);
-    navigate(`/radar?${params.toString()}`);
-  }, [baseId, compId, navigate]);
 
   return (
     <div className="space-y-6">
