@@ -53,8 +53,11 @@ export function ComparisonTable({
   searchQuery,
 }: ComparisonTableProps) {
   const queryClient = useQueryClient();
-  const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
-  const [showVehicleInfo, setShowVehicleInfo] = useState(true);
+  // All categories collapsed by default — too many features to show at once
+  const [collapsedCats, setCollapsedCats] = useState<Set<string>>(
+    () => new Set(categories.map((c) => c.id))
+  );
+  const [showVehicleInfo, setShowVehicleInfo] = useState(false);
 
   const visibleVehicles = useMemo(
     () => vehicles.filter((v) => visibleVehicleIds.has(v.id)),
@@ -123,12 +126,12 @@ export function ComparisonTable({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-auto max-h-[calc(100vh-320px)]">
       <table className="w-full text-sm border-collapse">
-        <thead>
+        <thead className="sticky top-0 z-20">
           <tr>
             {/* Sticky feature column header */}
-            <th className="sticky left-0 z-10 bg-surface-white px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider border-b border-surface-200 min-w-[200px]">
+            <th className="sticky left-0 z-30 bg-surface-white px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider border-b border-surface-200 min-w-[200px]">
               Feature
             </th>
             {visibleVehicles.map((vehicle) => (
@@ -311,16 +314,25 @@ function CategorySection({
             </button>
           </div>
         </td>
-        {visibleVehicles.map((vehicle) => (
-          <td
-            key={vehicle.id}
-            className={cn(
-              "px-3 py-2",
-              vehicle.id === baseId && "bg-brand-accent/5",
-              vehicle.id === compId && "bg-status-info/5"
-            )}
-          />
-        ))}
+        {visibleVehicles.map((vehicle) => {
+          const checkedCount = category.features.filter((f) =>
+            vehicle.feature_ids.includes(f.id)
+          ).length;
+          return (
+            <td
+              key={vehicle.id}
+              className={cn(
+                "px-3 py-2 text-center",
+                vehicle.id === baseId && "bg-brand-accent/5",
+                vehicle.id === compId && "bg-status-info/5"
+              )}
+            >
+              <span className="text-[10px] text-text-tertiary">
+                {checkedCount}/{category.features.length}
+              </span>
+            </td>
+          );
+        })}
       </tr>
 
       {/* Feature rows */}
