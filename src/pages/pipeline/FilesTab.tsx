@@ -61,6 +61,7 @@ export function FilesTab() {
   const [dataPreviewFile, setDataPreviewFile] = useState<PipelineFile | null>(null);
   const [passwordModal, setPasswordModal] = useState<{ fileId: string; fileName: string } | null>(null);
   const [passwordInput, setPasswordInput] = useState("");
+  const [transcriptionProviders, setTranscriptionProviders] = useState<Record<string, 'gemini' | 'assemblyai'>>({});
   const pageSize = 20;
 
   // Fetch files
@@ -75,6 +76,8 @@ export function FilesTab() {
       }),
   });
 
+  const UNSTRUCTURED_TYPES = new Set(["docx", "pptx", "pdf", "mp3", "mp4"]);
+
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: (file: File) => api.pipeline.upload(file),
@@ -83,11 +86,16 @@ export function FilesTab() {
       if (result.status === "password_required") {
         setPasswordModal({ fileId: result.id, fileName: result.file_name });
         setPasswordInput("");
+      } else if (result.file_type === "xlsx") {
+        toast.success(`Uploaded: ${result.file_name}`);
+        openSheetSelector(result.id);
+      } else if (UNSTRUCTURED_TYPES.has(result.file_type)) {
+        toast.success(`Uploaded: ${result.file_name} — starting processing...`);
+        const isAudioVideo = result.file_type === "mp3" || result.file_type === "mp4";
+        const provider = isAudioVideo ? (transcriptionProviders[result.id] ?? "gemini") : undefined;
+        processMutation.mutate({ fileId: result.id, provider });
       } else {
         toast.success(`Uploaded: ${result.file_name}`);
-        if (result.file_type === "xlsx") {
-          openSheetSelector(result.id);
-        }
       }
     },
     onError: (err: Error) => toast.error(err.message),
@@ -120,7 +128,8 @@ export function FilesTab() {
 
   // Process mutation (unstructured)
   const processMutation = useMutation({
-    mutationFn: (fileId: string) => api.pipeline.process(fileId),
+    mutationFn: ({ fileId, provider }: { fileId: string; provider?: 'gemini' | 'assemblyai' }) =>
+      api.pipeline.process(fileId, provider ? { transcription_provider: provider } : undefined),
     onSuccess: (job) => {
       queryClient.invalidateQueries({ queryKey: ["pipeline-files"] });
       queryClient.invalidateQueries({ queryKey: ["pipeline-jobs"] });
@@ -268,10 +277,34 @@ export function FilesTab() {
     }
 
     if (file.file_type !== "xlsx" && file.status === "uploaded") {
+      const isAudioVideo = file.file_type === "mp3" || file.file_type === "mp4";
+      if (isAudioVideo) {
+        const provider = transcriptionProviders[file.id] ?? "gemini";
+        actions.push(
+          <select
+            key="provider"
+            value={provider}
+            onChange={(e) =>
+              setTranscriptionProviders((prev) => ({
+                ...prev,
+                [file.id]: e.target.value as 'gemini' | 'assemblyai',
+              }))
+            }
+            className="px-2 py-1 text-xs border border-surface-200 rounded-lg bg-surface-50 text-text-secondary focus:outline-none"
+            title="Transcription provider"
+          >
+            <option value="gemini">Gemini</option>
+            <option value="assemblyai">AssemblyAI</option>
+          </select>
+        );
+      }
       actions.push(
         <button
           key="process"
-          onClick={() => processMutation.mutate(file.id)}
+          onClick={() => {
+            const provider = isAudioVideo ? (transcriptionProviders[file.id] ?? "gemini") : undefined;
+            processMutation.mutate({ fileId: file.id, provider });
+          }}
           disabled={processMutation.isPending}
           className="p-1.5 hover:bg-surface-100 rounded-lg text-brand-accent hover:text-brand-accent/80 transition-colors"
           title="Start Processing"
@@ -381,6 +414,7 @@ export function FilesTab() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-surface-100 border-b border-surface-200">
+                    <th className="text-left px-5 py-3 font-medium text-text-secondary">ID</th>
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Name</th>
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Type</th>
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Size</th>
@@ -392,6 +426,9 @@ export function FilesTab() {
                 <tbody className="divide-y divide-surface-100">
                   {data.items.map((file) => (
                     <tr key={file.id} className="hover:bg-surface-100 transition-colors">
+                      <td className="px-5 py-3.5 text-text-tertiary text-xs font-mono max-w-[100px] truncate" title={file.id}>
+                        {file.id.slice(0, 8)}
+                      </td>
                       <td className="px-5 py-3.5 font-medium text-text-primary max-w-[300px] truncate">
                         {file.file_name}
                       </td>
