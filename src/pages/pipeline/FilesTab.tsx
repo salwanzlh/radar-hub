@@ -61,7 +61,6 @@ export function FilesTab() {
   const [dataPreviewFile, setDataPreviewFile] = useState<PipelineFile | null>(null);
   const [passwordModal, setPasswordModal] = useState<{ fileId: string; fileName: string } | null>(null);
   const [passwordInput, setPasswordInput] = useState("");
-  const [transcriptionProviders, setTranscriptionProviders] = useState<Record<string, 'gemini' | 'assemblyai'>>({});
   const pageSize = 20;
 
   // Fetch files
@@ -91,9 +90,7 @@ export function FilesTab() {
         openSheetSelector(result.id);
       } else if (UNSTRUCTURED_TYPES.has(result.file_type)) {
         toast.success(`Uploaded: ${result.file_name} — starting processing...`);
-        const isAudioVideo = result.file_type === "mp3" || result.file_type === "mp4";
-        const provider = isAudioVideo ? (transcriptionProviders[result.id] ?? "gemini") : undefined;
-        processMutation.mutate({ fileId: result.id, provider });
+        processMutation.mutate(result.id);
       } else {
         toast.success(`Uploaded: ${result.file_name}`);
       }
@@ -128,8 +125,7 @@ export function FilesTab() {
 
   // Process mutation (unstructured)
   const processMutation = useMutation({
-    mutationFn: ({ fileId, provider }: { fileId: string; provider?: 'gemini' | 'assemblyai' }) =>
-      api.pipeline.process(fileId, provider ? { transcription_provider: provider } : undefined),
+    mutationFn: (fileId: string) => api.pipeline.process(fileId),
     onSuccess: (job) => {
       queryClient.invalidateQueries({ queryKey: ["pipeline-files"] });
       queryClient.invalidateQueries({ queryKey: ["pipeline-jobs"] });
@@ -277,34 +273,10 @@ export function FilesTab() {
     }
 
     if (file.file_type !== "xlsx" && file.status === "uploaded") {
-      const isAudioVideo = file.file_type === "mp3" || file.file_type === "mp4";
-      if (isAudioVideo) {
-        const provider = transcriptionProviders[file.id] ?? "gemini";
-        actions.push(
-          <select
-            key="provider"
-            value={provider}
-            onChange={(e) =>
-              setTranscriptionProviders((prev) => ({
-                ...prev,
-                [file.id]: e.target.value as 'gemini' | 'assemblyai',
-              }))
-            }
-            className="px-2 py-1 text-xs border border-surface-200 rounded-lg bg-surface-50 text-text-secondary focus:outline-none"
-            title="Transcription provider"
-          >
-            <option value="gemini">Gemini</option>
-            <option value="assemblyai">AssemblyAI</option>
-          </select>
-        );
-      }
       actions.push(
         <button
           key="process"
-          onClick={() => {
-            const provider = isAudioVideo ? (transcriptionProviders[file.id] ?? "gemini") : undefined;
-            processMutation.mutate({ fileId: file.id, provider });
-          }}
+          onClick={() => processMutation.mutate(file.id)}
           disabled={processMutation.isPending}
           className="p-1.5 hover:bg-surface-100 rounded-lg text-brand-accent hover:text-brand-accent/80 transition-colors"
           title="Start Processing"

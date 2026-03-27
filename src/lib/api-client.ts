@@ -803,8 +803,8 @@ export const api = {
         ...(sheetConfigs && { sheet_configs: sheetConfigs }),
         ...(transformScript && { transform_script: transformScript }),
       }),
-    process: (id: string, opts?: { transcription_provider?: 'gemini' | 'assemblyai' }) =>
-      post<PipelineJob>(`/api/v1/pipeline/files/${id}/process`, opts ?? {}),
+    process: (id: string) =>
+      post<PipelineJob>(`/api/v1/pipeline/files/${id}/process`),
     getJobs: (params: Record<string, string>) =>
       get<PaginatedResponse<PipelineJob>>("/api/v1/pipeline/jobs", params),
     getJob: (id: string) =>
