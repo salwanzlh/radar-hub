@@ -22,7 +22,7 @@ const TABS: { id: Tab; label: string; icon: typeof BarChart3 }[] = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "comments", label: "Comments", icon: MessageSquare },
   { id: "topics", label: "Topics", icon: Hash },
-  { id: "reports", label: "Reports", icon: FileText },
+  // { id: "reports", label: "Reports", icon: FileText },
 ];
 
 /* --- Shared Badge Components --- */
