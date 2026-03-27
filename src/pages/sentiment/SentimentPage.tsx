@@ -4,7 +4,7 @@ import {
   BarChart3,
   MessageSquare,
   Hash,
-  FileText,
+  // FileText,
   Package,
 } from "lucide-react";
 import {
