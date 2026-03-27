@@ -830,7 +830,11 @@ export const api = {
     updateStatus: (plan_id: string, status: string) =>
       put<MarketingPlan>(`/api/v1/marketing-plans/${plan_id}/status`, { status }),
     generateKV: (planId: string, data: { product_name: string; product_slug: string; pillar_name: string; key_message: string }) =>
-      post<{ image: string; format: string }>(`/api/v1/marketing-plans/${planId}/generate-kv`, data),
+      post<{ image: string; format: string }>(`/api/v1/marketing-plans/${planId}/generate-kv`, {
+        ...data,
+        pillar_name: btoa(unescape(encodeURIComponent(data.pillar_name))),
+        key_message: btoa(unescape(encodeURIComponent(data.key_message))),
+      }),
     downloadPdf: async (planId: string, filename?: string) => {
       const token = localStorage.getItem("access_token");
       const url = `${API_BASE}/api/v1/marketing-plans/${planId}/export-pdf`;
