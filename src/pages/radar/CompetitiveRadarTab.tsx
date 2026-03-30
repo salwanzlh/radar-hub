@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Crosshair, ArrowRight, AlertTriangle, BarChart3 } from "lucide-react";
+import { Crosshair, ArrowRight, ArrowLeftRight, AlertTriangle, BarChart3, Search, X, ChevronDown } from "lucide-react";
 import {
   ScatterChart,
   Scatter,
@@ -408,12 +408,14 @@ function BrandChipsBar({
   activeBrands,
   onToggle,
   onShowAll,
+  children,
 }: {
   brands: string[];
   brandCounts: Record<string, number>;
   activeBrands: Set<string>;
   onToggle: (brand: string) => void;
   onShowAll: () => void;
+  children?: React.ReactNode;
 }) {
   if (brands.length === 0) return null;
 
@@ -455,10 +457,13 @@ function BrandChipsBar({
         );
       })}
 
+      {children && <div className="flex items-center gap-2 ml-auto">{children}</div>}
+
       <button
         onClick={onShowAll}
         className={cn(
-          "ml-auto px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
+          "px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
+          !children && "ml-auto",
           allActive
             ? "bg-surface-200 text-text-primary border-surface-200"
             : "border-surface-200 text-text-secondary hover:bg-surface-100",
@@ -466,6 +471,203 @@ function BrandChipsBar({
       >
         All
       </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Vehicle Combobox
+// ---------------------------------------------------------------------------
+
+interface VehicleComboboxProps {
+  vehicles: AtoaVehicle[];
+  selectedId: string | null;
+  onSelect: (vehicleId: string | null) => void;
+  label: string;
+  accentClass: string;
+  excludeId?: string | null;
+}
+
+function VehicleCombobox({
+  vehicles,
+  selectedId,
+  onSelect,
+  label,
+  accentClass,
+  excludeId,
+}: VehicleComboboxProps) {
+  const [query, setQuery] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Close dropdown on click outside (only listen when open)
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  // Selected vehicle object
+  const selectedVehicle = useMemo(
+    () => vehicles.find((v) => v.id === selectedId) ?? null,
+    [vehicles, selectedId],
+  );
+
+  // Display text when selected
+  const displayText = selectedVehicle
+    ? `${selectedVehicle.maker} ${selectedVehicle.model}${selectedVehicle.trim ? ` ${selectedVehicle.trim}` : ""}`
+    : "";
+
+  // Filter and group vehicles
+  const grouped = useMemo(() => {
+    const lowerQuery = query.toLowerCase();
+    const filtered = vehicles
+      .filter((v) => {
+        if (excludeId && v.id === excludeId) return false;
+        if (!lowerQuery) return true;
+        const searchable = `${v.maker} ${v.model} ${v.trim ?? ""}`.toLowerCase();
+        return searchable.includes(lowerQuery);
+      })
+      .sort((a, b) => a.display_order - b.display_order);
+
+    const groups: { maker: string; items: AtoaVehicle[] }[] = [];
+    const groupMap = new Map<string, AtoaVehicle[]>();
+
+    for (const v of filtered) {
+      const existing = groupMap.get(v.maker);
+      if (existing) {
+        existing.push(v);
+      } else {
+        const arr = [v];
+        groupMap.set(v.maker, arr);
+        groups.push({ maker: v.maker, items: arr });
+      }
+    }
+
+    // Sort groups: Mitsubishi first, then alphabetical
+    groups.sort((a, b) => {
+      if (a.maker === "Mitsubishi") return -1;
+      if (b.maker === "Mitsubishi") return 1;
+      return a.maker.localeCompare(b.maker);
+    });
+    return groups;
+  }, [vehicles, query, excludeId]);
+
+  const handleSelect = (vehicleId: string) => {
+    onSelect(vehicleId);
+    setQuery("");
+    setIsOpen(false);
+  };
+
+  const handleClear = () => {
+    onSelect(null);
+    setQuery("");
+  };
+
+  const handleInputFocus = () => {
+    setIsOpen(true);
+    if (selectedVehicle) {
+      setQuery("");
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setIsOpen(false);
+      inputRef.current?.blur();
+    }
+  };
+
+  const totalFiltered = grouped.reduce((sum, g) => sum + g.items.length, 0);
+
+  return (
+    <div ref={containerRef} className="relative w-56">
+      <div
+        className={cn(
+          "flex items-center gap-2 rounded-lg border-2 px-2.5 py-1.5 transition-colors",
+          selectedId
+            ? `bg-surface-white shadow-card ${accentClass}`
+            : "bg-surface-100 border-surface-200",
+        )}
+      >
+        <Search className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
+        <input
+          ref={inputRef}
+          type="text"
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-label={label}
+          value={isOpen ? query : displayText}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (!isOpen) setIsOpen(true);
+          }}
+          onFocus={handleInputFocus}
+          onKeyDown={handleKeyDown}
+          placeholder={label}
+          disabled={vehicles.length === 0}
+          className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-tertiary outline-none min-w-0"
+        />
+        {selectedId ? (
+          <button
+            onClick={handleClear}
+            aria-label={`Clear ${label.toLowerCase()}`}
+            className="p-0.5 rounded hover:bg-surface-200 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        ) : (
+          <ChevronDown className={cn(
+            "w-3.5 h-3.5 text-text-tertiary shrink-0 transition-transform",
+            isOpen && "rotate-180",
+          )} />
+        )}
+      </div>
+
+      {isOpen && (
+        <div role="listbox" aria-label={`${label} options`} className="absolute z-50 left-0 mt-1 w-72 bg-surface-white border border-surface-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+          {totalFiltered === 0 ? (
+            <div className="px-3 py-3 text-xs text-text-tertiary text-center">
+              Tidak ditemukan
+            </div>
+          ) : (
+            grouped.map((group) => (
+              <div key={group.maker}>
+                <div className="text-[10px] uppercase tracking-wide text-text-tertiary font-semibold px-3 py-1.5 bg-surface-100 sticky top-0">
+                  {group.maker}
+                </div>
+                {group.items.map((v) => (
+                  <button
+                    key={v.id}
+                    role="option"
+                    aria-selected={v.id === selectedId}
+                    onClick={() => handleSelect(v.id)}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-sm hover:bg-surface-100 transition-colors cursor-pointer flex items-center justify-between gap-2",
+                      v.id === selectedId
+                        ? "text-text-primary font-medium bg-surface-100"
+                        : "text-text-secondary",
+                    )}
+                  >
+                    <span className="truncate">
+                      {v.model}{v.trim ? ` ${v.trim}` : ""}
+                    </span>
+                    <span className="text-xs text-text-tertiary shrink-0">
+                      {formatPriceIDR(v.retail_price)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -958,6 +1160,43 @@ export function CompetitiveRadarTab() {
     [baseId, compId, setSearchParams],
   );
 
+  const handleSelectBase = useCallback(
+    (vehicleId: string | null) => {
+      setBaseId(vehicleId);
+      if (!vehicleId) {
+        setCompId(null);
+        setSearchParams({}, { replace: true });
+      } else {
+        const params: Record<string, string> = { base: vehicleId };
+        if (compId) params.comp = compId;
+        setSearchParams(params, { replace: true });
+      }
+    },
+    [compId, setSearchParams],
+  );
+
+  const handleSelectComp = useCallback(
+    (vehicleId: string | null) => {
+      setCompId(vehicleId);
+      const params: Record<string, string> = {};
+      if (baseId) params.base = baseId;
+      if (vehicleId) params.comp = vehicleId;
+      setSearchParams(params, { replace: true });
+    },
+    [baseId, setSearchParams],
+  );
+
+  const handleSwapBaseComp = useCallback(() => {
+    const newBase = compId;
+    const newComp = baseId;
+    setBaseId(newBase);
+    setCompId(newComp);
+    const params: Record<string, string> = {};
+    if (newBase) params.base = newBase;
+    if (newComp) params.comp = newComp;
+    setSearchParams(params, { replace: true });
+  }, [baseId, compId, setSearchParams]);
+
   // Loading state
   if (loadingRadar) {
     return (
@@ -1009,19 +1248,50 @@ export function CompetitiveRadarTab() {
         </button>
       </div>
 
-      {/* Summary Cards */}
-      {basePoint && (
-        <SummaryCards base={basePoint} comp={compPoint} vi={vi} va={va} />
-      )}
-
-      {/* Brand Chips */}
+      {/* Brand Chips + Vehicle Selectors */}
       <BrandChipsBar
         brands={brands}
         brandCounts={brandCounts}
         activeBrands={activeBrands}
         onToggle={handleBrandToggle}
         onShowAll={handleShowAll}
-      />
+      >
+        <VehicleCombobox
+          vehicles={allVehicles ?? []}
+          selectedId={baseId}
+          onSelect={handleSelectBase}
+          label="Base Vehicle"
+          accentClass="border-brand-accent"
+          excludeId={compId}
+        />
+        <button
+          onClick={handleSwapBaseComp}
+          disabled={!baseId && !compId}
+          className={cn(
+            "p-1.5 rounded-lg border transition-colors",
+            baseId || compId
+              ? "text-text-primary bg-surface-white border-surface-200 shadow-card hover:bg-surface-100 cursor-pointer"
+              : "text-text-tertiary border-surface-200 bg-surface-100 cursor-not-allowed",
+          )}
+          aria-label="Swap base and comp vehicle"
+          title="Swap"
+        >
+          <ArrowLeftRight className="w-3.5 h-3.5" />
+        </button>
+        <VehicleCombobox
+          vehicles={allVehicles ?? []}
+          selectedId={compId}
+          onSelect={handleSelectComp}
+          label="Comp Vehicle"
+          accentClass="border-status-info"
+          excludeId={baseId}
+        />
+      </BrandChipsBar>
+
+      {/* Summary Cards */}
+      {basePoint && (
+        <SummaryCards base={basePoint} comp={compPoint} vi={vi} va={va} />
+      )}
 
       {/* Main Two-Column Layout */}
       <div className="flex gap-5">
