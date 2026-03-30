@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Crosshair, ArrowRight, ArrowLeftRight, AlertTriangle, BarChart3, Search, X } from "lucide-react";
+import { Crosshair, ArrowRight, ArrowLeftRight, AlertTriangle, BarChart3, Search, X, ChevronDown } from "lucide-react";
 import {
   ScatterChart,
   Scatter,
@@ -614,7 +614,7 @@ function VehicleCombobox({
           disabled={vehicles.length === 0}
           className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-tertiary outline-none min-w-0"
         />
-        {selectedId && (
+        {selectedId ? (
           <button
             onClick={handleClear}
             aria-label={`Clear ${label.toLowerCase()}`}
@@ -622,6 +622,11 @@ function VehicleCombobox({
           >
             <X className="w-3.5 h-3.5" />
           </button>
+        ) : (
+          <ChevronDown className={cn(
+            "w-3.5 h-3.5 text-text-tertiary shrink-0 transition-transform",
+            isOpen && "rotate-180",
+          )} />
         )}
       </div>
 
