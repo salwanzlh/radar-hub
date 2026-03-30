@@ -593,7 +593,7 @@ function VehicleCombobox({
           "flex items-center gap-2 rounded-lg border-2 px-2.5 py-1.5 transition-colors",
           selectedId
             ? `bg-surface-white shadow-card ${accentClass}`
-            : "bg-surface-100 border-surface-200",
+            : "bg-surface-white border-surface-200 shadow-card",
         )}
       >
         <Search className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
