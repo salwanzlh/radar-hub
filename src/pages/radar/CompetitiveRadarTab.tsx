@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Crosshair, ArrowRight, AlertTriangle, BarChart3, Search, X } from "lucide-react";
+import { Crosshair, ArrowRight, ArrowLeftRight, AlertTriangle, BarChart3, Search, X } from "lucide-react";
 import {
   ScatterChart,
   Scatter,
@@ -408,12 +408,14 @@ function BrandChipsBar({
   activeBrands,
   onToggle,
   onShowAll,
+  children,
 }: {
   brands: string[];
   brandCounts: Record<string, number>;
   activeBrands: Set<string>;
   onToggle: (brand: string) => void;
   onShowAll: () => void;
+  children?: React.ReactNode;
 }) {
   if (brands.length === 0) return null;
 
@@ -455,10 +457,13 @@ function BrandChipsBar({
         );
       })}
 
+      {children && <div className="flex items-center gap-2 ml-auto">{children}</div>}
+
       <button
         onClick={onShowAll}
         className={cn(
-          "ml-auto px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
+          "px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
+          !children && "ml-auto",
           allActive
             ? "bg-surface-200 text-text-primary border-surface-200"
             : "border-surface-200 text-text-secondary hover:bg-surface-100",
@@ -545,8 +550,12 @@ function VehicleCombobox({
       }
     }
 
-    // Sort groups: alphabetical by maker
-    groups.sort((a, b) => a.maker.localeCompare(b.maker));
+    // Sort groups: Mitsubishi first, then alphabetical
+    groups.sort((a, b) => {
+      if (a.maker === "Mitsubishi") return -1;
+      if (b.maker === "Mitsubishi") return 1;
+      return a.maker.localeCompare(b.maker);
+    });
     return groups;
   }, [vehicles, query, excludeId]);
 
@@ -578,15 +587,13 @@ function VehicleCombobox({
   const totalFiltered = grouped.reduce((sum, g) => sum + g.items.length, 0);
 
   return (
-    <div ref={containerRef} className="relative flex-1">
-      <div className="text-[10px] font-medium text-text-tertiary uppercase tracking-wider mb-1">
-        {label}
-      </div>
+    <div ref={containerRef} className="relative w-56">
       <div
         className={cn(
-          "flex items-center gap-2 rounded-xl border px-3 py-2 transition-colors",
-          "bg-surface-100 border-surface-200",
-          selectedId && accentClass,
+          "flex items-center gap-2 rounded-lg border-2 px-2.5 py-1.5 transition-colors",
+          selectedId
+            ? `bg-surface-white shadow-card ${accentClass}`
+            : "bg-surface-100 border-surface-200",
         )}
       >
         <Search className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
@@ -603,7 +610,7 @@ function VehicleCombobox({
           }}
           onFocus={handleInputFocus}
           onKeyDown={handleKeyDown}
-          placeholder="Search vehicle..."
+          placeholder={label}
           disabled={vehicles.length === 0}
           className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-tertiary outline-none min-w-0"
         />
@@ -619,7 +626,7 @@ function VehicleCombobox({
       </div>
 
       {isOpen && (
-        <div role="listbox" aria-label={`${label} options`} className="absolute z-50 left-0 right-0 mt-1 bg-surface-50 border border-surface-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+        <div role="listbox" aria-label={`${label} options`} className="absolute z-50 left-0 mt-1 w-72 bg-surface-white border border-surface-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
           {totalFiltered === 0 ? (
             <div className="px-3 py-3 text-xs text-text-tertiary text-center">
               Tidak ditemukan
@@ -1174,6 +1181,17 @@ export function CompetitiveRadarTab() {
     [baseId, setSearchParams],
   );
 
+  const handleSwapBaseComp = useCallback(() => {
+    const newBase = compId;
+    const newComp = baseId;
+    setBaseId(newBase);
+    setCompId(newComp);
+    const params: Record<string, string> = {};
+    if (newBase) params.base = newBase;
+    if (newComp) params.comp = newComp;
+    setSearchParams(params, { replace: true });
+  }, [baseId, compId, setSearchParams]);
+
   // Loading state
   if (loadingRadar) {
     return (
@@ -1225,17 +1243,14 @@ export function CompetitiveRadarTab() {
         </button>
       </div>
 
-      {/* Brand Chips */}
+      {/* Brand Chips + Vehicle Selectors */}
       <BrandChipsBar
         brands={brands}
         brandCounts={brandCounts}
         activeBrands={activeBrands}
         onToggle={handleBrandToggle}
         onShowAll={handleShowAll}
-      />
-
-      {/* Vehicle Selectors */}
-      <div className="flex gap-3">
+      >
         <VehicleCombobox
           vehicles={allVehicles ?? []}
           selectedId={baseId}
@@ -1244,6 +1259,20 @@ export function CompetitiveRadarTab() {
           accentClass="border-brand-accent"
           excludeId={compId}
         />
+        <button
+          onClick={handleSwapBaseComp}
+          disabled={!baseId && !compId}
+          className={cn(
+            "p-1.5 rounded-lg border transition-colors",
+            baseId || compId
+              ? "text-text-primary bg-surface-white border-surface-200 shadow-card hover:bg-surface-100 cursor-pointer"
+              : "text-text-tertiary border-surface-200 bg-surface-100 cursor-not-allowed",
+          )}
+          aria-label="Swap base and comp vehicle"
+          title="Swap"
+        >
+          <ArrowLeftRight className="w-3.5 h-3.5" />
+        </button>
         <VehicleCombobox
           vehicles={allVehicles ?? []}
           selectedId={compId}
@@ -1252,7 +1281,7 @@ export function CompetitiveRadarTab() {
           accentClass="border-status-info"
           excludeId={baseId}
         />
-      </div>
+      </BrandChipsBar>
 
       {/* Summary Cards */}
       {basePoint && (
