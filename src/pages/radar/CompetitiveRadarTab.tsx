@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Crosshair, ArrowRight, AlertTriangle, BarChart3 } from "lucide-react";
+import { Crosshair, ArrowRight, AlertTriangle, BarChart3, Search, X } from "lucide-react";
 import {
   ScatterChart,
   Scatter,
