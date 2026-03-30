@@ -1141,6 +1141,32 @@ export function CompetitiveRadarTab() {
     [baseId, compId, setSearchParams],
   );
 
+  const handleSelectBase = useCallback(
+    (vehicleId: string | null) => {
+      setBaseId(vehicleId);
+      if (!vehicleId) {
+        setCompId(null);
+        setSearchParams({}, { replace: true });
+      } else {
+        const params: Record<string, string> = { base: vehicleId };
+        if (compId) params.comp = compId;
+        setSearchParams(params, { replace: true });
+      }
+    },
+    [compId, setSearchParams],
+  );
+
+  const handleSelectComp = useCallback(
+    (vehicleId: string | null) => {
+      setCompId(vehicleId);
+      const params: Record<string, string> = {};
+      if (baseId) params.base = baseId;
+      if (vehicleId) params.comp = vehicleId;
+      setSearchParams(params, { replace: true });
+    },
+    [baseId, setSearchParams],
+  );
+
   // Loading state
   if (loadingRadar) {
     return (
