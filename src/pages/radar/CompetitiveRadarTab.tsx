@@ -471,6 +471,189 @@ function BrandChipsBar({
 }
 
 // ---------------------------------------------------------------------------
+// Vehicle Combobox
+// ---------------------------------------------------------------------------
+
+interface VehicleComboboxProps {
+  vehicles: AtoaVehicle[];
+  selectedId: string | null;
+  onSelect: (vehicleId: string | null) => void;
+  label: string;
+  accentClass: string;
+  excludeId?: string | null;
+}
+
+function VehicleCombobox({
+  vehicles,
+  selectedId,
+  onSelect,
+  label,
+  accentClass,
+  excludeId,
+}: VehicleComboboxProps) {
+  const [query, setQuery] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Selected vehicle object
+  const selectedVehicle = useMemo(
+    () => vehicles.find((v) => v.id === selectedId) ?? null,
+    [vehicles, selectedId],
+  );
+
+  // Display text when selected
+  const displayText = selectedVehicle
+    ? `${selectedVehicle.maker} ${selectedVehicle.model}${selectedVehicle.trim ? ` ${selectedVehicle.trim}` : ""}`
+    : "";
+
+  // Filter and group vehicles
+  const grouped = useMemo(() => {
+    const lowerQuery = query.toLowerCase();
+    const filtered = vehicles
+      .filter((v) => {
+        if (excludeId && v.id === excludeId) return false;
+        if (!lowerQuery) return true;
+        const searchable = `${v.maker} ${v.model} ${v.trim ?? ""}`.toLowerCase();
+        return searchable.includes(lowerQuery);
+      })
+      .sort((a, b) => a.display_order - b.display_order);
+
+    const groups: { maker: string; items: AtoaVehicle[] }[] = [];
+    const groupMap = new Map<string, AtoaVehicle[]>();
+
+    for (const v of filtered) {
+      const existing = groupMap.get(v.maker);
+      if (existing) {
+        existing.push(v);
+      } else {
+        const arr = [v];
+        groupMap.set(v.maker, arr);
+        groups.push({ maker: v.maker, items: arr });
+      }
+    }
+
+    // Sort groups: alphabetical by maker
+    groups.sort((a, b) => a.maker.localeCompare(b.maker));
+    return groups;
+  }, [vehicles, query, excludeId]);
+
+  const handleSelect = (vehicleId: string) => {
+    onSelect(vehicleId);
+    setQuery("");
+    setIsOpen(false);
+  };
+
+  const handleClear = () => {
+    onSelect(null);
+    setQuery("");
+  };
+
+  const handleInputFocus = () => {
+    setIsOpen(true);
+    if (selectedVehicle) {
+      setQuery("");
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setIsOpen(false);
+      inputRef.current?.blur();
+    }
+  };
+
+  const totalFiltered = grouped.reduce((sum, g) => sum + g.items.length, 0);
+
+  return (
+    <div ref={containerRef} className="relative flex-1">
+      <div className="text-[10px] font-medium text-text-tertiary uppercase tracking-wider mb-1">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "flex items-center gap-2 rounded-xl border px-3 py-2 transition-colors",
+          "bg-surface-100 border-surface-200",
+          selectedId && accentClass,
+        )}
+      >
+        <Search className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={isOpen ? query : displayText}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (!isOpen) setIsOpen(true);
+          }}
+          onFocus={handleInputFocus}
+          onKeyDown={handleKeyDown}
+          placeholder="Search vehicle..."
+          disabled={vehicles.length === 0}
+          className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-tertiary outline-none min-w-0"
+        />
+        {selectedId && (
+          <button
+            onClick={handleClear}
+            className="p-0.5 rounded hover:bg-surface-200 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 mt-1 bg-surface-50 border border-surface-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+          {totalFiltered === 0 ? (
+            <div className="px-3 py-3 text-xs text-text-tertiary text-center">
+              Tidak ditemukan
+            </div>
+          ) : (
+            grouped.map((group) => (
+              <div key={group.maker}>
+                <div className="text-[10px] uppercase tracking-wide text-text-tertiary font-semibold px-3 py-1.5 bg-surface-100 sticky top-0">
+                  {group.maker}
+                </div>
+                {group.items.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => handleSelect(v.id)}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-sm hover:bg-surface-100 transition-colors cursor-pointer flex items-center justify-between gap-2",
+                      v.id === selectedId
+                        ? "text-text-primary font-medium bg-surface-100"
+                        : "text-text-secondary",
+                    )}
+                  >
+                    <span className="truncate">
+                      {v.model}{v.trim ? ` ${v.trim}` : ""}
+                    </span>
+                    <span className="text-xs text-text-tertiary shrink-0">
+                      {formatPriceIDR(v.retail_price)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Position Assessment Panel (right side)
 // ---------------------------------------------------------------------------
 
