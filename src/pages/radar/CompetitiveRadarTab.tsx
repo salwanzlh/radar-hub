@@ -1218,11 +1218,6 @@ export function CompetitiveRadarTab() {
         </button>
       </div>
 
-      {/* Summary Cards */}
-      {basePoint && (
-        <SummaryCards base={basePoint} comp={compPoint} vi={vi} va={va} />
-      )}
-
       {/* Brand Chips */}
       <BrandChipsBar
         brands={brands}
@@ -1231,6 +1226,31 @@ export function CompetitiveRadarTab() {
         onToggle={handleBrandToggle}
         onShowAll={handleShowAll}
       />
+
+      {/* Vehicle Selectors */}
+      <div className="flex gap-3">
+        <VehicleCombobox
+          vehicles={allVehicles ?? []}
+          selectedId={baseId}
+          onSelect={handleSelectBase}
+          label="Base Vehicle"
+          accentClass="border-brand-accent"
+          excludeId={compId}
+        />
+        <VehicleCombobox
+          vehicles={allVehicles ?? []}
+          selectedId={compId}
+          onSelect={handleSelectComp}
+          label="Comp Vehicle"
+          accentClass="border-sky-500"
+          excludeId={baseId}
+        />
+      </div>
+
+      {/* Summary Cards */}
+      {basePoint && (
+        <SummaryCards base={basePoint} comp={compPoint} vi={vi} va={va} />
+      )}
 
       {/* Main Two-Column Layout */}
       <div className="flex gap-5">
