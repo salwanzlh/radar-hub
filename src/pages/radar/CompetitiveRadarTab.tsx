@@ -496,8 +496,9 @@ function VehicleCombobox({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Close dropdown on click outside
+  // Close dropdown on click outside (only listen when open)
   useEffect(() => {
+    if (!isOpen) return;
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
@@ -505,7 +506,7 @@ function VehicleCombobox({
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [isOpen]);
 
   // Selected vehicle object
   const selectedVehicle = useMemo(
@@ -592,6 +593,9 @@ function VehicleCombobox({
         <input
           ref={inputRef}
           type="text"
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-label={label}
           value={isOpen ? query : displayText}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -606,6 +610,7 @@ function VehicleCombobox({
         {selectedId && (
           <button
             onClick={handleClear}
+            aria-label={`Clear ${label.toLowerCase()}`}
             className="p-0.5 rounded hover:bg-surface-200 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
@@ -614,7 +619,7 @@ function VehicleCombobox({
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1 bg-surface-50 border border-surface-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+        <div role="listbox" aria-label={`${label} options`} className="absolute z-50 left-0 right-0 mt-1 bg-surface-50 border border-surface-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
           {totalFiltered === 0 ? (
             <div className="px-3 py-3 text-xs text-text-tertiary text-center">
               Tidak ditemukan
@@ -628,6 +633,8 @@ function VehicleCombobox({
                 {group.items.map((v) => (
                   <button
                     key={v.id}
+                    role="option"
+                    aria-selected={v.id === selectedId}
                     onClick={() => handleSelect(v.id)}
                     className={cn(
                       "w-full text-left px-3 py-2 text-sm hover:bg-surface-100 transition-colors cursor-pointer flex items-center justify-between gap-2",
@@ -1242,7 +1249,7 @@ export function CompetitiveRadarTab() {
           selectedId={compId}
           onSelect={handleSelectComp}
           label="Comp Vehicle"
-          accentClass="border-sky-500"
+          accentClass="border-status-info"
           excludeId={baseId}
         />
       </div>
