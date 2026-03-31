@@ -210,6 +210,22 @@ function ValidationAccordion({ content }: { content: string }) {
   );
 }
 
+function HypothesisStatusBar({ status }: { status: ValidationStatus }) {
+  const stageColors: Record<ValidationStatus["stage"], string> = {
+    researching: "bg-amber-500",
+    synthesizing: "bg-emerald-500",
+  };
+
+  return (
+    <div className="mx-4 mb-3 rounded-xl border border-surface-200 bg-surface-100 px-4 py-3 animate-pulse">
+      <div className="flex items-center gap-2">
+        <div className={cn("w-2 h-2 rounded-full", stageColors[status.stage])} />
+        <span className="text-xs text-text-secondary">{status.message}</span>
+      </div>
+    </div>
+  );
+}
+
 export const CHAT_PANEL_MIN_WIDTH = 360;
 export const CHAT_PANEL_MAX_WIDTH = 800;
 export const CHAT_PANEL_DEFAULT_WIDTH = 400;
@@ -291,6 +307,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
       setInput("");
       setIsStreaming(true);
+      setValidationStatus(null);
 
       try {
         const chatMessages: ChatMessage[] = [
@@ -299,14 +316,42 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
         ];
 
         const stream = api.chat.stream(chatMessages, mode);
+        let accumulated = "";
+
         for await (const chunk of stream) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsg.id
-                ? { ...m, content: m.content + chunk }
-                : m
-            )
-          );
+          if (typeof chunk === "object" && chunk !== null && "type" in chunk) {
+            const event = chunk as { type: string; stage?: string; iteration?: number; message?: string; content?: string };
+
+            if (event.type === "status") {
+              setValidationStatus({
+                stage: (event.stage as ValidationStatus["stage"]) || "researching",
+                iteration: event.iteration ?? 0,
+                message: event.message ?? "",
+              });
+            } else if (event.type === "chunk") {
+              accumulated += event.content ?? "";
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMsg.id ? { ...m, content: accumulated } : m
+                )
+              );
+            } else if (event.type === "error") {
+              accumulated = `**Error:** ${event.message ?? "Terjadi kesalahan."}`;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMsg.id ? { ...m, content: accumulated } : m
+                )
+              );
+            }
+          } else {
+            const text = typeof chunk === "string" ? chunk : String(chunk);
+            accumulated += text;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsg.id ? { ...m, content: accumulated } : m
+              )
+            );
+          }
         }
       } catch (err) {
         const errorText =
@@ -320,6 +365,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
         );
       } finally {
         setIsStreaming(false);
+        setValidationStatus(null);
       }
     },
     [messages, mode, isStreaming]
