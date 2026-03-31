@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type ComponentPropsWithoutRef } from "react";
-import { BrainCircuit, X, SquarePen, Send, Loader2, Copy, Check } from "lucide-react";
+import { BrainCircuit, X, SquarePen, Send, Loader2, Copy, Check, FlaskConical, ChevronDown } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
@@ -90,10 +90,16 @@ const markdownComponents: Components = {
   },
 };
 
-type ChatMode = "quick" | "advisor";
+type ChatMode = "quick" | "advisor" | "hypothesis";
 
 interface DisplayMessage extends ChatMessage {
   id: string;
+}
+
+interface ValidationStatus {
+  stage: "researching" | "synthesizing";
+  iteration: number;
+  message: string;
 }
 
 const QUICK_PROMPTS = [
@@ -106,6 +112,12 @@ const ADVISOR_PROMPTS = [
   "Analisis posisi pasar EV Mitsubishi vs kompetitor",
   "Rekomendasi strategi berdasarkan tren sentimen bulan ini",
   "Evaluasi dampak berita terkini terhadap brand perception",
+];
+
+const HYPOTHESIS_PROMPTS = [
+  "Apakah Xpander bagus menggunakan sunroof?",
+  "Apakah Pajero Sport perlu turun harga untuk compete dengan Fortuner?",
+  "Apakah strategi EV Mitsubishi sudah tepat untuk pasar Indonesia?",
 ];
 
 let msgCounter = 0;
@@ -167,6 +179,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<ValidationStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -280,7 +293,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
     setMessages([]);
   };
 
-  const suggestedPrompts = mode === "quick" ? QUICK_PROMPTS : ADVISOR_PROMPTS;
+  const suggestedPrompts = mode === "quick" ? QUICK_PROMPTS : mode === "advisor" ? ADVISOR_PROMPTS : HYPOTHESIS_PROMPTS;
 
   return (
     <div
