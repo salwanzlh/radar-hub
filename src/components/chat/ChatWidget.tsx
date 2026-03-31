@@ -117,12 +117,6 @@ const QUICK_PROMPTS = [
   "Ada berita kompetitor hari ini?",
 ];
 
-const ADVISOR_PROMPTS = [
-  "Analisis posisi pasar EV Mitsubishi vs kompetitor",
-  "Rekomendasi strategi berdasarkan tren sentimen bulan ini",
-  "Evaluasi dampak berita terkini terhadap brand perception",
-];
-
 const HYPOTHESIS_PROMPTS = [
   "Apakah Xpander bagus menggunakan sunroof?",
   "Apakah Pajero Sport perlu turun harga untuk compete dengan Fortuner?",
@@ -387,7 +381,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
     setMessages([]);
   };
 
-  const suggestedPrompts = mode === "quick" ? QUICK_PROMPTS : mode === "advisor" ? ADVISOR_PROMPTS : HYPOTHESIS_PROMPTS;
+  const suggestedPrompts = mode === "quick" ? QUICK_PROMPTS : HYPOTHESIS_PROMPTS;
 
   return (
     <div
@@ -447,17 +441,6 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
           Quick Q&A
         </button>
         <button
-          onClick={() => setMode("advisor")}
-          className={cn(
-            "flex-1 text-xs font-medium py-1.5 rounded-lg transition-colors cursor-pointer",
-            mode === "advisor"
-              ? "bg-brand-accent text-black"
-              : "bg-surface-100 text-text-secondary hover:text-text-primary"
-          )}
-        >
-          Professional Advisor
-        </button>
-        <button
           onClick={() => setMode("hypothesis")}
           disabled={isStreaming}
           className={cn(
@@ -484,16 +467,12 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
               <p className="text-text-secondary text-sm font-medium mb-1">
                 {mode === "quick"
                   ? "Tanyakan seputar berita dan data RadarHub"
-                  : mode === "advisor"
-                    ? "Dapatkan analisis dan rekomendasi strategis"
-                    : "Ajukan hipotesis untuk divalidasi dengan data"}
+                  : "Ajukan hipotesis untuk divalidasi dengan data"}
               </p>
               <p className="text-text-tertiary text-xs leading-relaxed">
                 {mode === "quick"
                   ? "Jawaban cepat berdasarkan data terkini"
-                  : mode === "advisor"
-                    ? "Insight mendalam untuk pengambilan keputusan"
-                    : "AI akan klarifikasi konteks Anda, lalu riset dari data"}
+                  : "AI akan klarifikasi konteks Anda, lalu riset dari data"}
               </p>
             </div>
             <div className="flex flex-col gap-2 w-full mt-1">
