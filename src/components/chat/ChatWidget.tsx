@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type ComponentPropsWithoutRef } from "react";
-import { BrainCircuit, X, SquarePen, Send, Loader2, Copy, Check, FlaskConical, ChevronDown, RefreshCw } from "lucide-react";
+import { BrainCircuit, X, SquarePen, Send, Loader2, Copy, Check, FlaskConical, ChevronDown, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
@@ -248,9 +248,22 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
   const [validationStatus, setValidationStatus] = useState<ValidationStatus | null>(null);
+  const [widthBeforeMaximize, setWidthBeforeMaximize] = useState(CHAT_PANEL_DEFAULT_WIDTH);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const toggleMaximize = useCallback(() => {
+    if (isMaximized) {
+      onWidthChange(widthBeforeMaximize);
+      setIsMaximized(false);
+    } else {
+      setWidthBeforeMaximize(width);
+      onWidthChange(CHAT_PANEL_MAX_WIDTH);
+      setIsMaximized(true);
+    }
+  }, [isMaximized, width, widthBeforeMaximize, onWidthChange]);
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -444,6 +457,14 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
             title="New chat"
           >
             <SquarePen className="w-4 h-4" />
+          </button>
+          <button
+            onClick={toggleMaximize}
+            className="p-1.5 rounded-lg hover:bg-surface-100 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
+            aria-label={isMaximized ? "Minimize panel" : "Maximize panel"}
+            title={isMaximized ? "Minimize" : "Maximize"}
+          >
+            {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
           <button
             onClick={onToggle}
