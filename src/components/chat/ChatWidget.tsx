@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type ComponentPropsWithoutRef } from "react";
-import { BrainCircuit, X, SquarePen, Send, Loader2, Copy, Check } from "lucide-react";
+import { BrainCircuit, X, SquarePen, Send, Loader2, Copy, Check, FlaskConical, ChevronDown, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,15 @@ function trimPartialTable(text: string): string {
     break;
   }
   return lines.join("\n");
+}
+
+function parseValidationSection(text: string): { main: string; validation: string | null } {
+  const match = text.match(/<validation>([\s\S]*?)<\/validation>/);
+  if (!match) return { main: text, validation: null };
+  return {
+    main: text.replace(/<validation>[\s\S]*?<\/validation>/, "").trim(),
+    validation: match[1].trim(),
+  };
 }
 
 const markdownComponents: Components = {
@@ -90,10 +99,16 @@ const markdownComponents: Components = {
   },
 };
 
-type ChatMode = "quick" | "advisor";
+type ChatMode = "quick" | "advisor" | "hypothesis";
 
 interface DisplayMessage extends ChatMessage {
   id: string;
+}
+
+interface ValidationStatus {
+  stage: "researching" | "synthesizing";
+  iteration: number;
+  message: string;
 }
 
 const QUICK_PROMPTS = [
@@ -102,10 +117,10 @@ const QUICK_PROMPTS = [
   "Ada berita kompetitor hari ini?",
 ];
 
-const ADVISOR_PROMPTS = [
-  "Analisis posisi pasar EV Mitsubishi vs kompetitor",
-  "Rekomendasi strategi berdasarkan tren sentimen bulan ini",
-  "Evaluasi dampak berita terkini terhadap brand perception",
+const HYPOTHESIS_PROMPTS = [
+  "Apakah Xpander bagus menggunakan sunroof?",
+  "Apakah Pajero Sport perlu turun harga untuk compete dengan Fortuner?",
+  "Apakah strategi EV Mitsubishi sudah tepat untuk pasar Indonesia?",
 ];
 
 let msgCounter = 0;
@@ -133,20 +148,86 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function AssistantContent({ content, streaming }: { content: string; streaming: boolean }) {
-  const safeContent = useMemo(() => (streaming ? trimPartialTable(content) : content), [content, streaming]);
+function AssistantContent({ content, streaming, onRegenerate }: { content: string; streaming: boolean; onRegenerate?: () => void }) {
+  const { main, validation } = useMemo(() => {
+    if (streaming) return { main: trimPartialTable(content), validation: null };
+    return parseValidationSection(content);
+  }, [content, streaming]);
 
   return (
     <>
       <div className="max-w-none">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{safeContent}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{main}</ReactMarkdown>
       </div>
+      {validation && <ValidationAccordion content={validation} />}
       {!streaming && (
         <div className="flex items-center gap-0.5 mt-2">
-          <CopyButton text={content} />
+          <CopyButton text={validation ? main : content} />
+          {onRegenerate && (
+            <button
+              onClick={onRegenerate}
+              className="p-1 rounded hover:bg-surface-200 text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer"
+              title="Regenerate"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       )}
     </>
+  );
+}
+
+function ValidationAccordion({ content }: { content: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const confidenceMatch = content.match(/Confidence Score:\s*(\d+)\/100/);
+  const score = confidenceMatch ? confidenceMatch[1] : "?";
+
+  return (
+    <div className="mt-3 rounded-xl border border-surface-200 overflow-hidden">
+      <button
+        onClick={() => setExpanded((prev) => !prev)}
+        className="w-full flex items-center justify-between px-4 py-2.5 bg-surface-100 hover:bg-surface-200 transition-colors cursor-pointer"
+      >
+        <div className="flex items-center gap-2">
+          <FlaskConical className="w-3.5 h-3.5 text-purple-400" />
+          <span className="text-xs font-medium text-text-primary">Validation Details</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-brand-accent">Score: {score}/100</span>
+          <ChevronDown
+            className={cn(
+              "w-3.5 h-3.5 text-text-tertiary transition-transform",
+              expanded && "rotate-180"
+            )}
+          />
+        </div>
+      </button>
+      {expanded && (
+        <div className="px-4 py-3 border-t border-surface-200">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            {content}
+          </ReactMarkdown>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HypothesisStatusBar({ status }: { status: ValidationStatus }) {
+  const stageColors: Record<ValidationStatus["stage"], string> = {
+    researching: "bg-amber-500",
+    synthesizing: "bg-emerald-500",
+  };
+
+  return (
+    <div className="mx-4 mb-3 rounded-xl border border-surface-200 bg-surface-100 px-4 py-3 animate-pulse">
+      <div className="flex items-center gap-2">
+        <div className={cn("w-2 h-2 rounded-full", stageColors[status.stage])} />
+        <span className="text-xs text-text-secondary">{status.message}</span>
+      </div>
+    </div>
   );
 }
 
@@ -167,8 +248,22 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<ValidationStatus | null>(null);
+  const [widthBeforeMaximize, setWidthBeforeMaximize] = useState(CHAT_PANEL_DEFAULT_WIDTH);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const toggleMaximize = useCallback(() => {
+    if (isMaximized) {
+      onWidthChange(widthBeforeMaximize);
+      setIsMaximized(false);
+    } else {
+      setWidthBeforeMaximize(width);
+      onWidthChange(CHAT_PANEL_MAX_WIDTH);
+      setIsMaximized(true);
+    }
+  }, [isMaximized, width, widthBeforeMaximize, onWidthChange]);
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -230,6 +325,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
       setInput("");
       setIsStreaming(true);
+      setValidationStatus(null);
 
       try {
         const chatMessages: ChatMessage[] = [
@@ -238,14 +334,42 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
         ];
 
         const stream = api.chat.stream(chatMessages, mode);
+        let accumulated = "";
+
         for await (const chunk of stream) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsg.id
-                ? { ...m, content: m.content + chunk }
-                : m
-            )
-          );
+          if (typeof chunk === "object" && chunk !== null && "type" in chunk) {
+            const event = chunk as { type: string; stage?: string; iteration?: number; message?: string; content?: string };
+
+            if (event.type === "status") {
+              setValidationStatus({
+                stage: (event.stage as ValidationStatus["stage"]) || "researching",
+                iteration: event.iteration ?? 0,
+                message: event.message ?? "",
+              });
+            } else if (event.type === "chunk") {
+              accumulated += event.content ?? "";
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMsg.id ? { ...m, content: accumulated } : m
+                )
+              );
+            } else if (event.type === "error") {
+              accumulated = `**Error:** ${event.message ?? "Terjadi kesalahan."}`;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMsg.id ? { ...m, content: accumulated } : m
+                )
+              );
+            }
+          } else {
+            const text = typeof chunk === "string" ? chunk : String(chunk);
+            accumulated += text;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsg.id ? { ...m, content: accumulated } : m
+              )
+            );
+          }
         }
       } catch (err) {
         const errorText =
@@ -259,6 +383,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
         );
       } finally {
         setIsStreaming(false);
+        setValidationStatus(null);
       }
     },
     [messages, mode, isStreaming]
@@ -280,7 +405,24 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
     setMessages([]);
   };
 
-  const suggestedPrompts = mode === "quick" ? QUICK_PROMPTS : ADVISOR_PROMPTS;
+  const handleRegenerate = useCallback(
+    (assistantMsgId: string) => {
+      if (isStreaming) return;
+      // Find the user message right before this assistant message
+      const msgIndex = messages.findIndex((m) => m.id === assistantMsgId);
+      if (msgIndex <= 0) return;
+      const prevUserMsg = messages[msgIndex - 1];
+      if (prevUserMsg.role !== "user") return;
+
+      // Remove the assistant message and re-send
+      setMessages((prev) => prev.filter((m) => m.id !== assistantMsgId));
+      // Small delay to let state update, then re-send
+      setTimeout(() => sendMessage(prevUserMsg.content), 50);
+    },
+    [messages, isStreaming, sendMessage],
+  );
+
+  const suggestedPrompts = mode === "quick" ? QUICK_PROMPTS : HYPOTHESIS_PROMPTS;
 
   return (
     <div
@@ -317,6 +459,14 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
             <SquarePen className="w-4 h-4" />
           </button>
           <button
+            onClick={toggleMaximize}
+            className="p-1.5 rounded-lg hover:bg-surface-100 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
+            aria-label={isMaximized ? "Minimize panel" : "Maximize panel"}
+            title={isMaximized ? "Minimize" : "Maximize"}
+          >
+            {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+          <button
             onClick={onToggle}
             className="p-1.5 rounded-lg hover:bg-surface-100 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
             aria-label="Close panel"
@@ -340,15 +490,18 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
           Quick Q&A
         </button>
         <button
-          onClick={() => setMode("advisor")}
+          onClick={() => setMode("hypothesis")}
+          disabled={isStreaming}
           className={cn(
-            "flex-1 text-xs font-medium py-1.5 rounded-lg transition-colors cursor-pointer",
-            mode === "advisor"
-              ? "bg-brand-accent text-black"
-              : "bg-surface-100 text-text-secondary hover:text-text-primary"
+            "flex-1 text-xs font-medium py-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1",
+            mode === "hypothesis"
+              ? "bg-purple-500 text-white"
+              : "bg-surface-100 text-text-secondary hover:text-text-primary",
+            isStreaming && "opacity-50 cursor-not-allowed"
           )}
         >
-          Professional Advisor
+          <FlaskConical className="w-3 h-3" />
+          Hypothesis
         </button>
       </div>
 
@@ -363,12 +516,12 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
               <p className="text-text-secondary text-sm font-medium mb-1">
                 {mode === "quick"
                   ? "Tanyakan seputar berita dan data RadarHub"
-                  : "Dapatkan analisis dan rekomendasi strategis"}
+                  : "Ajukan hipotesis untuk divalidasi dengan data"}
               </p>
               <p className="text-text-tertiary text-xs leading-relaxed">
                 {mode === "quick"
                   ? "Jawaban cepat berdasarkan data terkini"
-                  : "Insight mendalam untuk pengambilan keputusan"}
+                  : "AI akan klarifikasi konteks Anda, lalu riset dari data"}
               </p>
             </div>
             <div className="flex flex-col gap-2 w-full mt-1">
@@ -404,7 +557,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
                       <span className="text-xs font-semibold text-text-primary">RadarHub AI</span>
                       <div className="mt-1">
                         {msg.content ? (
-                          <AssistantContent content={msg.content} streaming={isStreaming} />
+                          <AssistantContent content={msg.content} streaming={isStreaming} onRegenerate={() => handleRegenerate(msg.id)} />
                         ) : (
                           <div className="flex items-center gap-2 text-text-tertiary py-1">
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -417,6 +570,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
                 )}
               </div>
             ))}
+            {validationStatus && <HypothesisStatusBar status={validationStatus} />}
             <div ref={messagesEndRef} />
           </>
         )}
