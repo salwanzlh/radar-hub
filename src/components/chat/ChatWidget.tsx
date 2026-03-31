@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type ComponentPropsWithoutRef } from "react";
-import { BrainCircuit, X, SquarePen, Send, Loader2, Copy, Check, FlaskConical, ChevronDown } from "lucide-react";
+import { BrainCircuit, X, SquarePen, Send, Loader2, Copy, Check, FlaskConical, ChevronDown, RefreshCw } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
@@ -148,7 +148,7 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function AssistantContent({ content, streaming }: { content: string; streaming: boolean }) {
+function AssistantContent({ content, streaming, onRegenerate }: { content: string; streaming: boolean; onRegenerate?: () => void }) {
   const { main, validation } = useMemo(() => {
     if (streaming) return { main: trimPartialTable(content), validation: null };
     return parseValidationSection(content);
@@ -160,9 +160,20 @@ function AssistantContent({ content, streaming }: { content: string; streaming: 
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{main}</ReactMarkdown>
       </div>
       {validation && <ValidationAccordion content={validation} />}
-      <div className="flex items-center gap-0.5 mt-2">
-        <CopyButton text={validation ? main : content} />
-      </div>
+      {!streaming && (
+        <div className="flex items-center gap-0.5 mt-2">
+          <CopyButton text={validation ? main : content} />
+          {onRegenerate && (
+            <button
+              onClick={onRegenerate}
+              className="p-1 rounded hover:bg-surface-200 text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer"
+              title="Regenerate"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
     </>
   );
 }
@@ -381,6 +392,23 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
     setMessages([]);
   };
 
+  const handleRegenerate = useCallback(
+    (assistantMsgId: string) => {
+      if (isStreaming) return;
+      // Find the user message right before this assistant message
+      const msgIndex = messages.findIndex((m) => m.id === assistantMsgId);
+      if (msgIndex <= 0) return;
+      const prevUserMsg = messages[msgIndex - 1];
+      if (prevUserMsg.role !== "user") return;
+
+      // Remove the assistant message and re-send
+      setMessages((prev) => prev.filter((m) => m.id !== assistantMsgId));
+      // Small delay to let state update, then re-send
+      setTimeout(() => sendMessage(prevUserMsg.content), 50);
+    },
+    [messages, isStreaming, sendMessage],
+  );
+
   const suggestedPrompts = mode === "quick" ? QUICK_PROMPTS : HYPOTHESIS_PROMPTS;
 
   return (
@@ -508,7 +536,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
                       <span className="text-xs font-semibold text-text-primary">RadarHub AI</span>
                       <div className="mt-1">
                         {msg.content ? (
-                          <AssistantContent content={msg.content} streaming={isStreaming} />
+                          <AssistantContent content={msg.content} streaming={isStreaming} onRegenerate={() => handleRegenerate(msg.id)} />
                         ) : (
                           <div className="flex items-center gap-2 text-text-tertiary py-1">
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
