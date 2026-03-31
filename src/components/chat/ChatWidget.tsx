@@ -25,6 +25,15 @@ function trimPartialTable(text: string): string {
   return lines.join("\n");
 }
 
+function parseValidationSection(text: string): { main: string; validation: string | null } {
+  const match = text.match(/<validation>([\s\S]*?)<\/validation>/);
+  if (!match) return { main: text, validation: null };
+  return {
+    main: text.replace(/<validation>[\s\S]*?<\/validation>/, "").trim(),
+    validation: match[1].trim(),
+  };
+}
+
 const markdownComponents: Components = {
   h2({ children }: ComponentPropsWithoutRef<"h2">) {
     return <h2 className="text-xs font-bold uppercase tracking-wide text-text-primary mt-3 mb-1.5">{children}</h2>;
@@ -146,19 +155,58 @@ function CopyButton({ text }: { text: string }) {
 }
 
 function AssistantContent({ content, streaming }: { content: string; streaming: boolean }) {
-  const safeContent = useMemo(() => (streaming ? trimPartialTable(content) : content), [content, streaming]);
+  const { main, validation } = useMemo(() => {
+    if (streaming) return { main: trimPartialTable(content), validation: null };
+    return parseValidationSection(content);
+  }, [content, streaming]);
 
   return (
     <>
       <div className="max-w-none">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{safeContent}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{main}</ReactMarkdown>
       </div>
-      {!streaming && (
-        <div className="flex items-center gap-0.5 mt-2">
-          <CopyButton text={content} />
+      {validation && <ValidationAccordion content={validation} />}
+      <div className="flex items-center gap-0.5 mt-2">
+        <CopyButton text={validation ? main : content} />
+      </div>
+    </>
+  );
+}
+
+function ValidationAccordion({ content }: { content: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const confidenceMatch = content.match(/Confidence Score:\s*(\d+)\/100/);
+  const score = confidenceMatch ? confidenceMatch[1] : "?";
+
+  return (
+    <div className="mt-3 rounded-xl border border-surface-200 overflow-hidden">
+      <button
+        onClick={() => setExpanded((prev) => !prev)}
+        className="w-full flex items-center justify-between px-4 py-2.5 bg-surface-100 hover:bg-surface-200 transition-colors cursor-pointer"
+      >
+        <div className="flex items-center gap-2">
+          <FlaskConical className="w-3.5 h-3.5 text-purple-400" />
+          <span className="text-xs font-medium text-text-primary">Validation Details</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-brand-accent">Score: {score}/100</span>
+          <ChevronDown
+            className={cn(
+              "w-3.5 h-3.5 text-text-tertiary transition-transform",
+              expanded && "rotate-180"
+            )}
+          />
+        </div>
+      </button>
+      {expanded && (
+        <div className="px-4 py-3 border-t border-surface-200">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            {content}
+          </ReactMarkdown>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
