@@ -715,7 +715,7 @@ export const api = {
     resume: () => post<SchedulerStatus>("/api/v1/scheduler/resume"),
   },
   chat: {
-    stream: async function* (messages: ChatMessage[], mode: "quick" | "advisor"): AsyncGenerator<string> {
+    stream: async function* (messages: ChatMessage[], mode: "quick" | "advisor" | "hypothesis"): AsyncGenerator<string> {
       const token = localStorage.getItem("access_token");
       const response = await fetch(`${API_BASE}/api/v1/chat/completions`, {
         method: "POST",
