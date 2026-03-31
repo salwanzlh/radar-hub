@@ -457,10 +457,25 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
         >
           Professional Advisor
         </button>
+        <button
+          onClick={() => setMode("hypothesis")}
+          disabled={isStreaming}
+          className={cn(
+            "flex-1 text-xs font-medium py-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1",
+            mode === "hypothesis"
+              ? "bg-purple-500 text-white"
+              : "bg-surface-100 text-text-secondary hover:text-text-primary",
+            isStreaming && "opacity-50 cursor-not-allowed"
+          )}
+        >
+          <FlaskConical className="w-3 h-3" />
+          Hypothesis
+        </button>
       </div>
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {validationStatus && <HypothesisStatusBar status={validationStatus} />}
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-2">
             <div className="w-14 h-14 rounded-2xl bg-surface-100 flex items-center justify-center">
@@ -470,12 +485,16 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
               <p className="text-text-secondary text-sm font-medium mb-1">
                 {mode === "quick"
                   ? "Tanyakan seputar berita dan data RadarHub"
-                  : "Dapatkan analisis dan rekomendasi strategis"}
+                  : mode === "advisor"
+                    ? "Dapatkan analisis dan rekomendasi strategis"
+                    : "Ajukan hipotesis untuk divalidasi dengan data"}
               </p>
               <p className="text-text-tertiary text-xs leading-relaxed">
                 {mode === "quick"
                   ? "Jawaban cepat berdasarkan data terkini"
-                  : "Insight mendalam untuk pengambilan keputusan"}
+                  : mode === "advisor"
+                    ? "Insight mendalam untuk pengambilan keputusan"
+                    : "AI akan klarifikasi konteks Anda, lalu riset dari data"}
               </p>
             </div>
             <div className="flex flex-col gap-2 w-full mt-1">
