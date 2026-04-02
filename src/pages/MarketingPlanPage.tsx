@@ -16,6 +16,7 @@ import {
   Check,
   ChevronDown,
   ImageIcon,
+  Sparkles,
 } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { cn, formatRelativeDate } from "@/lib/utils";
@@ -307,6 +308,8 @@ export default function MarketingPlanPage() {
   const [kvImages, setKvImages] = useState<Record<string, string>>({});
   const [kvLoading, setKvLoading] = useState<Record<string, boolean>>({});
   const [previewImage, setPreviewImage] = useState<{ src: string; name: string } | null>(null);
+  const [showReviseModal, setShowReviseModal] = useState(false);
+  const [reviseInstruction, setReviseInstruction] = useState("");
 
   // ── Data queries ──
 
@@ -350,6 +353,19 @@ export default function MarketingPlanPage() {
       queryClient.invalidateQueries({ queryKey: ["marketing-plan", effectivePlanId] });
       setEditMode(false);
       toast.success("Section saved");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const reviseMutation = useMutation({
+    mutationFn: (data: { instruction: string; mode: "selected" | "full"; selected_text?: string }) =>
+      api.marketingPlan.revise(effectivePlanId!, { ...data, section_type: activeTab }),
+    onSuccess: (data) => {
+      setEditContent(data.revised_content);
+      setEditMode(true);
+      setShowReviseModal(false);
+      setReviseInstruction("");
+      toast.success("Content revised. Review and save when ready.");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -628,10 +644,20 @@ export default function MarketingPlanPage() {
                   </button>
                 </>
               ) : (
-                <button onClick={handleEdit} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-100 text-text-secondary hover:bg-surface-200 transition-colors">
-                  <Pencil className="w-3.5 h-3.5" />
-                  Edit
-                </button>
+                <>
+                  <button
+                    onClick={() => { setReviseInstruction(""); setShowReviseModal(true); }}
+                    disabled={!currentSection?.content}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-100 text-text-secondary hover:bg-surface-200 transition-colors disabled:opacity-50"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Revise with AI
+                  </button>
+                  <button onClick={handleEdit} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-100 text-text-secondary hover:bg-surface-200 transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                    Edit
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -666,6 +692,48 @@ export default function MarketingPlanPage() {
               </ReactMarkdown>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Revise with AI Modal */}
+      {showReviseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { if (!reviseMutation.isPending) setShowReviseModal(false); }} />
+          <div className="relative bg-surface-white border border-surface-200 rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-brand-accent/10 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-brand-accent" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary">Revise with AI</h3>
+                  <p className="text-xs text-text-tertiary mt-0.5">Describe what changes you want</p>
+                </div>
+              </div>
+              <button onClick={() => setShowReviseModal(false)} disabled={reviseMutation.isPending} className="p-1.5 rounded-lg hover:bg-surface-100 text-text-tertiary transition-colors disabled:opacity-60">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); if (reviseInstruction.trim()) reviseMutation.mutate({ instruction: reviseInstruction, mode: "full" }); }}>
+              <textarea
+                value={reviseInstruction}
+                onChange={(e) => setReviseInstruction(e.target.value)}
+                placeholder="e.g., Buat lebih singkat, fokus pada data kompetitor..."
+                autoFocus
+                disabled={reviseMutation.isPending}
+                rows={3}
+                className="w-full px-4 py-3 bg-surface-100 border border-surface-200 rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/25 disabled:opacity-60 transition-colors resize-none mb-4"
+              />
+              <div className="flex gap-3 justify-end">
+                <button type="button" onClick={() => setShowReviseModal(false)} disabled={reviseMutation.isPending} className="px-4 py-2.5 text-sm text-text-secondary border border-surface-200 rounded-xl hover:bg-surface-100 transition-colors disabled:opacity-60">
+                  Cancel
+                </button>
+                <button type="submit" disabled={!reviseInstruction.trim() || reviseMutation.isPending} className="px-5 py-2.5 text-sm bg-brand-accent text-text-inverse font-semibold rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 transition-colors flex items-center gap-1.5">
+                  {reviseMutation.isPending ? (<><Loader2 className="w-3.5 h-3.5 animate-spin" />Revising...</>) : (<><Sparkles className="w-3.5 h-3.5" />Revise</>)}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
