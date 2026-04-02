@@ -1,4 +1,4 @@
-import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { useEditor, EditorContent, BubbleMenu, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -15,9 +15,11 @@ import {
   Minus,
   Undo2,
   Redo2,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 
 interface MarkdownEditorProps {
   value: string;
@@ -25,17 +27,17 @@ interface MarkdownEditorProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  onReviseSelection?: (selectedText: string, instruction: string) => Promise<string>;
+  isRevising?: boolean;
 }
 
 function ToolbarButton({
-  editor,
   action,
   isActive,
   icon: Icon,
   title,
   disabled,
 }: {
-  editor: Editor;
   action: () => void;
   isActive?: boolean;
   icon: React.ComponentType<{ className?: string }>;
@@ -68,21 +70,18 @@ function Toolbar({ editor }: { editor: Editor }) {
   return (
     <div className="flex items-center gap-0.5 px-3 py-2 border-b border-surface-200 bg-surface-50 rounded-t-xl flex-wrap">
       <ToolbarButton
-        editor={editor}
         action={() => editor.chain().focus().toggleBold().run()}
         isActive={editor.isActive("bold")}
         icon={Bold}
         title="Bold"
       />
       <ToolbarButton
-        editor={editor}
         action={() => editor.chain().focus().toggleItalic().run()}
         isActive={editor.isActive("italic")}
         icon={Italic}
         title="Italic"
       />
       <ToolbarButton
-        editor={editor}
         action={() => editor.chain().focus().toggleUnderline().run()}
         isActive={editor.isActive("underline")}
         icon={UnderlineIcon}
@@ -92,14 +91,12 @@ function Toolbar({ editor }: { editor: Editor }) {
       <ToolbarSeparator />
 
       <ToolbarButton
-        editor={editor}
         action={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
         isActive={editor.isActive("heading", { level: 2 })}
         icon={Heading2}
         title="Heading 2"
       />
       <ToolbarButton
-        editor={editor}
         action={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
         isActive={editor.isActive("heading", { level: 3 })}
         icon={Heading3}
@@ -109,14 +106,12 @@ function Toolbar({ editor }: { editor: Editor }) {
       <ToolbarSeparator />
 
       <ToolbarButton
-        editor={editor}
         action={() => editor.chain().focus().toggleBulletList().run()}
         isActive={editor.isActive("bulletList")}
         icon={List}
         title="Bullet List"
       />
       <ToolbarButton
-        editor={editor}
         action={() => editor.chain().focus().toggleOrderedList().run()}
         isActive={editor.isActive("orderedList")}
         icon={ListOrdered}
@@ -126,14 +121,12 @@ function Toolbar({ editor }: { editor: Editor }) {
       <ToolbarSeparator />
 
       <ToolbarButton
-        editor={editor}
         action={() => editor.chain().focus().toggleBlockquote().run()}
         isActive={editor.isActive("blockquote")}
         icon={Quote}
         title="Blockquote"
       />
       <ToolbarButton
-        editor={editor}
         action={() => editor.chain().focus().setHorizontalRule().run()}
         icon={Minus}
         title="Horizontal Rule"
@@ -142,14 +135,12 @@ function Toolbar({ editor }: { editor: Editor }) {
       <ToolbarSeparator />
 
       <ToolbarButton
-        editor={editor}
         action={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().undo()}
         icon={Undo2}
         title="Undo"
       />
       <ToolbarButton
-        editor={editor}
         action={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().redo()}
         icon={Redo2}
@@ -159,12 +150,97 @@ function Toolbar({ editor }: { editor: Editor }) {
   );
 }
 
+function ReviseSelectionBubble({
+  editor,
+  onRevise,
+  isRevising,
+}: {
+  editor: Editor;
+  onRevise: (selectedText: string, instruction: string) => Promise<string>;
+  isRevising: boolean;
+}) {
+  const [showInput, setShowInput] = useState(false);
+  const [instruction, setInstruction] = useState("");
+
+  function getSelectedText(): string {
+    const { from, to } = editor.state.selection;
+    return editor.state.doc.textBetween(from, to, "\n");
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!instruction.trim()) return;
+    const selected = getSelectedText();
+    const revised = await onRevise(selected, instruction);
+    // Replace selected text with revised content
+    editor.chain().focus().deleteSelection().insertContent(revised).run();
+    setShowInput(false);
+    setInstruction("");
+  }
+
+  return (
+    <BubbleMenu
+      editor={editor}
+      tippyOptions={{ placement: "top", maxWidth: 400 }}
+      shouldShow={({ editor: e }) => {
+        const { from, to } = e.state.selection;
+        return from !== to && !e.state.selection.empty;
+      }}
+    >
+      {showInput ? (
+        <div className="bg-surface-white border border-surface-200 rounded-xl shadow-xl p-3 w-80">
+          <form onSubmit={handleSubmit}>
+            <p className="text-[11px] font-medium text-text-tertiary mb-2">Revise selected text:</p>
+            <input
+              type="text"
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              placeholder="e.g., ubah tone lebih formal"
+              autoFocus
+              disabled={isRevising}
+              className="w-full px-3 py-2 bg-surface-100 border border-surface-200 rounded-lg text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-accent/50 disabled:opacity-60 transition-colors mb-2"
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => { setShowInput(false); setInstruction(""); }}
+                disabled={isRevising}
+                className="px-3 py-1.5 text-xs text-text-secondary border border-surface-200 rounded-lg hover:bg-surface-100 transition-colors disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!instruction.trim() || isRevising}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-brand-accent text-text-inverse font-semibold rounded-lg hover:bg-brand-accent-hover disabled:opacity-60 transition-colors"
+              >
+                {isRevising ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                {isRevising ? "Revising..." : "Revise"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : (
+        <button
+          onClick={() => { setInstruction(""); setShowInput(true); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-accent text-text-inverse shadow-lg hover:bg-brand-accent-hover transition-colors"
+        >
+          <Sparkles className="w-3 h-3" />
+          Revise Selection
+        </button>
+      )}
+    </BubbleMenu>
+  );
+}
+
 export default function MarkdownEditor({
   value,
   onChange,
   placeholder = "Start writing...",
   className,
   disabled = false,
+  onReviseSelection,
+  isRevising = false,
 }: MarkdownEditorProps) {
   const handleUpdate = useCallback(
     ({ editor }: { editor: Editor }) => {
@@ -211,6 +287,9 @@ export default function MarkdownEditor({
   return (
     <div className={cn("border border-surface-200 rounded-xl overflow-hidden", disabled && "opacity-60", className)}>
       <Toolbar editor={editor} />
+      {onReviseSelection && (
+        <ReviseSelectionBubble editor={editor} onRevise={onReviseSelection} isRevising={isRevising} />
+      )}
       <EditorContent
         editor={editor}
         className="prose prose-sm max-w-none px-4 py-3 min-h-[400px] max-h-[500px] overflow-y-auto focus-within:ring-1 focus-within:ring-brand-accent/25 text-text-primary [&_.tiptap]:outline-none [&_.tiptap]:min-h-[380px] [&_.tiptap_p.is-editor-empty:first-child::before]:text-text-tertiary [&_.tiptap_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.tiptap_p.is-editor-empty:first-child::before]:float-left [&_.tiptap_p.is-editor-empty:first-child::before]:h-0 [&_.tiptap_p.is-editor-empty:first-child::before]:pointer-events-none"

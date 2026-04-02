@@ -710,6 +710,17 @@ export default function MarketingPlanPage() {
               value={editContent}
               onChange={setEditContent}
               placeholder="Start writing your marketing plan content..."
+              onReviseSelection={async (selectedText, instruction) => {
+                const result = await api.marketingPlan.revise(effectivePlanId!, {
+                  instruction,
+                  mode: "selected",
+                  selected_text: selectedText,
+                  section_type: activeTab,
+                });
+                toast.success("Selection revised.");
+                return result.revised_content;
+              }}
+              isRevising={reviseMutation.isPending}
             />
           ) : activeTab === "product_communication" && currentSection?.content ? (
             <ProductCommunicationView
