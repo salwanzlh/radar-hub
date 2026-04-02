@@ -1,4 +1,4 @@
-import { useEditor, EditorContent, BubbleMenu, type Editor } from "@tiptap/react";
+import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -19,7 +19,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 
 interface MarkdownEditorProps {
   value: string;
@@ -161,6 +161,28 @@ function ReviseSelectionBubble({
 }) {
   const [showInput, setShowInput] = useState(false);
   const [instruction, setInstruction] = useState("");
+  const [bubblePos, setBubblePos] = useState<{ top: number; left: number } | null>(null);
+  const [hasSelection, setHasSelection] = useState(false);
+  const bubbleRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function updateSelection() {
+      const { from, to } = editor.state.selection;
+      if (from === to) {
+        setHasSelection(false);
+        if (!showInput) setBubblePos(null);
+        return;
+      }
+      setHasSelection(true);
+
+      // Get coordinates of the selection end
+      const coords = editor.view.coordsAtPos(from);
+      setBubblePos({ top: coords.top - 40, left: coords.left });
+    }
+
+    editor.on("selectionUpdate", updateSelection);
+    return () => { editor.off("selectionUpdate", updateSelection); };
+  }, [editor, showInput]);
 
   function getSelectedText(): string {
     const { from, to } = editor.state.selection;
@@ -172,20 +194,19 @@ function ReviseSelectionBubble({
     if (!instruction.trim()) return;
     const selected = getSelectedText();
     const revised = await onRevise(selected, instruction);
-    // Replace selected text with revised content
     editor.chain().focus().deleteSelection().insertContent(revised).run();
     setShowInput(false);
     setInstruction("");
+    setBubblePos(null);
   }
 
+  if (!bubblePos || (!hasSelection && !showInput)) return null;
+
   return (
-    <BubbleMenu
-      editor={editor}
-      tippyOptions={{ placement: "top", maxWidth: 400 }}
-      shouldShow={({ editor: e }) => {
-        const { from, to } = e.state.selection;
-        return from !== to && !e.state.selection.empty;
-      }}
+    <div
+      ref={bubbleRef}
+      className="fixed z-50"
+      style={{ top: bubblePos.top, left: bubblePos.left }}
     >
       {showInput ? (
         <div className="bg-surface-white border border-surface-200 rounded-xl shadow-xl p-3 w-80">
@@ -203,7 +224,7 @@ function ReviseSelectionBubble({
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
-                onClick={() => { setShowInput(false); setInstruction(""); }}
+                onClick={() => { setShowInput(false); setInstruction(""); setBubblePos(null); }}
                 disabled={isRevising}
                 className="px-3 py-1.5 text-xs text-text-secondary border border-surface-200 rounded-lg hover:bg-surface-100 transition-colors disabled:opacity-60"
               >
@@ -229,7 +250,7 @@ function ReviseSelectionBubble({
           Revise Selection
         </button>
       )}
-    </BubbleMenu>
+    </div>
   );
 }
 
