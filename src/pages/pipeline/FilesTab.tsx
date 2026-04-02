@@ -22,17 +22,6 @@ const FILE_TYPE_OPTIONS = [
   { value: "mp4", label: "MP4" },
 ];
 
-const STATUS_OPTIONS = [
-  { value: "", label: "All Status" },
-  { value: "uploaded", label: "Uploaded" },
-  { value: "password_required", label: "Password Required" },
-  { value: "parsing", label: "Parsing" },
-  { value: "preview_ready", label: "Preview Ready" },
-  { value: "processing", label: "Processing" },
-  { value: "completed", label: "Completed" },
-  { value: "failed", label: "Failed" },
-];
-
 const STATUS_COLORS: Record<string, string> = {
   uploaded: "bg-surface-200 text-text-secondary",
   password_required: "bg-orange-50 text-orange-700",
@@ -53,7 +42,7 @@ export function FilesTab() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [fileType, setFileType] = useState("");
-  const [status, setStatus] = useState("");
+  const [status] = useState("");
   const [search, setSearch] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ fileId: string; preview: ParsePreview; sheetConfigs?: SheetConfig[]; transformScript?: string } | null>(null);
