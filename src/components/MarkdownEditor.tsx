@@ -176,11 +176,12 @@ function ReviseSelectionBubble({
       }
       setHasSelection(true);
 
-      // Position below the selection end, clamped to viewport
+      // Position below the selection start, clamped to viewport
+      const startCoords = editor.view.coordsAtPos(from);
       const endCoords = editor.view.coordsAtPos(to);
-      const popoverWidth = 320; // w-80 = 20rem = 320px
-      const margin = 12;
-      const left = Math.min(endCoords.left, window.innerWidth - popoverWidth - margin);
+      const popoverWidth = 320;
+      const margin = 16;
+      const left = Math.min(startCoords.left, window.innerWidth - popoverWidth - margin);
       setBubblePos({ top: endCoords.bottom + 8, left: Math.max(margin, left) });
     }
 
