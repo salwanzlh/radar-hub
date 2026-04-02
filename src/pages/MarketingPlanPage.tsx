@@ -397,6 +397,7 @@ export default function MarketingPlanPage() {
         key_message: keyMessage,
       });
       setKvImages((prev) => ({ ...prev, [pillarName]: result.image }));
+      queryClient.invalidateQueries({ queryKey: ["marketing-plan", effectivePlanId] });
       toast.success(`KV generated for ${pillarName}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "KV generation failed");
