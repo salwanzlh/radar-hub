@@ -846,6 +846,8 @@ export const api = {
       a.click();
       URL.revokeObjectURL(a.href);
     },
+    revise: (planId: string, data: { instruction: string; mode: "selected" | "full"; selected_text?: string; section_type?: string }) =>
+      post<{ revised_content: string }>(`/api/v1/marketing-plans/${planId}/revise`, data),
   },
   pricing: {
     getSources: () => get<PricingSource[]>("/api/v1/pricing/sources"),
