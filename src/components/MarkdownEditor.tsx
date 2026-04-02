@@ -163,6 +163,7 @@ function ReviseSelectionBubble({
   const [instruction, setInstruction] = useState("");
   const [bubblePos, setBubblePos] = useState<{ top: number; left: number } | null>(null);
   const [hasSelection, setHasSelection] = useState(false);
+  const [loading, setLoading] = useState(false);
   const savedSelectionRef = useRef<{ from: number; to: number; text: string } | null>(null);
 
   useEffect(() => {
@@ -171,7 +172,7 @@ function ReviseSelectionBubble({
       if (from === to) {
         setHasSelection(false);
         // Don't hide bubble if input is open (user clicked into input, selection lost)
-        if (!showInput && !isRevising) setBubblePos(null);
+        if (!showInput && !loading) setBubblePos(null);
         return;
       }
       setHasSelection(true);
@@ -187,7 +188,7 @@ function ReviseSelectionBubble({
 
     editor.on("selectionUpdate", updateSelection);
     return () => { editor.off("selectionUpdate", updateSelection); };
-  }, [editor, showInput, isRevising]);
+  }, [editor, showInput, loading]);
 
   function handleOpenInput() {
     // Save selection before focus moves to input
@@ -209,13 +210,19 @@ function ReviseSelectionBubble({
     e.preventDefault();
     if (!instruction.trim() || !savedSelectionRef.current) return;
     const { from, to, text } = savedSelectionRef.current;
-    const revised = await onRevise(text, instruction);
-    // Replace the saved selection range with revised content
-    editor.chain().focus().setTextSelection({ from, to }).deleteSelection().insertContent(revised).run();
-    handleClose();
+    setLoading(true);
+    try {
+      const revised = await onRevise(text, instruction);
+      editor.chain().focus().setTextSelection({ from, to }).deleteSelection().insertContent(revised).run();
+      handleClose();
+    } catch {
+      // error handled by parent via toast
+    } finally {
+      setLoading(false);
+    }
   }
 
-  if (!bubblePos || (!hasSelection && !showInput && !isRevising)) return null;
+  if (!bubblePos || (!hasSelection && !showInput && !loading)) return null;
 
   return (
     <div
@@ -224,7 +231,7 @@ function ReviseSelectionBubble({
     >
       {showInput ? (
         <div className="relative bg-surface-white border border-surface-200 rounded-xl shadow-xl p-3 w-80">
-          {isRevising && (
+          {loading && (
             <div className="absolute inset-0 bg-surface-white/80 backdrop-blur-[1px] rounded-xl z-10 flex flex-col items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-brand-accent" />
               <span className="text-[11px] font-medium text-text-secondary">Revising selection...</span>
@@ -245,21 +252,21 @@ function ReviseSelectionBubble({
               onChange={(e) => setInstruction(e.target.value)}
               placeholder="e.g., ubah tone lebih formal"
               autoFocus
-              disabled={isRevising}
+              disabled={loading}
               className="w-full px-3 py-2 bg-surface-100 border border-surface-200 rounded-lg text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-accent/50 disabled:opacity-60 transition-colors mb-2"
             />
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
                 onClick={handleClose}
-                disabled={isRevising}
+                disabled={loading}
                 className="px-3 py-1.5 text-xs text-text-secondary border border-surface-200 rounded-lg hover:bg-surface-100 transition-colors disabled:opacity-60"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={!instruction.trim() || isRevising}
+                disabled={!instruction.trim() || loading}
                 className="flex items-center gap-1 px-3 py-1.5 text-xs bg-brand-accent text-text-inverse font-semibold rounded-lg hover:bg-brand-accent-hover disabled:opacity-60 transition-colors"
               >
                 <Wand2 className="w-3 h-3" />
