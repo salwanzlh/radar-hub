@@ -333,7 +333,13 @@ export default function MarketingPlanPage() {
     queryKey: ["marketing-plan", effectivePlanId],
     queryFn: () => api.marketingPlan.get(effectivePlanId!),
     enabled: !!effectivePlanId,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      return data?.status === "generating" ? 3000 : false;
+    },
   });
+
+  const isGenerating = plan?.status === "generating";
 
   // ── Mutations ──
 
@@ -343,7 +349,7 @@ export default function MarketingPlanPage() {
       queryClient.invalidateQueries({ queryKey: ["marketing-plan-versions", effectiveLineupId] });
       setSelectedPlanId(newPlan.id);
       queryClient.setQueryData(["marketing-plan", newPlan.id], newPlan);
-      toast.success("Marketing plan generated successfully");
+      toast.success("Plan generation started");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -479,15 +485,15 @@ export default function MarketingPlanPage() {
             )}
             <button
               onClick={() => generateMutation.mutate()}
-              disabled={!effectiveLineupId || generateMutation.isPending}
+              disabled={!effectiveLineupId || generateMutation.isPending || isGenerating}
               className="flex items-center gap-2 px-5 py-2.5 bg-brand-accent text-text-inverse rounded-xl text-sm font-semibold hover:bg-brand-accent-hover transition-colors disabled:opacity-50"
             >
-              {generateMutation.isPending ? (
+              {generateMutation.isPending || isGenerating ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <FileText className="w-4 h-4" />
               )}
-              Generate Plan
+              {isGenerating ? "Generating..." : "Generate Plan"}
             </button>
           </div>
         </div>
@@ -592,9 +598,24 @@ export default function MarketingPlanPage() {
       )}
 
       {/* Loading */}
-      {(versionsLoading || (planLoading && effectivePlanId)) && (
+      {(versionsLoading || (planLoading && effectivePlanId)) && !isGenerating && (
         <div className="bg-surface-white rounded-[20px] shadow-card p-12 flex items-center justify-center">
           <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
+        </div>
+      )}
+
+      {/* Generating state */}
+      {isGenerating && (
+        <div className="bg-surface-white rounded-[20px] shadow-card p-12">
+          <div className="flex flex-col items-center text-center">
+            <div className="w-14 h-14 rounded-2xl bg-brand-accent/10 flex items-center justify-center mb-4">
+              <Loader2 className="w-7 h-7 animate-spin text-brand-accent" />
+            </div>
+            <h3 className="text-sm font-semibold text-text-primary mb-1">Generating Marketing Plan</h3>
+            <p className="text-xs text-text-tertiary max-w-sm">
+              AI is analyzing market data, building positioning pillars, and generating key visuals. This page will update automatically when ready.
+            </p>
+          </div>
         </div>
       )}
 
@@ -610,16 +631,16 @@ export default function MarketingPlanPage() {
           </p>
           <button
             onClick={() => generateMutation.mutate()}
-            disabled={generateMutation.isPending}
+            disabled={generateMutation.isPending || isGenerating}
             className="px-5 py-2.5 bg-brand-accent text-text-inverse rounded-xl text-sm font-semibold hover:bg-brand-accent-hover transition-colors disabled:opacity-50"
           >
-            {generateMutation.isPending ? "Generating..." : "Generate Plan"}
+            {generateMutation.isPending || isGenerating ? "Generating..." : "Generate Plan"}
           </button>
         </div>
       )}
 
       {/* Section content */}
-      {plan && currentSection && !planLoading && (
+      {plan && currentSection && !planLoading && !isGenerating && (
         <div className="bg-surface-white rounded-[20px] shadow-card p-7">
           {/* Toolbar */}
           <div className="flex items-center justify-between mb-5">
@@ -776,17 +797,6 @@ export default function MarketingPlanPage() {
       )}
 
       {/* Generation overlay */}
-      {generateMutation.isPending && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-surface-white rounded-2xl shadow-dropdown p-8 text-center max-w-sm">
-            <Loader2 className="w-8 h-8 animate-spin text-brand-accent mx-auto mb-4" />
-            <h3 className="text-sm font-semibold text-text-primary mb-1">Generating Marketing Plan</h3>
-            <p className="text-xs text-text-tertiary">
-              AI is analyzing market data and creating sections with key visuals. This may take a moment...
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
