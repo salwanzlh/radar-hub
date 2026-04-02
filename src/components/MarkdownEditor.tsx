@@ -163,55 +163,72 @@ function ReviseSelectionBubble({
   const [instruction, setInstruction] = useState("");
   const [bubblePos, setBubblePos] = useState<{ top: number; left: number } | null>(null);
   const [hasSelection, setHasSelection] = useState(false);
-  const bubbleRef = useRef<HTMLDivElement>(null);
+  const savedSelectionRef = useRef<{ from: number; to: number; text: string } | null>(null);
 
   useEffect(() => {
     function updateSelection() {
       const { from, to } = editor.state.selection;
       if (from === to) {
         setHasSelection(false);
-        if (!showInput) setBubblePos(null);
+        // Don't hide bubble if input is open (user clicked into input, selection lost)
+        if (!showInput && !isRevising) setBubblePos(null);
         return;
       }
       setHasSelection(true);
 
-      // Get coordinates of the selection end
       const coords = editor.view.coordsAtPos(from);
       setBubblePos({ top: coords.top - 40, left: coords.left });
     }
 
     editor.on("selectionUpdate", updateSelection);
     return () => { editor.off("selectionUpdate", updateSelection); };
-  }, [editor, showInput]);
+  }, [editor, showInput, isRevising]);
 
-  function getSelectedText(): string {
+  function handleOpenInput() {
+    // Save selection before focus moves to input
     const { from, to } = editor.state.selection;
-    return editor.state.doc.textBetween(from, to, "\n");
+    const text = editor.state.doc.textBetween(from, to, "\n");
+    savedSelectionRef.current = { from, to, text };
+    setInstruction("");
+    setShowInput(true);
+  }
+
+  function handleClose() {
+    setShowInput(false);
+    setInstruction("");
+    setBubblePos(null);
+    savedSelectionRef.current = null;
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!instruction.trim()) return;
-    const selected = getSelectedText();
-    const revised = await onRevise(selected, instruction);
-    editor.chain().focus().deleteSelection().insertContent(revised).run();
-    setShowInput(false);
-    setInstruction("");
-    setBubblePos(null);
+    if (!instruction.trim() || !savedSelectionRef.current) return;
+    const { from, to, text } = savedSelectionRef.current;
+    const revised = await onRevise(text, instruction);
+    // Replace the saved selection range with revised content
+    editor.chain().focus().setTextSelection({ from, to }).deleteSelection().insertContent(revised).run();
+    handleClose();
   }
 
-  if (!bubblePos || (!hasSelection && !showInput)) return null;
+  if (!bubblePos || (!hasSelection && !showInput && !isRevising)) return null;
 
   return (
     <div
-      ref={bubbleRef}
       className="fixed z-50"
       style={{ top: bubblePos.top, left: bubblePos.left }}
     >
       {showInput ? (
-        <div className="bg-surface-white border border-surface-200 rounded-xl shadow-xl p-3 w-80">
+        <div className="relative bg-surface-white border border-surface-200 rounded-xl shadow-xl p-3 w-80">
+          {isRevising && (
+            <div className="absolute inset-0 bg-surface-white/80 backdrop-blur-[1px] rounded-xl z-10 flex flex-col items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-brand-accent" />
+              <span className="text-[11px] font-medium text-text-secondary">Revising selection...</span>
+            </div>
+          )}
           <form onSubmit={handleSubmit}>
-            <p className="text-[11px] font-medium text-text-tertiary mb-2">Revise selected text:</p>
+            <p className="text-[11px] font-medium text-text-tertiary mb-2">
+              Revise selected text:
+            </p>
             <input
               type="text"
               value={instruction}
@@ -224,7 +241,7 @@ function ReviseSelectionBubble({
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
-                onClick={() => { setShowInput(false); setInstruction(""); setBubblePos(null); }}
+                onClick={handleClose}
                 disabled={isRevising}
                 className="px-3 py-1.5 text-xs text-text-secondary border border-surface-200 rounded-lg hover:bg-surface-100 transition-colors disabled:opacity-60"
               >
@@ -235,15 +252,15 @@ function ReviseSelectionBubble({
                 disabled={!instruction.trim() || isRevising}
                 className="flex items-center gap-1 px-3 py-1.5 text-xs bg-brand-accent text-text-inverse font-semibold rounded-lg hover:bg-brand-accent-hover disabled:opacity-60 transition-colors"
               >
-                {isRevising ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-                {isRevising ? "Revising..." : "Revise"}
+                <Wand2 className="w-3 h-3" />
+                Revise
               </button>
             </div>
           </form>
         </div>
       ) : (
         <button
-          onClick={() => { setInstruction(""); setShowInput(true); }}
+          onClick={handleOpenInput}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-accent text-text-inverse shadow-lg hover:bg-brand-accent-hover transition-colors"
         >
           <Wand2 className="w-3 h-3" />
