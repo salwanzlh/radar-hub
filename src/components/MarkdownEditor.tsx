@@ -227,9 +227,14 @@ function ReviseSelectionBubble({
             </div>
           )}
           <form onSubmit={handleSubmit}>
-            <p className="text-[11px] font-medium text-text-tertiary mb-2">
+            <p className="text-[11px] font-medium text-text-tertiary mb-1">
               Revise selected text:
             </p>
+            {savedSelectionRef.current && (
+              <div className="px-2.5 py-1.5 mb-2 bg-brand-accent/5 border border-brand-accent/20 rounded-lg text-[11px] text-text-secondary line-clamp-2 italic">
+                "{savedSelectionRef.current.text}"
+              </div>
+            )}
             <input
               type="text"
               value={instruction}
@@ -261,7 +266,7 @@ function ReviseSelectionBubble({
         </div>
       ) : (
         <button
-          onClick={handleOpenInput}
+          onMouseDown={(e) => { e.preventDefault(); handleOpenInput(); }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-accent text-text-inverse shadow-lg hover:bg-brand-accent-hover transition-colors"
         >
           <Wand2 className="w-3 h-3" />
@@ -331,7 +336,8 @@ export default function MarkdownEditor({
       )}
       <EditorContent
         editor={editor}
-        className="prose prose-sm max-w-none px-4 py-3 min-h-[400px] max-h-[500px] overflow-y-auto focus-within:ring-1 focus-within:ring-brand-accent/25 text-text-primary [&_.tiptap]:outline-none [&_.tiptap]:min-h-[380px] [&_.tiptap_p.is-editor-empty:first-child::before]:text-text-tertiary [&_.tiptap_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.tiptap_p.is-editor-empty:first-child::before]:float-left [&_.tiptap_p.is-editor-empty:first-child::before]:h-0 [&_.tiptap_p.is-editor-empty:first-child::before]:pointer-events-none"
+        className="prose prose-sm max-w-none px-4 py-3 min-h-[400px] max-h-[500px] overflow-y-auto focus-within:ring-1 focus-within:ring-brand-accent/25 text-text-primary [&_.tiptap]:outline-none [&_.tiptap]:min-h-[380px] [&_.tiptap_p.is-editor-empty:first-child::before]:text-text-tertiary [&_.tiptap_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.tiptap_p.is-editor-empty:first-child::before]:float-left [&_.tiptap_p.is-editor-empty:first-child::before]:h-0 [&_.tiptap_p.is-editor-empty:first-child::before]:pointer-events-none [&_.tiptap_.ProseMirror-selectednode]:outline-brand-accent [&_.tiptap]:[&::selection]:bg-brand-accent/20 [&_.tiptap]:caret-brand-accent"
+        style={{ ["--tw-prose-body" as string]: "var(--th-text-primary)" }}
       />
     </div>
   );
