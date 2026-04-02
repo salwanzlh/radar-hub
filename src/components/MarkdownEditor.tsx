@@ -153,11 +153,10 @@ function Toolbar({ editor }: { editor: Editor }) {
 function ReviseSelectionBubble({
   editor,
   onRevise,
-  isRevising,
 }: {
   editor: Editor;
   onRevise: (selectedText: string, instruction: string) => Promise<string>;
-  isRevising: boolean;
+  isRevising?: boolean;
 }) {
   const [showInput, setShowInput] = useState(false);
   const [instruction, setInstruction] = useState("");
@@ -299,7 +298,7 @@ export default function MarkdownEditor({
 }: MarkdownEditorProps) {
   const handleUpdate = useCallback(
     ({ editor }: { editor: Editor }) => {
-      const md = editor.storage.markdown.getMarkdown();
+      const md = (editor.storage as Record<string, any>).markdown.getMarkdown();
       onChange(md);
     },
     [onChange]
@@ -326,7 +325,7 @@ export default function MarkdownEditor({
   // Sync external value changes (e.g., AI revision result)
   useEffect(() => {
     if (!editor) return;
-    const currentMd = editor.storage.markdown.getMarkdown();
+    const currentMd = (editor.storage as Record<string, any>).markdown.getMarkdown();
     if (currentMd !== value) {
       editor.commands.setContent(value);
     }

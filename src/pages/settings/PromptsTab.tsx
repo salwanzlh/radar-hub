@@ -2,7 +2,6 @@ import { useState, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RotateCcw, Save, X, Pencil, Wand2 } from "lucide-react";
 import { api, type PromptTemplate } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 const CATEGORY_LABELS: Record<string, string> = {
