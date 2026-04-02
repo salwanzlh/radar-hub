@@ -244,9 +244,10 @@ export interface LineupReport {
   id: string;
   lineup: { id: string; name: string; slug: string; segment: string | null };
   batch_id: string;
-  content: string;
-  cited_articles: LineupReportCitation[];
-  model_used: string;
+  status: string;
+  content: string | null;
+  cited_articles: LineupReportCitation[] | null;
+  model_used: string | null;
   token_usage: { prompt: number; completion: number } | null;
   report_date: string;
   date_from: string;
@@ -692,7 +693,7 @@ export const api = {
     generate: (data: { lineup_id: string; date_from?: string; date_to?: string }) =>
       post<LineupReport>("/api/v1/lineup-analysis/generate", data),
     generateAll: (data?: { date_from?: string; date_to?: string }) =>
-      post<LineupReport[]>("/api/v1/lineup-analysis/generate-all", data || {}),
+      post<{ batch_id: string; status: string }>("/api/v1/lineup-analysis/generate-all", data || {}),
     latestReports: () => get<LineupReport[]>("/api/v1/lineup-analysis/reports/latest"),
     getReport: (id: string) => get<LineupReport>(`/api/v1/lineup-analysis/reports/${id}`),
     downloadPdf: async (reportId: string, filename?: string) => {
