@@ -54,6 +54,7 @@ export function FilesTab() {
   const [page, setPage] = useState(1);
   const [fileType, setFileType] = useState("");
   const [status, setStatus] = useState("");
+  const [search, setSearch] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ fileId: string; preview: ParsePreview; sheetConfigs?: SheetConfig[]; transformScript?: string } | null>(null);
   const [sheetSelector, setSheetSelector] = useState<{ fileId: string; data: SheetsPreviewResponse } | null>(null);
@@ -66,13 +67,14 @@ export function FilesTab() {
 
   // Fetch files
   const { data, isLoading } = useQuery({
-    queryKey: ["pipeline-files", page, fileType, status],
+    queryKey: ["pipeline-files", page, fileType, status, search],
     queryFn: () =>
       api.pipeline.getFiles({
         page: String(page),
         page_size: String(pageSize),
         ...(fileType && { file_type: fileType }),
         ...(status && { status }),
+        ...(search && { search }),
       }),
   });
 
@@ -382,6 +384,16 @@ export function FilesTab() {
 
       {/* Filters */}
       <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Search files..."
+            className="w-full pl-9 pr-3 py-2.5 text-sm border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 bg-surface-100 text-text-primary placeholder:text-text-tertiary"
+          />
+        </div>
         <select
           value={fileType}
           onChange={(e) => { setFileType(e.target.value); setPage(1); }}
