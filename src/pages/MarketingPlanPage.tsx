@@ -1,5 +1,6 @@
 import { useState, useRef, type ComponentPropsWithoutRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import MarkdownEditor from "@/components/MarkdownEditor";
 import {
   MessageSquareText,
   Monitor,
@@ -310,11 +311,6 @@ export default function MarketingPlanPage() {
   const [previewImage, setPreviewImage] = useState<{ src: string; name: string } | null>(null);
   const [showReviseInline, setShowReviseInline] = useState(false);
   const [reviseInstruction, setReviseInstruction] = useState("");
-  const [selectionRect, setSelectionRect] = useState<{ top: number; left: number } | null>(null);
-  const [selectedText, setSelectedText] = useState("");
-  const [showSelectionPopover, setShowSelectionPopover] = useState(false);
-  const [selectionInstruction, setSelectionInstruction] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // ── Data queries ──
 
@@ -428,26 +424,6 @@ export default function MarketingPlanPage() {
     setEditContent("");
   }
 
-  function handleTextSelect() {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    if (start === end) {
-      setSelectionRect(null);
-      setSelectedText("");
-      return;
-    }
-    const text = editContent.substring(start, end);
-    setSelectedText(text);
-
-    const rect = textarea.getBoundingClientRect();
-    const lineHeight = 20;
-    const linesBefore = editContent.substring(0, start).split("\n").length - 1;
-    const top = rect.top + linesBefore * lineHeight - 40;
-    const left = rect.left + 20;
-    setSelectionRect({ top: Math.max(rect.top - 40, top), left: Math.min(left, rect.right - 180) });
-  }
 
   async function handleDownloadPdf() {
     if (!effectivePlanId) return;
@@ -730,92 +706,11 @@ export default function MarketingPlanPage() {
 
           {/* Content */}
           {editMode ? (
-            <div className="grid grid-cols-2 gap-4">
-              <textarea
-                ref={textareaRef}
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                onSelect={handleTextSelect}
-                onBlur={() => { setTimeout(() => { if (!showSelectionPopover) { setSelectionRect(null); setSelectedText(""); } }, 200); }}
-                className="w-full h-[500px] bg-surface-50 border border-surface-200 rounded-xl p-4 text-sm text-text-primary font-mono resize-none focus:outline-none focus:border-brand-accent/50 transition-colors"
-                placeholder="Write markdown content..."
-              />
-
-              {/* Floating selection toolbar */}
-              {selectionRect && selectedText && !showSelectionPopover && (
-                <div
-                  className="fixed z-40"
-                  style={{ top: selectionRect.top, left: selectionRect.left }}
-                >
-                  <button
-                    onMouseDown={(e) => { e.preventDefault(); setSelectionInstruction(""); setShowSelectionPopover(true); }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-accent text-text-inverse shadow-lg hover:bg-brand-accent-hover transition-colors"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    Revise Selection
-                  </button>
-                </div>
-              )}
-
-              {/* Selection revision popover */}
-              {showSelectionPopover && selectionRect && (
-                <div
-                  className="fixed z-50"
-                  style={{ top: selectionRect.top + 36, left: selectionRect.left }}
-                >
-                  <div className="bg-surface-white border border-surface-200 rounded-xl shadow-xl w-80 p-4">
-                    <p className="text-xs font-medium text-text-tertiary mb-2">Revise selected text:</p>
-                    <form onSubmit={(e) => {
-                      e.preventDefault();
-                      if (selectionInstruction.trim()) {
-                        reviseMutation.mutate(
-                          { instruction: selectionInstruction, mode: "selected", selected_text: selectedText },
-                          {
-                            onSuccess: (data) => {
-                              const textarea = textareaRef.current;
-                              if (textarea) {
-                                const start = textarea.selectionStart;
-                                const end = textarea.selectionEnd;
-                                const newContent = editContent.substring(0, start) + data.revised_content + editContent.substring(end);
-                                setEditContent(newContent);
-                              }
-                              setShowSelectionPopover(false);
-                              setSelectionRect(null);
-                              setSelectedText("");
-                              setSelectionInstruction("");
-                              toast.success("Selection revised. Review and save when ready.");
-                            },
-                          }
-                        );
-                      }
-                    }}>
-                      <input
-                        type="text"
-                        value={selectionInstruction}
-                        onChange={(e) => setSelectionInstruction(e.target.value)}
-                        placeholder="e.g., ubah tone lebih formal"
-                        autoFocus
-                        disabled={reviseMutation.isPending}
-                        className="w-full px-3 py-2 bg-surface-100 border border-surface-200 rounded-lg text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-accent/50 disabled:opacity-60 transition-colors mb-3"
-                      />
-                      <div className="flex gap-2 justify-end">
-                        <button type="button" onClick={() => { setShowSelectionPopover(false); setSelectionRect(null); }} disabled={reviseMutation.isPending} className="px-3 py-1.5 text-xs text-text-secondary border border-surface-200 rounded-lg hover:bg-surface-100 transition-colors disabled:opacity-60">
-                          Cancel
-                        </button>
-                        <button type="submit" disabled={!selectionInstruction.trim() || reviseMutation.isPending} className="px-3 py-1.5 text-xs bg-brand-accent text-text-inverse font-semibold rounded-lg hover:bg-brand-accent-hover disabled:opacity-60 transition-colors flex items-center gap-1">
-                          {reviseMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                          Revise
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-
-              <div className="h-[500px] overflow-y-auto border border-surface-200 rounded-xl p-5">
-                <ReactMarkdown components={components}>{editContent}</ReactMarkdown>
-              </div>
-            </div>
+            <MarkdownEditor
+              value={editContent}
+              onChange={setEditContent}
+              placeholder="Start writing your marketing plan content..."
+            />
           ) : activeTab === "product_communication" && currentSection?.content ? (
             <ProductCommunicationView
               content={currentSection.content}
