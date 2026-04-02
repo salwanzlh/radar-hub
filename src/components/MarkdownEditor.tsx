@@ -15,7 +15,7 @@ import {
   Minus,
   Undo2,
   Redo2,
-  Sparkles,
+  Wand2,
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -235,7 +235,7 @@ function ReviseSelectionBubble({
                 disabled={!instruction.trim() || isRevising}
                 className="flex items-center gap-1 px-3 py-1.5 text-xs bg-brand-accent text-text-inverse font-semibold rounded-lg hover:bg-brand-accent-hover disabled:opacity-60 transition-colors"
               >
-                {isRevising ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                {isRevising ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
                 {isRevising ? "Revising..." : "Revise"}
               </button>
             </div>
@@ -246,7 +246,7 @@ function ReviseSelectionBubble({
           onClick={() => { setInstruction(""); setShowInput(true); }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-accent text-text-inverse shadow-lg hover:bg-brand-accent-hover transition-colors"
         >
-          <Sparkles className="w-3 h-3" />
+          <Wand2 className="w-3 h-3" />
           Revise Selection
         </button>
       )}
