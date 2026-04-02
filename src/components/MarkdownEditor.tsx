@@ -176,8 +176,9 @@ function ReviseSelectionBubble({
       }
       setHasSelection(true);
 
-      const coords = editor.view.coordsAtPos(from);
-      setBubblePos({ top: coords.top - 40, left: coords.left });
+      // Position below the selection end so it doesn't cover selected text
+      const endCoords = editor.view.coordsAtPos(to);
+      setBubblePos({ top: endCoords.bottom + 8, left: endCoords.left });
     }
 
     editor.on("selectionUpdate", updateSelection);
