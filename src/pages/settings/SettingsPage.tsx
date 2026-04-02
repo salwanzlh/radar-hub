@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Tags, Globe, Car, Clock, MessageSquare, Users } from "lucide-react";
+import { Tags, Globe, Car, Clock, MessageSquare, Users, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import CategoriesTab from "./CategoriesTab";
@@ -7,9 +7,10 @@ import SourcesTab from "./SourcesTab";
 import LineupsTab from "./LineupsTab";
 import ScheduleTab from "./ScheduleTab";
 import { SettingsTab as SentimentSettingsTab } from "@/pages/sentiment/SettingsTab";
+import PromptsTab from "./PromptsTab";
 import UsersTab from "./UsersTab";
 
-type Tab = "categories" | "sources" | "lineups" | "schedule" | "sentiment" | "users";
+type Tab = "categories" | "sources" | "lineups" | "schedule" | "sentiment" | "prompts" | "users";
 
 const BASE_TABS: { id: Tab; label: string; icon: typeof Tags }[] = [
   { id: "categories", label: "Categories & Keywords", icon: Tags },
@@ -17,6 +18,7 @@ const BASE_TABS: { id: Tab; label: string; icon: typeof Tags }[] = [
   { id: "lineups", label: "Product Lineups", icon: Car },
   { id: "schedule", label: "Schedule & Scraping", icon: Clock },
   { id: "sentiment", label: "Sentiment", icon: MessageSquare },
+  { id: "prompts", label: "AI Prompts", icon: Wand2 },
 ];
 
 export default function SettingsPage() {
@@ -58,6 +60,7 @@ export default function SettingsPage() {
           {activeTab === "lineups" && <LineupsTab />}
           {activeTab === "schedule" && <ScheduleTab />}
           {activeTab === "sentiment" && <SentimentSettingsTab />}
+          {activeTab === "prompts" && <PromptsTab />}
           {activeTab === "users" && isAdmin && <UsersTab />}
         </div>
       </div>

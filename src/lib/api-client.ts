@@ -639,6 +639,16 @@ export interface AtoaRadarPoint {
   va_percent: number | null
 }
 
+export interface PromptTemplate {
+  id: string;
+  key: string;
+  label: string;
+  category: string;
+  content: string;
+  is_default: boolean;
+  updated_at: string;
+}
+
 export const api = {
   auth: {
     verifyPassword: (password: string) =>
@@ -850,6 +860,8 @@ export const api = {
       a.click();
       URL.revokeObjectURL(a.href);
     },
+    revise: (planId: string, data: { instruction: string; mode: "selected" | "full"; selected_text?: string; section_type?: string }) =>
+      post<{ revised_content: string }>(`/api/v1/marketing-plans/${planId}/revise`, data),
   },
   pricing: {
     getSources: () => get<PricingSource[]>("/api/v1/pricing/sources"),
@@ -925,5 +937,13 @@ export const api = {
 
     bulkToggle: (vehicleId: string, featureIds: string[], action: 'add' | 'remove') =>
       post<AtoaVehicle>(`/api/v1/atoa/vehicles/${vehicleId}/bulk-toggle`, { feature_ids: featureIds, action }),
+  },
+
+  promptTemplates: {
+    list: () => get<PromptTemplate[]>("/api/v1/prompt-templates"),
+    update: (key: string, content: string) =>
+      put<PromptTemplate>(`/api/v1/prompt-templates/${key}`, { content }),
+    reset: (key: string) =>
+      post<PromptTemplate>(`/api/v1/prompt-templates/${key}/reset`),
   },
 };
