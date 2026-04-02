@@ -403,15 +403,6 @@ export function FilesTab() {
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
-        <select
-          value={status}
-          onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-          className="px-3.5 py-2.5 text-sm border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 bg-surface-100 text-text-primary"
-        >
-          {STATUS_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
       </div>
 
       {/* File List Table */}
