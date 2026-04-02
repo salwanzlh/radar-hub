@@ -235,7 +235,7 @@ function ReviseSelectionBubble({
               Revise selected text:
             </p>
             {savedSelectionRef.current && (
-              <div className="px-2.5 py-1.5 mb-2 bg-brand-accent/5 border border-brand-accent/20 rounded-lg text-[11px] text-text-secondary line-clamp-2 italic">
+              <div className="px-2.5 py-1.5 mb-2 bg-brand-accent/5 border border-brand-accent/20 rounded-lg text-[11px] text-text-secondary italic max-h-20 overflow-y-auto whitespace-pre-wrap">
                 "{savedSelectionRef.current.text}"
               </div>
             )}
