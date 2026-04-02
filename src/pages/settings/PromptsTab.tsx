@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RotateCcw, Save, X, Pencil, Wand2 } from "lucide-react";
 import { api, type PromptTemplate } from "@/lib/api-client";
@@ -12,6 +12,19 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_ORDER = ["chat", "marketing_plan", "kv_generation"];
+
+function highlightVariables(text: string): ReactNode[] {
+  const parts = text.split(/(\{[^}]+\})/g);
+  return parts.map((part, i) =>
+    /^\{[^}]+\}$/.test(part) ? (
+      <span key={i} className="text-status-info font-semibold bg-status-info/10 px-0.5 rounded">
+        {part}
+      </span>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
 
 export default function PromptsTab() {
   const queryClient = useQueryClient();
@@ -160,7 +173,7 @@ export default function PromptsTab() {
                       />
                     ) : (
                       <pre className="text-xs text-text-secondary font-mono leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto">
-                        {template.content}
+                        {highlightVariables(template.content)}
                       </pre>
                     )}
                   </div>
