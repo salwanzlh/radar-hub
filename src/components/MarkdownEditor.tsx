@@ -176,9 +176,12 @@ function ReviseSelectionBubble({
       }
       setHasSelection(true);
 
-      // Position below the selection end so it doesn't cover selected text
+      // Position below the selection end, clamped to viewport
       const endCoords = editor.view.coordsAtPos(to);
-      setBubblePos({ top: endCoords.bottom + 8, left: endCoords.left });
+      const popoverWidth = 320; // w-80 = 20rem = 320px
+      const margin = 12;
+      const left = Math.min(endCoords.left, window.innerWidth - popoverWidth - margin);
+      setBubblePos({ top: endCoords.bottom + 8, left: Math.max(margin, left) });
     }
 
     editor.on("selectionUpdate", updateSelection);
