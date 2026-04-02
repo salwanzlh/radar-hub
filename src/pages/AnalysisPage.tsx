@@ -105,10 +105,15 @@ export default function AnalysisPage() {
     queryFn: api.lineupAnalysis.lineups,
   });
 
-  // Fetch latest reports
+  // Fetch latest reports — poll while any report is generating
   const { data: latestReports, isLoading: reportsLoading } = useQuery({
     queryKey: ["lineup-reports-latest"],
     queryFn: api.lineupAnalysis.latestReports,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data) return false;
+      return data.some((r) => r.status === "generating") ? 3000 : false;
+    },
   });
 
   // Set default active tab to first lineup
@@ -119,7 +124,7 @@ export default function AnalysisPage() {
     mutationFn: () => api.lineupAnalysis.generateAll(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lineup-reports-latest"] });
-      toast.success("All product lineup reports generated!");
+      toast.success("Report generation started");
     },
     onError: (err: Error) => {
       toast.error(`Failed to generate reports: ${err.message}`);
@@ -132,14 +137,15 @@ export default function AnalysisPage() {
       api.lineupAnalysis.generate({ lineup_id: lineupId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lineup-reports-latest"] });
-      toast.success("Report regenerated!");
+      toast.success("Report generation started");
     },
     onError: (err: Error) => {
       toast.error(`Failed to generate report: ${err.message}`);
     },
   });
 
-  const isGenerating = generateAllMutation.isPending || generateSingleMutation.isPending;
+  const hasAnyGenerating = latestReports?.some((r) => r.status === "generating") ?? false;
+  const isGenerating = generateAllMutation.isPending || generateSingleMutation.isPending || hasAnyGenerating;
 
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const handleDownloadPdf = async (report: LineupReport) => {
@@ -231,7 +237,9 @@ export default function AnalysisPage() {
                   >
                     <span className="flex items-center gap-2">
                       {lineup.name}
-                      {hasReport && (
+                      {hasReport && reportMap.get(lineup.id)?.status === "generating" ? (
+                        <Loader2 className="w-3 h-3 animate-spin text-brand-accent" />
+                      ) : hasReport && (
                         <span className={cn(
                           "w-1.5 h-1.5 rounded-full",
                           isActive ? "bg-status-success" : "bg-surface-300"
@@ -252,6 +260,37 @@ export default function AnalysisPage() {
         <div className="p-7">
           {reportsLoading ? (
             <ReportSkeleton />
+          ) : activeReport?.status === "generating" ? (
+            <div className="text-center py-16">
+              <div className="w-14 h-14 bg-brand-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Loader2 className="w-7 h-7 animate-spin text-brand-accent" />
+              </div>
+              <h4 className="text-sm font-semibold text-text-primary mb-1">
+                Generating Report for {activeLineup?.name}
+              </h4>
+              <p className="text-xs text-text-tertiary max-w-sm mx-auto">
+                AI is analyzing news articles and market data. This page will update automatically when ready.
+              </p>
+            </div>
+          ) : activeReport?.status === "failed" ? (
+            <div className="text-center py-16">
+              <div className="w-14 h-14 bg-status-error-light rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <BrainCircuit className="w-7 h-7 text-status-error" />
+              </div>
+              <h4 className="text-sm font-semibold text-text-primary mb-1">
+                Report Generation Failed
+              </h4>
+              <p className="text-xs text-text-tertiary mb-5">
+                Something went wrong. Try regenerating the report.
+              </p>
+              <button
+                onClick={() => generateSingleMutation.mutate(activeReport.lineup.id)}
+                disabled={isGenerating}
+                className="px-5 py-2.5 bg-brand-accent text-text-inverse text-sm font-semibold rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 transition-colors inline-flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" /> Retry
+              </button>
+            </div>
           ) : activeReport ? (
             <div>
               {/* Report Header */}
