@@ -669,37 +669,6 @@ export default function MarketingPlanPage() {
                     Save
                   </button>
                 </>
-              ) : showReviseInline ? (
-                <form
-                  className="flex items-center gap-2 flex-1"
-                  onSubmit={(e) => { e.preventDefault(); if (reviseInstruction.trim()) reviseMutation.mutate({ instruction: reviseInstruction, mode: "full" }); }}
-                >
-                  <input
-                    type="text"
-                    value={reviseInstruction}
-                    onChange={(e) => setReviseInstruction(e.target.value)}
-                    placeholder="e.g., Buat lebih singkat, fokus pada data kompetitor..."
-                    autoFocus
-                    disabled={reviseMutation.isPending}
-                    className="flex-1 px-3 py-1.5 bg-surface-100 border border-surface-200 rounded-lg text-xs text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-accent/50 disabled:opacity-60 transition-colors"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => { setShowReviseInline(false); setReviseInstruction(""); }}
-                    disabled={reviseMutation.isPending}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-100 text-text-secondary hover:bg-surface-200 transition-colors disabled:opacity-60"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!reviseInstruction.trim() || reviseMutation.isPending}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-accent text-text-inverse hover:bg-brand-accent-hover disabled:opacity-60 transition-colors"
-                  >
-                    {reviseMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                    {reviseMutation.isPending ? "Revising..." : "Revise"}
-                  </button>
-                </form>
               ) : (
                 <>
                   <button
@@ -718,6 +687,46 @@ export default function MarketingPlanPage() {
               )}
             </div>
           </div>
+
+          {/* Revise with AI — inline panel */}
+          {showReviseInline && (
+            <form
+              className="mb-5 p-4 bg-surface-50 border border-surface-200 rounded-xl"
+              onSubmit={(e) => { e.preventDefault(); if (reviseInstruction.trim()) reviseMutation.mutate({ instruction: reviseInstruction, mode: "full" }); }}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-brand-accent" />
+                <span className="text-xs font-semibold text-text-primary">Revise with AI</span>
+              </div>
+              <textarea
+                value={reviseInstruction}
+                onChange={(e) => setReviseInstruction(e.target.value)}
+                placeholder="Describe what changes you want, e.g., Buat lebih singkat, fokus pada data kompetitor, ubah tone lebih formal..."
+                autoFocus
+                disabled={reviseMutation.isPending}
+                rows={3}
+                className="w-full px-4 py-3 bg-surface-white border border-surface-200 rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/25 disabled:opacity-60 transition-colors resize-none mb-3"
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => { setShowReviseInline(false); setReviseInstruction(""); }}
+                  disabled={reviseMutation.isPending}
+                  className="px-4 py-2 rounded-xl text-xs font-medium bg-surface-100 text-text-secondary hover:bg-surface-200 transition-colors disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!reviseInstruction.trim() || reviseMutation.isPending}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-brand-accent text-text-inverse hover:bg-brand-accent-hover disabled:opacity-60 transition-colors"
+                >
+                  {reviseMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  {reviseMutation.isPending ? "Revising..." : "Revise"}
+                </button>
+              </div>
+            </form>
+          )}
 
           {/* Content */}
           {editMode ? (
