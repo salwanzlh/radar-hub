@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Upload, Trash2, Eye, Loader2, ChevronLeft, ChevronRight, Search, Database, Lock, X } from "lucide-react";
+import { Upload, Trash2, Eye, Loader2, ChevronLeft, ChevronRight, Search, Database, Lock, X, RefreshCw } from "lucide-react";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import { api } from "@/lib/api-client";
 import type { PipelineFileSummary, PipelineFile, ParsePreview, SheetsPreviewResponse, SheetConfig } from "@/lib/api-client";
@@ -140,6 +140,17 @@ export function FilesTab() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const retryMutation = useMutation({
+    mutationFn: (jobId: string) => api.pipeline.retryJob(jobId),
+    onSuccess: (job) => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline-files"] });
+      queryClient.invalidateQueries({ queryKey: ["pipeline-jobs"] });
+      setTrackingJobId(job.id);
+      toast.success("Job retrying");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   // Drag & drop handlers
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -237,6 +248,32 @@ export function FilesTab() {
           title="View Preview"
         >
           <Eye className="w-4 h-4" />
+        </button>
+      );
+    }
+
+    if (file.status === "failed") {
+      actions.push(
+        <button
+          key="retry"
+          onClick={async () => {
+            try {
+              const jobs = await api.pipeline.getJobs({ page: "1", page_size: "10", file_id: file.id });
+              const failedJob = jobs.items.find((j) => j.status === "failed");
+              if (failedJob) {
+                retryMutation.mutate(failedJob.id);
+              } else {
+                toast.error("No failed job found for this file");
+              }
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Failed to retry");
+            }
+          }}
+          disabled={retryMutation.isPending}
+          className="p-1.5 hover:bg-surface-100 rounded-lg text-status-error hover:text-status-error/80 transition-colors"
+          title="Retry"
+        >
+          <RefreshCw className="w-4 h-4" />
         </button>
       );
     }
