@@ -664,6 +664,7 @@ export const api = {
     list: (params: Record<string, string>) => get<PaginatedResponse<Article>>("/api/v1/articles", params),
     get: (id: string) => get<Article>(`/api/v1/articles/${id}`),
     delete: (id: string) => del(`/api/v1/articles/${id}`),
+    reindex: () => post<{ status: string; message: string }>("/api/v1/articles/reindex", {}),
   },
   categories: {
     list: () => get<Category[]>("/api/v1/categories"),

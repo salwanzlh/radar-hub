@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Files, ListChecks, ClipboardList, GitCompareArrows, ArrowRight } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { Files, ListChecks, ClipboardList, GitCompareArrows, ArrowRight, DatabaseZap, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 import { FilesTab } from "./FilesTab";
 import { JobsTab } from "./JobsTab";
 
@@ -51,12 +54,17 @@ function FormTab() {
 
 export default function DataPipelinePage() {
   const [activeTab, setActiveTab] = useState<Tab>("files");
+  const { isAdmin } = useAuth();
+
+  const reindexMutation = useMutation({
+    mutationFn: api.articles.reindex,
+  });
 
   return (
     <div className="space-y-6">
       <div className="bg-surface-white rounded-[20px] shadow-card">
         {/* Tab navigation */}
-        <div className="flex border-b border-surface-100">
+        <div className="flex items-center border-b border-surface-100">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -72,6 +80,21 @@ export default function DataPipelinePage() {
               {tab.label}
             </button>
           ))}
+          {isAdmin && (
+            <div className="ml-auto pr-4">
+              <button
+                onClick={() => reindexMutation.mutate()}
+                disabled={reindexMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-brand-accent text-text-inverse rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 transition-colors"
+              >
+                {reindexMutation.isPending ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Reindexing...</>
+                ) : (
+                  <><DatabaseZap className="w-3.5 h-3.5" /> Reindex Articles</>
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Tab content */}

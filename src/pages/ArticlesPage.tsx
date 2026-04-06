@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Search, ArrowUpRight, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Search, ArrowUpRight, ChevronLeft, ChevronRight, SlidersHorizontal, DatabaseZap, Loader2 } from "lucide-react";
 import { api } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 import { formatRelativeDate, getCategoryTextColor } from "@/lib/utils";
 
 export default function ArticlesPage() {
@@ -10,6 +11,11 @@ export default function ArticlesPage() {
   const [categoryId, setCategoryId] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const pageSize = 21;
+  const { isAdmin } = useAuth();
+
+  const reindexMutation = useMutation({
+    mutationFn: api.articles.reindex,
+  });
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -43,13 +49,28 @@ export default function ArticlesPage() {
               : "Browse collected news across all categories. Filter by topic or search for specific articles."}
           </p>
         </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border border-surface-200 rounded-xl hover:bg-surface-white transition-colors text-text-primary"
-        >
-          <SlidersHorizontal className="w-4 h-4" />
-          Filter
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {isAdmin && (
+            <button
+              onClick={() => reindexMutation.mutate()}
+              disabled={reindexMutation.isPending}
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-brand-accent text-text-inverse rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 transition-colors"
+            >
+              {reindexMutation.isPending ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Reindexing...</>
+              ) : (
+                <><DatabaseZap className="w-4 h-4" /> Reindex</>
+              )}
+            </button>
+          )}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border border-surface-200 rounded-xl hover:bg-surface-white transition-colors text-text-primary"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filter
+          </button>
+        </div>
       </div>
 
       {/* Filters (collapsible) */}
