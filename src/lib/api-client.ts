@@ -964,7 +964,9 @@ export const api = {
   promptTemplates: {
     list: () => get<PromptTemplate[]>("/api/v1/prompt-templates"),
     update: (key: string, content: string) =>
-      put<PromptTemplate>(`/api/v1/prompt-templates/${key}`, { content }),
+      put<PromptTemplate>(`/api/v1/prompt-templates/${key}`, {
+        content: encodeBase64Utf8(content),
+      }),
     reset: (key: string) =>
       post<PromptTemplate>(`/api/v1/prompt-templates/${key}/reset`),
   },
