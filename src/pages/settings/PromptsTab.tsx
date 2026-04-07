@@ -8,9 +8,10 @@ const CATEGORY_LABELS: Record<string, string> = {
   chat: "Chat / Discovery",
   marketing_plan: "Marketing Plan",
   kv_generation: "KV Image Generation",
+  lineup_analysis: "Lineup Analysis (Discovery Feed)",
 };
 
-const CATEGORY_ORDER = ["chat", "marketing_plan", "kv_generation"];
+const CATEGORY_ORDER = ["chat", "marketing_plan", "kv_generation", "lineup_analysis"];
 
 function highlightVariables(text: string): ReactNode[] {
   const parts = text.split(/(\{[^}]+\})/g);
