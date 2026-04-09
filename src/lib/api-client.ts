@@ -664,6 +664,61 @@ export interface PromptTemplate {
   updated_at: string;
 }
 
+// ── Discovery Feed v2 (7-agent Azure AI Foundry pipeline) ────
+
+export interface DiscoveryFeedGenerateRequest {
+  lineup_id?: string;
+  product_name?: string;
+  segment?: string;
+  competitors?: string[];
+  market_context?: string;
+  date_from?: string;
+  date_to?: string;
+  brand_tone?: string;
+}
+
+export interface DiscoveryFeedGenerateAcceptedResponse {
+  pipeline_id: string;
+  status: string;
+  poll_url: string;
+}
+
+export interface DiscoveryAgentStageResult {
+  agent: string;
+  stage: string;
+  duration_ms: number;
+  raw_output: string;
+  parsed_output: Record<string, unknown> | null;
+  parse_error: string | null;
+}
+
+export interface DiscoveryFeedPipelineStatus {
+  pipeline_id: string;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  current_stage: string | null;
+  error: string | null;
+  target_product: string;
+  segment: string | null;
+  competitors: string[];
+  date_from: string | null;
+  date_to: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  total_duration_ms: number | null;
+  trend_synthesis: DiscoveryAgentStageResult | null;
+  sentiment_analysis: DiscoveryAgentStageResult | null;
+  insight_synthesis: DiscoveryAgentStageResult | null;
+  competitive_gap: DiscoveryAgentStageResult | null;
+  positioning: DiscoveryAgentStageResult | null;
+  evidence_validation: DiscoveryAgentStageResult | null;
+  content_creation: DiscoveryAgentStageResult | null;
+  deliverable_A: Record<string, unknown> | null;
+  deliverable_B: Record<string, unknown> | null;
+  deliverable_C: Record<string, unknown> | null;
+  completed_stages: number;
+  progress_percent: number;
+}
+
 export const api = {
   auth: {
     verifyPassword: (password: string) =>
@@ -969,5 +1024,24 @@ export const api = {
       }),
     reset: (key: string) =>
       post<PromptTemplate>(`/api/v1/prompt-templates/${key}/reset`),
+  },
+
+  discoveryFeedV2: {
+    generate: (data: DiscoveryFeedGenerateRequest) =>
+      post<DiscoveryFeedGenerateAcceptedResponse>(
+        "/api/v2/discovery-feed/generate",
+        data
+      ),
+    getStatus: (pipelineId: string) =>
+      get<DiscoveryFeedPipelineStatus>(`/api/v2/discovery-feed/${pipelineId}`),
+    listRecent: (params?: { limit?: number; lineup_id?: string }) => {
+      const query: Record<string, string> = {};
+      if (params?.limit) query.limit = String(params.limit);
+      if (params?.lineup_id) query.lineup_id = params.lineup_id;
+      return get<DiscoveryFeedPipelineStatus[]>(
+        "/api/v2/discovery-feed",
+        query
+      );
+    },
   },
 };

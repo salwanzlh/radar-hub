@@ -3,6 +3,7 @@ import { LayoutShell } from "@/components/layout/LayoutShell";
 import { useAuth } from "@/lib/auth-context";
 import ArticlesPage from "@/pages/ArticlesPage";
 import AnalysisPage from "@/pages/AnalysisPage";
+import DiscoveryFeedV2Page from "@/pages/DiscoveryFeedV2Page";
 import SentimentPage from "@/pages/sentiment";
 import HealthPage from "@/pages/HealthPage";
 import SettingsPage from "@/pages/settings";
@@ -86,6 +87,7 @@ const router = createBrowserRouter(
             { index: true, element: <Navigate to="/sentiment" replace /> },
             { path: "articles", element: <ArticlesPage /> },
             { path: "analysis", element: <AnalysisPage /> },
+            { path: "discovery-feed-v2", element: <DiscoveryFeedV2Page /> },
             { path: "sentiment", element: <SentimentPage /> },
             { path: "atoa", element: <AtoaPage /> },
             { path: "radar", element: <RadarPage /> },
