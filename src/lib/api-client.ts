@@ -685,6 +685,7 @@ export interface DiscoveryFeedGenerateAcceptedResponse {
 
 export interface DiscoveryAgentStageResult {
   agent: string;
+  version: string;
   stage: string;
   duration_ms: number;
   raw_output: string;

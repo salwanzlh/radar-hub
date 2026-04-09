@@ -528,6 +528,22 @@ function DeliverablesPanel({
   );
 }
 
+// ── Helpers for typed deliverable field access ───────────────
+
+function asString(v: unknown): string | null {
+  return typeof v === "string" && v.trim() !== "" ? v : null;
+}
+
+function asArray(v: unknown): unknown[] {
+  return Array.isArray(v) ? v : [];
+}
+
+function asRecord(v: unknown): Record<string, unknown> {
+  return v && typeof v === "object" && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : {};
+}
+
 function DeliverableCard({
   letter,
   title,
@@ -546,7 +562,7 @@ function DeliverableCard({
         onClick={() => setExpanded((v) => !v)}
         className="w-full px-4 py-3 flex items-center gap-3 hover:bg-surface-50 transition-colors"
       >
-        <span className="w-8 h-8 rounded-xl bg-brand-accent/15 flex items-center justify-center text-sm font-bold text-brand-accent">
+        <span className="w-9 h-9 rounded-xl bg-brand-accent/15 flex items-center justify-center text-base font-bold text-brand-accent">
           {letter}
         </span>
         <div className="flex-1 text-left">
@@ -561,12 +577,332 @@ function DeliverableCard({
         />
       </button>
       {expanded && (
-        <div className="p-4 border-t border-surface-100 bg-surface-50">
-          <pre className="text-[11px] text-text-secondary whitespace-pre-wrap font-mono overflow-x-auto">
-            {JSON.stringify(data, null, 2)}
-          </pre>
+        <div className="p-6 border-t border-surface-100 bg-surface-50">
+          {letter === "A" && <DeliverableARenderer data={data} />}
+          {letter === "B" && <DeliverableBRenderer data={data} />}
+          {letter === "C" && <DeliverableCRenderer data={data} />}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Deliverable A: Campaign Key Message ──────────────────────
+
+function DeliverableARenderer({ data }: { data: Record<string, unknown> }) {
+  const hero = asString(data.hero_headline);
+  const tagline = asString(data.slogan_tagline);
+  const points = asArray(data.evidence_based_talking_points);
+  const channel = asRecord(data.channel_execution_guide);
+  const digital = asString(channel.digital);
+  const pr = asString(channel.pr);
+  const atl = asString(channel.atl);
+
+  return (
+    <div className="space-y-8">
+      {/* Hero Headline */}
+      {hero && (
+        <div>
+          <FieldLabel>Hero Headline</FieldLabel>
+          <p className="text-2xl font-bold text-text-primary leading-tight">
+            {hero}
+          </p>
+        </div>
+      )}
+
+      {/* Tagline */}
+      {tagline && (
+        <div>
+          <FieldLabel>Tagline</FieldLabel>
+          <p className="text-lg font-semibold text-brand-accent italic">
+            "{tagline}"
+          </p>
+        </div>
+      )}
+
+      {/* Talking Points */}
+      {points.length > 0 && (
+        <div>
+          <FieldLabel>Evidence-Based Talking Points</FieldLabel>
+          <ol className="space-y-3">
+            {points.map((p, idx) => {
+              const rec = asRecord(p);
+              const point = asString(rec.point);
+              const strength = asString(rec.proof_strength);
+              const claimStatus = asString(rec.claim_status);
+              const proofRef = asString(rec.proof_ref);
+              return (
+                <li
+                  key={idx}
+                  className="bg-surface-white rounded-xl p-4 border border-surface-100"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-brand-accent/15 text-brand-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <div className="flex-1">
+                      <p className="text-sm text-text-primary font-medium leading-relaxed">
+                        {point}
+                      </p>
+                      {(strength || claimStatus || proofRef) && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {strength && (
+                            <span
+                              className={cn(
+                                "text-[10px] px-2 py-0.5 rounded-md font-medium",
+                                strength === "strong"
+                                  ? "bg-status-success/15 text-status-success"
+                                  : strength === "moderate"
+                                  ? "bg-brand-accent/15 text-brand-accent"
+                                  : "bg-surface-200 text-text-tertiary"
+                              )}
+                            >
+                              {strength}
+                            </span>
+                          )}
+                          {claimStatus && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-surface-100 text-text-tertiary font-medium">
+                              {claimStatus}
+                            </span>
+                          )}
+                          {proofRef && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-surface-100 text-text-tertiary font-mono">
+                              {proofRef}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
+
+      {/* Channel Execution */}
+      {(digital || pr || atl) && (
+        <div>
+          <FieldLabel>Channel-Specific Execution Guide</FieldLabel>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {digital && <ChannelCard label="Digital" text={digital} />}
+            {pr && <ChannelCard label="Public Relations" text={pr} />}
+            {atl && <ChannelCard label="Above The Line" text={atl} />}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Deliverable B: Key Message Interpretation ────────────────
+
+function DeliverableBRenderer({ data }: { data: Record<string, unknown> }) {
+  const simplicity = asString(data.audience_facing_simplicity_draft);
+  const valueProp = asString(data.core_value_proposition);
+  const toneAlignment = asString(data.brand_tone_of_voice_alignment);
+  const objections = asArray(data.key_objections_to_address);
+
+  return (
+    <div className="space-y-6">
+      {simplicity && (
+        <div>
+          <FieldLabel>Audience-Facing Simplicity (10-second comprehension)</FieldLabel>
+          <p className="text-base text-text-primary leading-relaxed bg-surface-white rounded-xl p-4 border border-surface-100">
+            {simplicity}
+          </p>
+        </div>
+      )}
+
+      {valueProp && (
+        <div>
+          <FieldLabel>Core Value Proposition</FieldLabel>
+          <p className="text-sm text-text-primary leading-relaxed">{valueProp}</p>
+        </div>
+      )}
+
+      {toneAlignment && (
+        <div>
+          <FieldLabel>Brand Tone of Voice Alignment</FieldLabel>
+          <p className="text-sm text-text-secondary leading-relaxed">
+            {toneAlignment}
+          </p>
+        </div>
+      )}
+
+      {objections.length > 0 && (
+        <div>
+          <FieldLabel>Key Objections to Address</FieldLabel>
+          <div className="space-y-3">
+            {objections.map((o, idx) => {
+              const rec = asRecord(o);
+              const objection = asString(rec.objection);
+              const counter = asString(rec.counter_message);
+              return (
+                <div
+                  key={idx}
+                  className="bg-surface-white rounded-xl p-4 border border-surface-100"
+                >
+                  <div className="flex items-start gap-3">
+                    <XCircle className="w-4 h-4 text-status-error shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-text-primary font-medium">
+                        {objection}
+                      </p>
+                      {counter && (
+                        <div className="mt-2 flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-status-success shrink-0 mt-0.5" />
+                          <p className="text-sm text-text-secondary leading-relaxed">
+                            {counter}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Deliverable C: Detailed Analysis ─────────────────────────
+
+function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
+  const trendAlign = asString(data.market_trend_alignment);
+  const insightInt = asString(data.customer_insight_integration);
+  const positionMap = asString(data.competitive_positioning_map);
+  const diffPoints = asArray(data.product_differentiation_points);
+  const proofMap = asArray(data.proof_point_validation_map);
+
+  return (
+    <div className="space-y-6">
+      {trendAlign && (
+        <div>
+          <FieldLabel>Market Trend Alignment</FieldLabel>
+          <p className="text-sm text-text-secondary leading-relaxed">{trendAlign}</p>
+        </div>
+      )}
+
+      {insightInt && (
+        <div>
+          <FieldLabel>Customer Insight Integration</FieldLabel>
+          <p className="text-sm text-text-secondary leading-relaxed">{insightInt}</p>
+        </div>
+      )}
+
+      {positionMap && (
+        <div>
+          <FieldLabel>Competitive Positioning Map</FieldLabel>
+          <p className="text-sm text-text-secondary leading-relaxed">{positionMap}</p>
+        </div>
+      )}
+
+      {diffPoints.length > 0 && (
+        <div>
+          <FieldLabel>Product Differentiation Points</FieldLabel>
+          <div className="space-y-2">
+            {diffPoints.map((p, idx) => {
+              const rec = asRecord(p);
+              const feature = asString(rec.feature);
+              const vsCompetitor = asString(rec.vs_competitor);
+              const ourAdvantage = asString(rec.our_advantage);
+              const src = asString(rec.source_ref);
+              return (
+                <div
+                  key={idx}
+                  className="bg-surface-white rounded-xl p-3 border border-surface-100"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-1 h-full bg-brand-accent rounded-full min-h-[24px]" />
+                    <div className="flex-1">
+                      {feature && (
+                        <p className="text-sm font-semibold text-text-primary">
+                          {feature}
+                        </p>
+                      )}
+                      {vsCompetitor && (
+                        <p className="text-xs text-text-tertiary mt-0.5">
+                          vs {vsCompetitor}
+                        </p>
+                      )}
+                      {ourAdvantage && (
+                        <p className="text-xs text-text-secondary mt-1 leading-relaxed">
+                          {ourAdvantage}
+                        </p>
+                      )}
+                      {src && (
+                        <span className="text-[10px] font-mono text-text-tertiary mt-1 inline-block">
+                          {src}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {proofMap.length > 0 && (
+        <div>
+          <FieldLabel>Proof Point Validation Map</FieldLabel>
+          <div className="space-y-1.5">
+            {proofMap.map((p, idx) => {
+              const rec = asRecord(p);
+              const claim = asString(rec.claim);
+              const status = asString(rec.status);
+              const src = asString(rec.source_ref);
+              const tool = asString(rec.tool_used);
+              return (
+                <div
+                  key={idx}
+                  className="flex items-start gap-2 text-xs text-text-secondary"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-status-success shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <span className="text-text-primary font-medium">{claim}</span>
+                    <div className="flex gap-2 mt-0.5 text-[10px] text-text-tertiary">
+                      {status && <span>status: {status}</span>}
+                      {src && <span className="font-mono">{src}</span>}
+                      {tool && <span>via {tool}</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Small helpers for section labels & cards ─────────────────
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 mb-2">
+      <div className="w-0.5 h-3.5 bg-brand-accent rounded-full" />
+      <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-tertiary">
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function ChannelCard({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="bg-surface-white rounded-xl p-4 border border-surface-100">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-brand-accent mb-2">
+        {label}
+      </div>
+      <p className="text-xs text-text-secondary leading-relaxed">{text}</p>
     </div>
   );
 }
