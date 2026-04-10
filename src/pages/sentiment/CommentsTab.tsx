@@ -15,6 +15,7 @@ import {
   ArrowUpDown,
   Download,
   RefreshCw,
+  WrapText,
 } from "lucide-react";
 import {
   sentimentApi,
@@ -78,6 +79,7 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
   const [editingSentimentId, setEditingSentimentId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [wrapComments, setWrapComments] = useState(false);
   const pageSize = 20;
 
   // Clear local product filter when parent filter changes
@@ -590,7 +592,23 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
                 <thead>
                   <tr className="bg-surface-100 border-b border-surface-200">
                     <th className="text-left px-5 py-3 font-medium text-text-secondary">Author</th>
-                    <th className="text-left px-5 py-3 font-medium text-text-secondary">Comment</th>
+                    <th className="text-left px-5 py-3 font-medium text-text-secondary">
+                      <div className="flex items-center gap-2">
+                        Comment
+                        <button
+                          onClick={() => setWrapComments((v) => !v)}
+                          className={cn(
+                            "p-1 rounded-md transition-colors",
+                            wrapComments
+                              ? "bg-brand-accent/15 text-brand-accent"
+                              : "text-text-tertiary hover:text-text-secondary hover:bg-surface-200"
+                          )}
+                          title={wrapComments ? "Truncate comments" : "Wrap comments"}
+                        >
+                          <WrapText className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </th>
                     <SortHeader field="source" label="Source" align="left" sortBy={sortBy} sortOrder={sortOrder} onSort={(f) => { if (sortBy === f) { setSortOrder(o => o === "asc" ? "desc" : "asc"); } else { setSortBy(f); setSortOrder("asc"); } setPage(1); }} />
                     <SortHeader field="product" label="Product" align="left" sortBy={sortBy} sortOrder={sortOrder} onSort={(f) => { if (sortBy === f) { setSortOrder(o => o === "asc" ? "desc" : "asc"); } else { setSortBy(f); setSortOrder("asc"); } setPage(1); }} />
                     <SortHeader field="platform" label="Platform" align="left" sortBy={sortBy} sortOrder={sortOrder} onSort={(f) => { if (sortBy === f) { setSortOrder(o => o === "asc" ? "desc" : "asc"); } else { setSortBy(f); setSortOrder("asc"); } setPage(1); }} />
@@ -612,8 +630,13 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
                       <td className="px-5 py-3.5 font-medium text-text-primary whitespace-nowrap">
                         {comment.author_name}
                       </td>
-                      <td className="px-5 py-3.5 text-text-secondary max-w-[300px]">
-                        <p className="truncate">{comment.content}</p>
+                      <td className={cn(
+                        "px-5 py-3.5 text-text-secondary",
+                        wrapComments ? "max-w-[500px]" : "max-w-[300px]"
+                      )}>
+                        <p className={wrapComments ? "whitespace-pre-wrap break-words" : "truncate"}>
+                          {comment.content}
+                        </p>
                       </td>
                       <td className="px-5 py-3.5 text-text-secondary text-xs whitespace-nowrap">
                         {comment.source_account || <span className="text-text-tertiary">--</span>}
