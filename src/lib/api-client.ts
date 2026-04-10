@@ -76,6 +76,17 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
           throw new ApiError(401, "Session expired");
         }
         if (!retry.ok) {
+          if (retry.status === 403) {
+            const ct = retry.headers.get("content-type") || "";
+            if (!ct.includes("application/json")) {
+              throw new ApiError(
+                403,
+                "Request blocked by WAF (Web Application Firewall). " +
+                  "The request body may contain patterns flagged as unsafe. " +
+                  "Try simplifying your input or contact the administrator."
+              );
+            }
+          }
           const error = await retry.json().catch(() => ({}));
           throw new ApiError(retry.status, error.error || error.detail || `Request failed: ${retry.statusText}`);
         }
@@ -91,6 +102,19 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   if (!response.ok) {
+    // WAF (Azure Front Door / CloudFlare / etc.) blocks return 403 with an
+    // HTML body instead of JSON. Detect this and surface a clear message so
+    // the user knows their request was blocked by the firewall, not the app.
+    if (response.status === 403) {
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new ApiError(
+          403,
+          "Your request was blocked by our security system. " +
+            "Try shortening or simplifying your content, then try again."
+        );
+      }
+    }
     const error = await response.json().catch(() => ({}));
     throw new ApiError(response.status, error.error || error.detail || `Request failed: ${response.statusText}`);
   }
@@ -110,6 +134,10 @@ function post<T>(endpoint: string, body?: unknown): Promise<T> {
 
 function put<T>(endpoint: string, body: unknown): Promise<T> {
   return request<T>(endpoint, { method: "PUT", body: JSON.stringify(body) });
+}
+
+function patch<T>(endpoint: string, body: unknown): Promise<T> {
+  return request<T>(endpoint, { method: "PATCH", body: JSON.stringify(body) });
 }
 
 function del<T>(endpoint: string): Promise<T> {
@@ -141,6 +169,16 @@ async function uploadFile<T>(endpoint: string, file: File): Promise<T> {
   }
 
   if (!response.ok) {
+    if (response.status === 403) {
+      const ct = response.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) {
+        throw new ApiError(
+          403,
+          "Your request was blocked by our security system. " +
+            "Try shortening or simplifying your content, then try again."
+        );
+      }
+    }
     const error = await response.json().catch(() => ({}));
     throw new ApiError(response.status, error.error || error.detail || `Upload failed: ${response.statusText}`);
   }
@@ -664,9 +702,9 @@ export interface PromptTemplate {
   updated_at: string;
 }
 
-// ── Discovery Feed v2 (7-agent Azure AI Foundry pipeline) ────
+// ── Marketing Plan v2 (7-agent Azure AI Foundry pipeline) ────
 
-export interface DiscoveryFeedGenerateRequest {
+export interface MarketingPlanV2GenerateRequest {
   lineup_id?: string;
   product_name?: string;
   segment?: string;
@@ -677,13 +715,13 @@ export interface DiscoveryFeedGenerateRequest {
   brand_tone?: string;
 }
 
-export interface DiscoveryFeedGenerateAcceptedResponse {
+export interface MarketingPlanV2GenerateAcceptedResponse {
   pipeline_id: string;
   status: string;
   poll_url: string;
 }
 
-export interface DiscoveryAgentStageResult {
+export interface MarketingPlanV2AgentStageResult {
   agent: string;
   version: string;
   stage: string;
@@ -693,8 +731,10 @@ export interface DiscoveryAgentStageResult {
   parse_error: string | null;
 }
 
-export interface DiscoveryFeedPipelineStatus {
+export interface MarketingPlanV2PipelineStatus {
   pipeline_id: string;
+  version: number;
+  lineup_id: string | null;
   status: "pending" | "running" | "completed" | "failed" | "cancelled";
   current_stage: string | null;
   error: string | null;
@@ -706,16 +746,25 @@ export interface DiscoveryFeedPipelineStatus {
   started_at: string | null;
   completed_at: string | null;
   total_duration_ms: number | null;
-  trend_synthesis: DiscoveryAgentStageResult | null;
-  sentiment_analysis: DiscoveryAgentStageResult | null;
-  insight_synthesis: DiscoveryAgentStageResult | null;
-  competitive_gap: DiscoveryAgentStageResult | null;
-  positioning: DiscoveryAgentStageResult | null;
-  evidence_validation: DiscoveryAgentStageResult | null;
-  content_creation: DiscoveryAgentStageResult | null;
+  trend_synthesis: MarketingPlanV2AgentStageResult | null;
+  sentiment_analysis: MarketingPlanV2AgentStageResult | null;
+  insight_synthesis: MarketingPlanV2AgentStageResult | null;
+  competitive_gap: MarketingPlanV2AgentStageResult | null;
+  positioning: MarketingPlanV2AgentStageResult | null;
+  evidence_validation: MarketingPlanV2AgentStageResult | null;
+  content_creation: MarketingPlanV2AgentStageResult | null;
   deliverable_A: Record<string, unknown> | null;
   deliverable_B: Record<string, unknown> | null;
   deliverable_C: Record<string, unknown> | null;
+  /** Auto-generated Key Visual image. Populated after content_creation
+   * completes. `image_base64` is null if generation failed — in that case
+   * `error` contains the reason. */
+  key_visual: {
+    image_base64: string | null;
+    format: string | null;
+    generated_at: string;
+    error?: string;
+  } | null;
   completed_stages: number;
   progress_percent: number;
 }
@@ -1027,22 +1076,65 @@ export const api = {
       post<PromptTemplate>(`/api/v1/prompt-templates/${key}/reset`),
   },
 
-  discoveryFeedV2: {
-    generate: (data: DiscoveryFeedGenerateRequest) =>
-      post<DiscoveryFeedGenerateAcceptedResponse>(
-        "/api/v2/discovery-feed/generate",
+  marketingPlanV2: {
+    generate: (data: MarketingPlanV2GenerateRequest) =>
+      post<MarketingPlanV2GenerateAcceptedResponse>(
+        "/api/v2/marketing-plan/generate",
         data
       ),
     getStatus: (pipelineId: string) =>
-      get<DiscoveryFeedPipelineStatus>(`/api/v2/discovery-feed/${pipelineId}`),
+      get<MarketingPlanV2PipelineStatus>(
+        `/api/v2/marketing-plan/${pipelineId}`
+      ),
+    getLatestForLineup: (lineupId: string) =>
+      get<MarketingPlanV2PipelineStatus | null>(
+        `/api/v2/marketing-plan/lineup/${lineupId}/latest`
+      ),
+    listVersionsForLineup: (lineupId: string) =>
+      get<MarketingPlanV2PipelineStatus[]>(
+        `/api/v2/marketing-plan/lineup/${lineupId}/versions`
+      ),
     listRecent: (params?: { limit?: number; lineup_id?: string }) => {
       const query: Record<string, string> = {};
       if (params?.limit) query.limit = String(params.limit);
       if (params?.lineup_id) query.lineup_id = params.lineup_id;
-      return get<DiscoveryFeedPipelineStatus[]>(
-        "/api/v2/discovery-feed",
+      return get<MarketingPlanV2PipelineStatus[]>(
+        "/api/v2/marketing-plan",
         query
       );
     },
+    /**
+     * Update one deliverable (A/B/C). The body is base64-encoded JSON to
+     * bypass WAF rules that block raw quoted JSON. Backend decodes via a
+     * Pydantic field validator.
+     */
+    updateDeliverable: (
+      pipelineId: string,
+      letter: "a" | "b" | "c",
+      content: Record<string, unknown>
+    ) =>
+      patch<MarketingPlanV2PipelineStatus>(
+        `/api/v2/marketing-plan/${pipelineId}/deliverables/${letter}`,
+        { content: encodeBase64Utf8(JSON.stringify(content)) }
+      ),
+    resetDeliverable: (pipelineId: string, letter: "a" | "b" | "c") =>
+      post<MarketingPlanV2PipelineStatus>(
+        `/api/v2/marketing-plan/${pipelineId}/deliverables/${letter}/reset`,
+        {}
+      ),
+    reviseDeliverable: (
+      pipelineId: string,
+      letter: "a" | "b" | "c",
+      instruction: string
+    ) =>
+      post<{ revised: Record<string, unknown> }>(
+        `/api/v2/marketing-plan/${pipelineId}/deliverables/${letter}/revise`,
+        { instruction }
+      ),
+    regenerateKeyVisual: (pipelineId: string) =>
+      post<MarketingPlanV2PipelineStatus>(
+        `/api/v2/marketing-plan/${pipelineId}/regenerate-kv`,
+        {}
+      ),
   },
 };
