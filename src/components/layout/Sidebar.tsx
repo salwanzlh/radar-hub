@@ -14,7 +14,6 @@ import {
   HardDrive,
   Globe,
   Radar,
-  FileText,
   Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
