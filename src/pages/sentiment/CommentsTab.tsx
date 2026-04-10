@@ -204,7 +204,7 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
   });
 
   const donutOption = stats && stats.total_comments > 0 ? {
-    tooltip: { trigger: "item" as const, formatter: "{b}: {c} ({d}%)" },
+    tooltip: { trigger: "item" as const, formatter: "{b}: {c} ({d}%)", confine: true },
     legend: { bottom: 0, textStyle: { color: "#94a3b8" } },
     series: [{
       type: "pie" as const,
@@ -240,9 +240,9 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
   const showProductChart = productBreakdown && productBreakdown.length > 0 && !selectedProduct;
 
   const productChartOption = showProductChart ? {
-    tooltip: { trigger: "axis" as const, axisPointer: { type: "shadow" as const } },
+    tooltip: { trigger: "axis" as const, axisPointer: { type: "shadow" as const }, confine: true },
     legend: { data: ["Positive", "Neutral", "Negative"], bottom: 0, textStyle: { color: "#94a3b8" } },
-    grid: { top: 10, right: 30, bottom: 40, left: 120 },
+    grid: { top: 10, right: 10, bottom: 40, left: 120, containLabel: true },
     xAxis: { type: "value" as const, axisLabel: { color: "#64748b" }, splitLine: { lineStyle: { color: "#1e293b" } } },
     yAxis: {
       type: "category" as const,
@@ -278,9 +278,9 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
   };
 
   const platformChartOption = platformBreakdown && platformBreakdown.length > 0 ? {
-    tooltip: { trigger: "axis" as const, axisPointer: { type: "shadow" as const } },
+    tooltip: { trigger: "axis" as const, axisPointer: { type: "shadow" as const }, confine: true },
     legend: { data: ["Positive", "Neutral", "Negative"], bottom: 0, textStyle: { color: "#94a3b8" } },
-    grid: { top: 10, right: 30, bottom: 40, left: 100 },
+    grid: { top: 10, right: 10, bottom: 40, left: 100, containLabel: true },
     xAxis: { type: "value" as const, axisLabel: { color: "#64748b" }, splitLine: { lineStyle: { color: "#1e293b" } } },
     yAxis: {
       type: "category" as const,
@@ -386,7 +386,7 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
       {/* Charts */}
       <div className={cn("grid grid-cols-1 gap-4", gridCols)}>
         {donutOption && (
-          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100">
+          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100 overflow-hidden">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-semibold text-text-primary">Sentiment Distribution</h4>
               {sentiment && (
@@ -407,7 +407,7 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
           </div>
         )}
         {productChartOption && (
-          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100">
+          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100 overflow-hidden">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-semibold text-text-primary">Sentiment per Product</h4>
               {localProduct && (
@@ -428,7 +428,7 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
           </div>
         )}
         {platformChartOption && (
-          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100">
+          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100 overflow-hidden">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-semibold text-text-primary">Sentiment per Platform</h4>
               {platform && (
