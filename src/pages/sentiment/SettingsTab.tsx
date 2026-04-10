@@ -78,6 +78,7 @@ export function SettingsTab() {
   const [showPassword, setShowPassword] = useState(false);
   const [pendingAction, setPendingAction] = useState<"daily" | "weekly" | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(new Set());
 
   const { data: accounts, isLoading: accountsLoading } = useQuery<SocialAccount[]>({
     queryKey: ["sentiment-accounts"],
@@ -141,9 +142,9 @@ export function SettingsTab() {
   });
 
   const triggerMutation = useMutation({
-    mutationFn: sentimentApi.scraping.trigger,
+    mutationFn: (platforms?: string[]) => sentimentApi.scraping.trigger(platforms),
     onSuccess: () => {
-      toast.success("Daily scrape triggered!");
+      toast.success("Scraping triggered!");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -171,7 +172,8 @@ export function SettingsTab() {
       setShowPasswordModal(false);
       setPassword("");
       if (pendingAction === "daily") {
-        triggerMutation.mutate();
+        const platforms = selectedPlatforms.size > 0 ? [...selectedPlatforms] : undefined;
+        triggerMutation.mutate(platforms);
         queryClient.invalidateQueries({ queryKey: ["scrape-progress"] });
       } else {
         triggerWeeklyMutation.mutate();
@@ -443,12 +445,58 @@ export function SettingsTab() {
         icon={<Zap className="w-4 h-4" />}
       >
         <div className="p-5 border border-surface-200 rounded-xl bg-surface-50 space-y-4">
+          <p className="text-sm text-text-secondary">
+            Trigger an immediate scrape or weekly report generation. Select specific channels to scrape, or leave all unchecked to scrape everything.
+          </p>
+
+          {/* Platform channel selector */}
+          <div className="flex flex-wrap gap-2">
+            {(["facebook", "instagram", "twitter", "youtube", "tiktok", "twitter_search", "direct_url"] as const).map((p) => {
+              const labels: Record<string, string> = {
+                facebook: "Facebook",
+                instagram: "Instagram",
+                twitter: "Twitter",
+                youtube: "YouTube",
+                tiktok: "TikTok",
+                twitter_search: "Twitter Search",
+                direct_url: "Direct URL",
+              };
+              const active = selectedPlatforms.has(p);
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => {
+                    setSelectedPlatforms((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(p)) next.delete(p);
+                      else next.add(p);
+                      return next;
+                    });
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors",
+                    active
+                      ? "bg-brand-accent/15 text-brand-accent border-brand-accent/30"
+                      : "bg-surface-white text-text-tertiary border-surface-200 hover:text-text-secondary hover:border-surface-300"
+                  )}
+                >
+                  {labels[p]}
+                </button>
+              );
+            })}
+            {selectedPlatforms.size > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedPlatforms(new Set())}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg text-text-tertiary hover:text-text-secondary transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
           <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <p className="text-sm text-text-secondary">
-                Trigger an immediate scrape or weekly report generation.
-              </p>
-            </div>
             <button
               onClick={() => openPasswordModal("daily")}
               disabled={triggerMutation.isPending || isScraping}
@@ -459,7 +507,11 @@ export function SettingsTab() {
               ) : (
                 <RefreshCw className="w-3.5 h-3.5" />
               )}
-              {isScraping ? "Running..." : "Daily Scrape"}
+              {isScraping
+                ? "Running..."
+                : selectedPlatforms.size > 0
+                  ? `Scrape ${selectedPlatforms.size} Channel${selectedPlatforms.size > 1 ? "s" : ""}`
+                  : "Scrape All"}
             </button>
             <button
               onClick={() => openPasswordModal("weekly")}

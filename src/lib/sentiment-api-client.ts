@@ -403,7 +403,11 @@ export const sentimentApi = {
   },
 
   scraping: {
-    trigger: () => post<{ status: string; message: string }>(`${PREFIX}/scraping/trigger`),
+    trigger: (platforms?: string[]) =>
+      post<{ status: string; message: string }>(
+        `${PREFIX}/scraping/trigger`,
+        platforms && platforms.length > 0 ? { platforms } : undefined
+      ),
     triggerWeekly: () => post<{ status: string; message: string }>(`${PREFIX}/scraping/trigger-weekly`),
     reclassify: () => post<{ status: string; message: string }>(`${PREFIX}/scraping/reclassify`),
     verifyTriggerPassword: (password: string) =>
