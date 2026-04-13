@@ -1663,9 +1663,9 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
           <div className="space-y-2">
             {diffPoints.map((p, idx) => {
               const rec = asRecord(p);
-              const feature = asString(rec.feature);
-              const vsCompetitor = asString(rec.vs_competitor);
-              const ourAdvantage = asString(rec.our_advantage);
+              const feature = asString(rec.point) || asString(rec.feature);
+              const vsCompetitor = asString(rec.versus) || asString(rec.vs_competitor);
+              const ourAdvantage = asString(rec.evidence) || asString(rec.our_advantage);
               const src = asString(rec.source_ref);
               return (
                 <div
@@ -1712,7 +1712,7 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
               const rec = asRecord(p);
               const claim = asString(rec.claim);
               const status = asString(rec.status);
-              const src = asString(rec.source_ref);
+              const src = asString(rec.proof_ref) || asString(rec.source_ref);
               const tool = asString(rec.tool_used);
               return (
                 <div
