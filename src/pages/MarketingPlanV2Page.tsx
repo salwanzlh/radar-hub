@@ -1089,9 +1089,9 @@ function DeliverableCard({
           {editing ? (
             <DeliverableEditor letter={letter} draft={draft} setDraft={setDraft} />
           ) : letter === "A" ? (
-            <div className="space-y-8">
-              <div className="grid grid-cols-5 gap-6 items-start">
-                {/* Left: Key Visual */}
+            <div className="space-y-6">
+              {/* KV image + Headline/Tagline side by side */}
+              <div className="grid grid-cols-5 gap-5 items-start">
                 <div className="col-span-2">
                   <KeyVisualInline
                     pipelineId={pipelineId}
@@ -1099,15 +1099,16 @@ function DeliverableCard({
                     hasLineup={!!hasLineup}
                   />
                 </div>
-                {/* Right: Deliverable A content */}
                 <div className="col-span-3">
-                  <DeliverableARenderer data={data} />
+                  <DeliverableAHeadline data={data} />
                 </div>
               </div>
-              {/* Key Message Interpretation (merged from Deliverable B) */}
+              {/* Talking Points — full width below the grid */}
+              <TalkingPointsList data={data} />
+              {/* Key Message Interpretation */}
               {interpretationData && (
-                <div className="border-t border-surface-200 pt-8">
-                  <div className="flex items-center gap-2.5 mb-6">
+                <div className="border-t border-surface-200 pt-6">
+                  <div className="flex items-center gap-2.5 mb-5">
                     <div className="w-1 h-5 bg-blue-500 rounded-full" />
                     <h4 className="text-xs font-bold uppercase tracking-[0.12em] text-text-primary">
                       Key Message Interpretation
@@ -1395,94 +1396,93 @@ function FormField({
 
 // ── Deliverable A: Campaign Key Message ──────────────────────
 
-function DeliverableARenderer({ data }: { data: Record<string, unknown> }) {
+function DeliverableAHeadline({ data }: { data: Record<string, unknown> }) {
   const hero = asString(data.hero_headline);
   const tagline = asString(data.slogan_tagline);
-  const points = asArray(data.evidence_based_talking_points);
 
   return (
-    <div className="space-y-8">
-      {/* Hero Headline */}
+    <div className="space-y-4">
       {hero && (
         <div>
           <FieldLabel>Hero Headline</FieldLabel>
-          <p className="text-2xl font-bold text-text-primary leading-tight">
+          <p className="text-xl font-bold text-text-primary leading-snug">
             {hero}
           </p>
         </div>
       )}
-
-      {/* Tagline */}
       {tagline && (
         <div>
           <FieldLabel>Tagline</FieldLabel>
-          <p className="text-lg font-semibold text-brand-accent italic">
+          <p className="text-base font-semibold text-brand-accent italic">
             "{tagline}"
           </p>
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* Talking Points */}
-      {points.length > 0 && (
-        <div>
-          <FieldLabel>Evidence-Based Talking Points</FieldLabel>
-          <ol className="space-y-3">
-            {points.map((p, idx) => {
-              const rec = asRecord(p);
-              const point = asString(rec.point);
-              const strength = asString(rec.proof_strength);
-              const claimStatus = asString(rec.claim_status);
-              const proofRef = asString(rec.proof_ref);
-              return (
-                <li
-                  key={idx}
-                  className="bg-surface-white rounded-xl p-4 border border-surface-100"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-brand-accent/15 text-brand-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
-                      {idx + 1}
-                    </span>
-                    <div className="flex-1">
-                      <p className="text-sm text-text-primary font-medium leading-relaxed">
-                        {point}
-                      </p>
-                      {(strength || claimStatus || proofRef) && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {strength && (
-                            <span
-                              className={cn(
-                                "text-[10px] px-2 py-0.5 rounded-md font-medium",
-                                strength === "strong"
-                                  ? "bg-status-success/15 text-status-success"
-                                  : strength === "moderate"
-                                  ? "bg-brand-accent/15 text-brand-accent"
-                                  : "bg-surface-200 text-text-tertiary"
-                              )}
-                            >
-                              {strength}
-                            </span>
+function TalkingPointsList({ data }: { data: Record<string, unknown> }) {
+  const points = asArray(data.evidence_based_talking_points);
+  if (points.length === 0) return null;
+
+  return (
+    <div>
+      <FieldLabel>Evidence-Based Talking Points</FieldLabel>
+      <ol className="space-y-2">
+        {points.map((p, idx) => {
+          const rec = asRecord(p);
+          const point = asString(rec.point);
+          const strength = asString(rec.proof_strength);
+          const claimStatus = asString(rec.claim_status);
+          const proofRef = asString(rec.proof_ref);
+          return (
+            <li
+              key={idx}
+              className="bg-surface-white rounded-xl p-3 border border-surface-100"
+            >
+              <div className="flex items-start gap-3">
+                <span className="w-5 h-5 rounded-full bg-brand-accent/15 text-brand-accent text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                  {idx + 1}
+                </span>
+                <div className="flex-1">
+                  <p className="text-sm text-text-primary font-medium leading-relaxed">
+                    {point}
+                  </p>
+                  {(strength || claimStatus || proofRef) && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {strength && (
+                        <span
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-md font-medium",
+                            strength === "strong"
+                              ? "bg-status-success/15 text-status-success"
+                              : strength === "moderate"
+                              ? "bg-brand-accent/15 text-brand-accent"
+                              : "bg-surface-200 text-text-tertiary"
                           )}
-                          {claimStatus && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-surface-100 text-text-tertiary font-medium">
-                              {claimStatus}
-                            </span>
-                          )}
-                          {proofRef && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-surface-100 text-text-tertiary font-mono">
-                              {proofRef}
-                            </span>
-                          )}
-                        </div>
+                        >
+                          {strength}
+                        </span>
+                      )}
+                      {claimStatus && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-surface-100 text-text-tertiary font-medium">
+                          {claimStatus}
+                        </span>
+                      )}
+                      {proofRef && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-surface-100 text-text-tertiary font-mono">
+                          {proofRef}
+                        </span>
                       )}
                     </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-      )}
-
+                  )}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
