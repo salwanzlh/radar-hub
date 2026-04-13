@@ -847,23 +847,41 @@ export const api = {
   },
   chat: {
     stream: async function* (messages: ChatMessage[], mode: "quick" | "advisor" | "hypothesis"): AsyncGenerator<string> {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${API_BASE}/api/v1/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: "include",
-        body: JSON.stringify({
+      const buildBody = () =>
+        JSON.stringify({
           messages: messages.map((m) => ({
             role: m.role,
             content: btoa(unescape(encodeURIComponent(m.content))),
           })),
           mode,
           encoded: true,
-        }),
-      });
+        });
+
+      const doFetch = (bearerToken: string | null) =>
+        fetch(`${API_BASE}/api/v1/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : {}),
+          },
+          credentials: "include",
+          body: buildBody(),
+        });
+
+      let token = localStorage.getItem("access_token");
+      let response = await doFetch(token);
+
+      // If 401, try refresh token once then retry
+      if (response.status === 401 && token) {
+        const newToken = await tryRefreshToken();
+        if (newToken) {
+          response = await doFetch(newToken);
+        } else {
+          localStorage.removeItem("access_token");
+          window.location.href = import.meta.env.BASE_URL + "login";
+          throw new ApiError(401, "Session expired");
+        }
+      }
       if (!response.ok) throw new ApiError(response.status, "Chat request failed");
       const reader = response.body?.getReader();
       if (!reader) throw new Error("No response body");
