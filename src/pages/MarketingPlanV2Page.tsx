@@ -1090,7 +1090,7 @@ function DeliverableCard({
             <DeliverableEditor letter={letter} draft={draft} setDraft={setDraft} />
           ) : letter === "A" ? (
             <div className="space-y-6">
-              {/* KV image + Headline/Tagline side by side */}
+              {/* KV image left + Headline/Tagline/Interpretation right */}
               <div className="grid grid-cols-5 gap-5 items-start">
                 <div className="col-span-2">
                   <KeyVisualInline
@@ -1099,23 +1099,26 @@ function DeliverableCard({
                     hasLineup={!!hasLineup}
                   />
                 </div>
-                <div className="col-span-3">
+                <div className="col-span-3 space-y-5">
                   <DeliverableAHeadline data={data} />
+                  {/* Key Message Interpretation — beside KV */}
+                  {interpretationData && (
+                    <div className="border-t border-surface-200 pt-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1 h-4 bg-blue-500 rounded-full" />
+                        <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-text-secondary">
+                          Key Message Interpretation
+                        </span>
+                      </div>
+                      <InterpretationCompact data={interpretationData} />
+                    </div>
+                  )}
                 </div>
               </div>
-              {/* Talking Points — full width below the grid */}
+              {/* Talking Points + Objections — full width */}
               <TalkingPointsList data={data} />
-              {/* Key Message Interpretation */}
               {interpretationData && (
-                <div className="border-t border-surface-200 pt-6">
-                  <div className="flex items-center gap-2.5 mb-5">
-                    <div className="w-1 h-5 bg-blue-500 rounded-full" />
-                    <h4 className="text-xs font-bold uppercase tracking-[0.12em] text-text-primary">
-                      Key Message Interpretation
-                    </h4>
-                  </div>
-                  <DeliverableBRenderer data={interpretationData} />
-                </div>
+                <ObjectionsList data={interpretationData} />
               )}
             </div>
           ) : (
@@ -1483,6 +1486,91 @@ function TalkingPointsList({ data }: { data: Record<string, unknown> }) {
           );
         })}
       </ol>
+    </div>
+  );
+}
+
+// ── Compact interpretation (beside KV — no objections) ───────
+
+function InterpretationCompact({ data }: { data: Record<string, unknown> }) {
+  const simplicity = asString(data.audience_facing_simplicity_draft);
+  const valueProp = asString(data.core_value_proposition);
+  const toneAlignment = asString(data.brand_tone_of_voice_alignment);
+
+  return (
+    <div className="space-y-3">
+      {simplicity && (
+        <div>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+            Audience Simplicity
+          </span>
+          <p className="text-sm text-text-primary leading-relaxed mt-0.5">
+            {simplicity}
+          </p>
+        </div>
+      )}
+      {valueProp && (
+        <div>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+            Value Proposition
+          </span>
+          <p className="text-sm text-text-primary leading-relaxed mt-0.5">
+            {valueProp}
+          </p>
+        </div>
+      )}
+      {toneAlignment && (
+        <div>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+            Tone Alignment
+          </span>
+          <p className="text-xs text-text-secondary leading-relaxed mt-0.5">
+            {toneAlignment}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ObjectionsList({ data }: { data: Record<string, unknown> }) {
+  const objections = asArray(data.key_objections_to_address);
+  if (objections.length === 0) return null;
+
+  return (
+    <div>
+      <FieldLabel>Key Objections to Address</FieldLabel>
+      <div className="space-y-2">
+        {objections.map((o, idx) => {
+          const rec = asRecord(o);
+          const objection = asString(rec.objection);
+          const counter = asString(rec.counter_message);
+          return (
+            <div
+              key={idx}
+              className="bg-surface-white rounded-xl p-4 border border-surface-100"
+            >
+              <div className="flex items-start gap-3">
+                <span className="w-5 h-5 rounded-full bg-status-error/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <XCircle className="w-3.5 h-3.5 text-status-error" />
+                </span>
+                <div className="flex-1">
+                  <p className="text-sm text-text-primary font-medium">
+                    {objection}
+                  </p>
+                  {counter && (
+                    <div className="mt-2 pl-3 border-l-2 border-status-success/30">
+                      <p className="text-sm text-text-secondary leading-relaxed">
+                        {counter}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
