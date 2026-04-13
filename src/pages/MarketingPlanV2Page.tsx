@@ -1625,8 +1625,14 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
   const trendAlign = asString(data.market_trend_alignment);
   const insightInt = asString(data.customer_insight_integration);
   const positionMap = asString(data.competitive_positioning_map);
-  const diffPoints = asArray(data.product_differentiation_points);
-  const proofMap = asArray(data.proof_point_validation_map);
+  const diffPoints = asArray(data.product_differentiation_points).filter((p) => {
+    const rec = asRecord(p);
+    return asString(rec.point) || asString(rec.feature) || asString(rec.our_advantage);
+  });
+  const proofMap = asArray(data.proof_point_validation_map).filter((p) => {
+    const rec = asRecord(p);
+    return asString(rec.claim);
+  });
 
   return (
     <div className="space-y-6">
