@@ -782,27 +782,17 @@ function DeliverablesPanel({
         </h4>
       </div>
 
-      {/* Deliverable A */}
+      {/* Deliverable A — Campaign Key Message + Key Message Interpretation */}
       {a && (
         <DeliverableCard
           pipelineId={pipeline.pipeline_id}
           letter="A"
           title="Campaign Key Message"
-          subtitle="Hero headline, tagline, talking points, channel guide"
+          subtitle="Hero headline, tagline, talking points, key message interpretation"
           data={a}
           keyVisual={pipeline.key_visual}
           hasLineup={!!pipeline.lineup_id}
-        />
-      )}
-
-      {/* Deliverable B */}
-      {b && (
-        <DeliverableCard
-          pipelineId={pipeline.pipeline_id}
-          letter="B"
-          title="Key Message Interpretation"
-          subtitle="Audience simplicity, value prop, tone alignment, objections"
-          data={b}
+          interpretationData={b}
         />
       )}
 
@@ -844,6 +834,7 @@ function DeliverableCard({
   data,
   keyVisual,
   hasLineup,
+  interpretationData,
 }: {
   pipelineId: string;
   letter: "A" | "B" | "C";
@@ -852,6 +843,7 @@ function DeliverableCard({
   data: Record<string, unknown>;
   keyVisual?: MarketingPlanV2PipelineStatus["key_visual"];
   hasLineup?: boolean;
+  interpretationData?: Record<string, unknown> | null;
 }) {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(letter === "A");
@@ -1101,23 +1093,38 @@ function DeliverableCard({
           {editing ? (
             <DeliverableEditor letter={letter} draft={draft} setDraft={setDraft} />
           ) : letter === "A" ? (
-            <div className="grid grid-cols-5 gap-6 items-start">
-              {/* Left: Key Visual */}
-              <div className="col-span-2">
-                <KeyVisualInline
-                  pipelineId={pipelineId}
-                  keyVisual={keyVisual ?? null}
-                  hasLineup={!!hasLineup}
-                />
+            <div className="space-y-8">
+              <div className="grid grid-cols-5 gap-6 items-start">
+                {/* Left: Key Visual */}
+                <div className="col-span-2">
+                  <KeyVisualInline
+                    pipelineId={pipelineId}
+                    keyVisual={keyVisual ?? null}
+                    hasLineup={!!hasLineup}
+                  />
+                </div>
+                {/* Right: Deliverable A content */}
+                <div className="col-span-3">
+                  <DeliverableARenderer data={data} />
+                </div>
               </div>
-              {/* Right: Deliverable A content */}
-              <div className="col-span-3">
-                <DeliverableARenderer data={data} />
-              </div>
+              {/* Key Message Interpretation (merged from Deliverable B) */}
+              {interpretationData && (
+                <>
+                  <div className="border-t border-surface-200 pt-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-1 h-4 bg-blue-500 rounded-full" />
+                      <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-tertiary">
+                        Key Message Interpretation
+                      </span>
+                    </div>
+                    <DeliverableBRenderer data={interpretationData} />
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <>
-              {letter === "B" && <DeliverableBRenderer data={data} />}
               {letter === "C" && <DeliverableCRenderer data={data} />}
             </>
           )}
@@ -1530,17 +1537,6 @@ function DeliverableARenderer({ data }: { data: Record<string, unknown> }) {
         </div>
       )}
 
-      {/* Channel Execution */}
-      {(digital || pr || atl) && (
-        <div>
-          <FieldLabel>Channel-Specific Execution Guide</FieldLabel>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {digital && <ChannelCard label="Digital" text={digital} />}
-            {pr && <ChannelCard label="Public Relations" text={pr} />}
-            {atl && <ChannelCard label="Above The Line" text={atl} />}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
