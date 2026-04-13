@@ -1110,17 +1110,15 @@ function DeliverableCard({
               </div>
               {/* Key Message Interpretation (merged from Deliverable B) */}
               {interpretationData && (
-                <>
-                  <div className="border-t border-surface-200 pt-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="w-1 h-4 bg-blue-500 rounded-full" />
-                      <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-tertiary">
-                        Key Message Interpretation
-                      </span>
-                    </div>
-                    <DeliverableBRenderer data={interpretationData} />
+                <div className="border-t border-surface-200 pt-8">
+                  <div className="flex items-center gap-2.5 mb-6">
+                    <div className="w-1 h-5 bg-blue-500 rounded-full" />
+                    <h4 className="text-xs font-bold uppercase tracking-[0.12em] text-text-primary">
+                      Key Message Interpretation
+                    </h4>
                   </div>
-                </>
+                  <DeliverableBRenderer data={interpretationData} />
+                </div>
               )}
             </div>
           ) : (
@@ -1503,24 +1501,30 @@ function DeliverableBRenderer({ data }: { data: Record<string, unknown> }) {
 
   return (
     <div className="space-y-6">
-      {simplicity && (
-        <div>
-          <FieldLabel>Audience-Facing Simplicity (10-second comprehension)</FieldLabel>
-          <p className="text-base text-text-primary leading-relaxed bg-surface-white rounded-xl p-4 border border-surface-100">
-            {simplicity}
-          </p>
-        </div>
-      )}
-
-      {valueProp && (
-        <div>
-          <FieldLabel>Core Value Proposition</FieldLabel>
-          <p className="text-sm text-text-primary leading-relaxed">{valueProp}</p>
+      {/* Simplicity + Value Prop side by side */}
+      {(simplicity || valueProp) && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {simplicity && (
+            <div className="bg-surface-white rounded-xl p-5 border border-surface-100">
+              <FieldLabel>Audience-Facing Simplicity</FieldLabel>
+              <p className="text-sm text-text-primary leading-relaxed font-medium">
+                {simplicity}
+              </p>
+            </div>
+          )}
+          {valueProp && (
+            <div className="bg-surface-white rounded-xl p-5 border border-surface-100">
+              <FieldLabel>Core Value Proposition</FieldLabel>
+              <p className="text-sm text-text-primary leading-relaxed">
+                {valueProp}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
       {toneAlignment && (
-        <div>
+        <div className="bg-surface-white rounded-xl p-5 border border-surface-100">
           <FieldLabel>Brand Tone of Voice Alignment</FieldLabel>
           <p className="text-sm text-text-secondary leading-relaxed">
             {toneAlignment}
@@ -1542,14 +1546,15 @@ function DeliverableBRenderer({ data }: { data: Record<string, unknown> }) {
                   className="bg-surface-white rounded-xl p-4 border border-surface-100"
                 >
                   <div className="flex items-start gap-3">
-                    <XCircle className="w-4 h-4 text-status-error shrink-0 mt-0.5" />
+                    <span className="w-5 h-5 rounded-full bg-status-error/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <XCircle className="w-3.5 h-3.5 text-status-error" />
+                    </span>
                     <div className="flex-1">
                       <p className="text-sm text-text-primary font-medium">
                         {objection}
                       </p>
                       {counter && (
-                        <div className="mt-2 flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-status-success shrink-0 mt-0.5" />
+                        <div className="mt-3 pl-3 border-l-2 border-status-success/30">
                           <p className="text-sm text-text-secondary leading-relaxed">
                             {counter}
                           </p>
@@ -1583,32 +1588,35 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
   });
 
   return (
-    <div className="space-y-6">
-      {trendAlign && (
-        <div>
-          <FieldLabel>Market Trend Alignment</FieldLabel>
-          <p className="text-sm text-text-secondary leading-relaxed">{trendAlign}</p>
-        </div>
-      )}
-
-      {insightInt && (
-        <div>
-          <FieldLabel>Customer Insight Integration</FieldLabel>
-          <p className="text-sm text-text-secondary leading-relaxed">{insightInt}</p>
-        </div>
-      )}
-
-      {positionMap && (
-        <div>
-          <FieldLabel>Competitive Positioning Map</FieldLabel>
-          <p className="text-sm text-text-secondary leading-relaxed">{positionMap}</p>
+    <div className="space-y-8">
+      {/* Text analysis sections in cards */}
+      {(trendAlign || insightInt || positionMap) && (
+        <div className="space-y-4">
+          {trendAlign && (
+            <div className="bg-surface-white rounded-xl p-5 border border-surface-100">
+              <FieldLabel>Market Trend Alignment</FieldLabel>
+              <p className="text-sm text-text-secondary leading-relaxed">{trendAlign}</p>
+            </div>
+          )}
+          {insightInt && (
+            <div className="bg-surface-white rounded-xl p-5 border border-surface-100">
+              <FieldLabel>Customer Insight Integration</FieldLabel>
+              <p className="text-sm text-text-secondary leading-relaxed">{insightInt}</p>
+            </div>
+          )}
+          {positionMap && (
+            <div className="bg-surface-white rounded-xl p-5 border border-surface-100">
+              <FieldLabel>Competitive Positioning Map</FieldLabel>
+              <p className="text-sm text-text-secondary leading-relaxed">{positionMap}</p>
+            </div>
+          )}
         </div>
       )}
 
       {diffPoints.length > 0 && (
         <div>
           <FieldLabel>Product Differentiation Points</FieldLabel>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {diffPoints.map((p, idx) => {
               const rec = asRecord(p);
               const feature = asString(rec.point) || asString(rec.feature);
@@ -1618,28 +1626,30 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
               return (
                 <div
                   key={idx}
-                  className="bg-surface-white rounded-xl p-3 border border-surface-100"
+                  className="bg-surface-white rounded-xl p-4 border border-surface-100"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="w-1 h-full bg-brand-accent rounded-full min-h-[24px]" />
+                    <span className="w-6 h-6 rounded-lg bg-brand-accent/15 text-brand-accent text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
                     <div className="flex-1">
                       {feature && (
-                        <p className="text-sm font-semibold text-text-primary">
+                        <p className="text-sm font-semibold text-text-primary leading-snug">
                           {feature}
                         </p>
                       )}
                       {vsCompetitor && (
-                        <p className="text-xs text-text-tertiary mt-0.5">
+                        <p className="text-[11px] text-text-tertiary mt-1">
                           vs {vsCompetitor}
                         </p>
                       )}
                       {ourAdvantage && (
-                        <p className="text-xs text-text-secondary mt-1 leading-relaxed">
+                        <p className="text-sm text-text-secondary mt-2 leading-relaxed">
                           {ourAdvantage}
                         </p>
                       )}
                       {src && (
-                        <span className="text-[10px] font-mono text-text-tertiary mt-1 inline-block">
+                        <span className="text-[10px] font-mono text-text-tertiary mt-2 inline-block px-2 py-0.5 bg-surface-100 rounded">
                           {src}
                         </span>
                       )}
@@ -1655,25 +1665,50 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
       {proofMap.length > 0 && (
         <div>
           <FieldLabel>Proof Point Validation Map</FieldLabel>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {proofMap.map((p, idx) => {
               const rec = asRecord(p);
               const claim = asString(rec.claim);
               const status = asString(rec.status);
               const src = asString(rec.proof_ref) || asString(rec.source_ref);
               const tool = asString(rec.tool_used);
+              const isApproved = status === "approved";
               return (
                 <div
                   key={idx}
-                  className="flex items-start gap-2 text-xs text-text-secondary"
+                  className="flex items-start gap-3 bg-surface-white rounded-lg px-4 py-3 border border-surface-100"
                 >
-                  <CheckCircle2 className="w-3.5 h-3.5 text-status-success shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <span className="text-text-primary font-medium">{claim}</span>
-                    <div className="flex gap-2 mt-0.5 text-[10px] text-text-tertiary">
-                      {status && <span>status: {status}</span>}
-                      {src && <span className="font-mono">{src}</span>}
-                      {tool && <span>via {tool}</span>}
+                  <CheckCircle2
+                    className={cn(
+                      "w-4 h-4 shrink-0 mt-0.5",
+                      isApproved ? "text-status-success" : "text-brand-accent"
+                    )}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-text-primary font-medium leading-snug">{claim}</p>
+                    <div className="flex flex-wrap gap-2 mt-1.5">
+                      {status && (
+                        <span
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-md font-medium",
+                            isApproved
+                              ? "bg-status-success/10 text-status-success"
+                              : "bg-brand-accent/10 text-brand-accent"
+                          )}
+                        >
+                          {status}
+                        </span>
+                      )}
+                      {src && (
+                        <span className="text-[10px] font-mono text-text-tertiary px-2 py-0.5 bg-surface-100 rounded-md truncate max-w-[300px]">
+                          {src}
+                        </span>
+                      )}
+                      {tool && (
+                        <span className="text-[10px] text-text-tertiary px-2 py-0.5 bg-surface-100 rounded-md">
+                          via {tool}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1690,9 +1725,9 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 mb-2">
-      <div className="w-0.5 h-3.5 bg-brand-accent rounded-full" />
-      <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-tertiary">
+    <div className="flex items-center gap-2 mb-3">
+      <div className="w-0.5 h-4 bg-brand-accent rounded-full" />
+      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-text-secondary">
         {children}
       </span>
     </div>
