@@ -217,8 +217,8 @@ function ValidationAccordion({ content }: { content: string }) {
 
 function HypothesisStatusBar({ status }: { status: ValidationStatus }) {
   const stageColors: Record<ValidationStatus["stage"], string> = {
-    researching: "bg-amber-500",
-    synthesizing: "bg-emerald-500",
+    researching: "bg-status-warning",
+    synthesizing: "bg-status-success",
   };
 
   return (
@@ -483,7 +483,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
           className={cn(
             "flex-1 text-xs font-medium py-1.5 rounded-lg transition-colors cursor-pointer",
             mode === "quick"
-              ? "bg-brand-accent text-black"
+              ? "bg-brand-accent text-text-inverse"
               : "bg-surface-100 text-text-secondary hover:text-text-primary"
           )}
         >
@@ -495,7 +495,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
           className={cn(
             "flex-1 text-xs font-medium py-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1",
             mode === "hypothesis"
-              ? "bg-purple-500 text-white"
+              ? "bg-status-info text-text-inverse"
               : "bg-surface-100 text-text-secondary hover:text-text-primary",
             isStreaming && "opacity-50 cursor-not-allowed"
           )}
@@ -543,7 +543,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
                 {msg.role === "user" ? (
                   /* User message - right aligned, minimal */
                   <div className="flex justify-end">
-                    <div className="max-w-[85%] bg-brand-accent text-black rounded-2xl rounded-br-md px-4 py-2.5 text-sm">
+                    <div className="max-w-[85%] bg-brand-accent text-text-inverse rounded-2xl rounded-br-md px-4 py-2.5 text-sm">
                       {msg.content}
                     </div>
                   </div>
@@ -594,7 +594,7 @@ export function ChatWidget({ open, onToggle, width, onWidthChange }: ChatWidgetP
             className={cn(
               "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors cursor-pointer",
               input.trim() && !isStreaming
-                ? "bg-brand-accent text-black hover:opacity-90"
+                ? "bg-brand-accent text-text-inverse hover:bg-brand-accent-hover"
                 : "bg-surface-100 text-text-tertiary cursor-not-allowed"
             )}
             aria-label="Send message"

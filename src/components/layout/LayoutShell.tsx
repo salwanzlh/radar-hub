@@ -51,7 +51,7 @@ export function LayoutShell() {
       {!chatOpen && (
         <button
           onClick={() => setChatOpen(true)}
-          className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-brand-accent text-black flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer"
+          className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-brand-accent text-text-inverse flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer"
           aria-label="Open AI Assistant"
         >
           <BrainCircuit className="w-5 h-5" />
