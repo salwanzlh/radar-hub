@@ -230,24 +230,20 @@ export default function MarketingPlanV2Page() {
     runningPipeline?.status === "running";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Header */}
-      <div className="bg-surface-white rounded-[20px] shadow-card p-7">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="bg-surface-white rounded-[20px] shadow-card px-6 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Workflow className="w-4 h-4 text-brand-accent" />
+            <div className="flex items-center gap-2 mb-0.5">
+              <Workflow className="w-3.5 h-3.5 text-brand-accent" />
               <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-brand-accent">
-                Marketing Plan — Agentic Pipeline
+                Marketing Plan
               </span>
             </div>
-            <h2 className="text-lg font-semibold text-text-primary tracking-tight">
+            <h2 className="text-base font-semibold text-text-primary tracking-tight">
               7-Agent Marketing Plan Generator
             </h2>
-            <p className="text-sm text-text-secondary mt-1">
-              Run the full Discover → Analyze → Frame → Craft pipeline on Azure
-              AI Foundry to generate a validated campaign message.
-            </p>
           </div>
           <button
             onClick={() =>
@@ -327,7 +323,7 @@ export default function MarketingPlanV2Page() {
 
         {/* Active lineup info + content area */}
         {activeLineup && (
-          <div className="p-7">
+          <div className="px-5 py-4">
             <div className="flex items-start justify-between gap-4 mb-1">
               <div className="min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
@@ -774,11 +770,11 @@ function DeliverablesPanel({
   if (!a && !b && !c) return null;
 
   return (
-    <div className="mt-6 space-y-4">
+    <div className="mt-4 space-y-3">
       <div className="flex items-center gap-2">
-        <div className="w-1 h-5 bg-brand-accent rounded-full" />
-        <h4 className="text-xs font-bold uppercase tracking-[0.15em] text-text-primary">
-          Final Deliverables
+        <div className="w-1 h-4 bg-brand-accent rounded-full" />
+        <h4 className="text-[11px] font-bold uppercase tracking-[0.12em] text-text-secondary">
+          Deliverables
         </h4>
       </div>
 
