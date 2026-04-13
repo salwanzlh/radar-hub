@@ -242,7 +242,7 @@ export default function MarketingPlanV2Page() {
               </span>
             </div>
             <h2 className="text-base font-semibold text-text-primary tracking-tight">
-              7-Agent Marketing Plan Generator
+              Marketing Plan Generator
             </h2>
           </div>
           <button
