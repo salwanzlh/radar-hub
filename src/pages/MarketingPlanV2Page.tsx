@@ -1181,7 +1181,6 @@ function DeliverableAEditor({
   const hero = (draft.hero_headline as string) ?? "";
   const tagline = (draft.slogan_tagline as string) ?? "";
   const points = asArray(draft.evidence_based_talking_points);
-  const channel = asRecord(draft.channel_execution_guide);
 
   return (
     <div className="space-y-6">
@@ -1234,25 +1233,6 @@ function DeliverableAEditor({
         </div>
       </FormField>
 
-      <FormField label="Channel-Specific Execution Guide">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <ChannelEditor
-            label="Digital"
-            value={(channel.digital as string) ?? ""}
-            onChange={(v) => update(["channel_execution_guide", "digital"], v)}
-          />
-          <ChannelEditor
-            label="Public Relations"
-            value={(channel.pr as string) ?? ""}
-            onChange={(v) => update(["channel_execution_guide", "pr"], v)}
-          />
-          <ChannelEditor
-            label="Above The Line"
-            value={(channel.atl as string) ?? ""}
-            onChange={(v) => update(["channel_execution_guide", "atl"], v)}
-          />
-        </div>
-      </FormField>
     </div>
   );
 }
@@ -1419,40 +1399,12 @@ function FormField({
   );
 }
 
-function ChannelEditor({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="bg-surface-white rounded-xl p-3 border border-surface-100">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-brand-accent mb-2">
-        {label}
-      </div>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        rows={5}
-        className="w-full px-2 py-1 text-xs text-text-secondary bg-transparent border border-surface-100 rounded focus:outline-none focus:border-brand-accent resize-y"
-      />
-    </div>
-  );
-}
-
 // ── Deliverable A: Campaign Key Message ──────────────────────
 
 function DeliverableARenderer({ data }: { data: Record<string, unknown> }) {
   const hero = asString(data.hero_headline);
   const tagline = asString(data.slogan_tagline);
   const points = asArray(data.evidence_based_talking_points);
-  const channel = asRecord(data.channel_execution_guide);
-  const digital = asString(channel.digital);
-  const pr = asString(channel.pr);
-  const atl = asString(channel.atl);
 
   return (
     <div className="space-y-8">
@@ -1747,13 +1699,3 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ChannelCard({ label, text }: { label: string; text: string }) {
-  return (
-    <div className="bg-surface-white rounded-xl p-4 border border-surface-100">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-brand-accent mb-2">
-        {label}
-      </div>
-      <p className="text-xs text-text-secondary leading-relaxed">{text}</p>
-    </div>
-  );
-}
