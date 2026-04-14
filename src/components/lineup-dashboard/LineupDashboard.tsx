@@ -57,34 +57,45 @@ export default function LineupDashboard({
   }, [activeRecommendationId, recommendations]);
 
   const activeConnectors = useMemo(() => {
-    const out: Array<{ fromId: number; toId: number; severity: "red" | "yellow" | "green" }> = [];
+    const out: Array<{ fromId: number; toId: number; severity: "red" | "yellow" | "green"; isPrimary: boolean }> = [];
 
     if (activeFindingId !== null) {
       const finding = findings.find((f) => f.id === activeFindingId);
       if (finding) {
-        recommendations
-          .filter((r) => r.primary_finding_id === activeFindingId)
-          .forEach((r) => {
+        // Draw a line to every recommendation that addresses this finding
+        // (either as primary or in finding_ids). Primary line is bolder (via
+        // ConnectorLine's `isPrimary` flag) to preserve hierarchy.
+        recommendations.forEach((r) => {
+          const isPrimary = r.primary_finding_id === activeFindingId;
+          const isLinked = r.finding_ids.includes(activeFindingId);
+          if (isPrimary || isLinked) {
             out.push({
               fromId: finding.id,
               toId: r.id,
-              severity: PRIORITY_TO_SEVERITY[r.priority],
+              severity: PRIORITY_TO_SEVERITY[r.priority] ?? "yellow",
+              isPrimary,
             });
-          });
+          }
+        });
       }
     }
 
     if (activeRecommendationId !== null) {
       const rec = recommendations.find((r) => r.id === activeRecommendationId);
-      if (rec && rec.primary_finding_id !== null) {
-        const finding = findings.find((f) => f.id === rec.primary_finding_id);
-        if (finding) {
-          out.push({
-            fromId: finding.id,
-            toId: rec.id,
-            severity: PRIORITY_TO_SEVERITY[rec.priority],
-          });
-        }
+      if (rec) {
+        // Draw a line to every finding this recommendation addresses.
+        // Primary line is bolder to show the main target.
+        rec.finding_ids.forEach((fid) => {
+          const finding = findings.find((f) => f.id === fid);
+          if (finding) {
+            out.push({
+              fromId: finding.id,
+              toId: rec.id,
+              severity: PRIORITY_TO_SEVERITY[rec.priority] ?? "yellow",
+              isPrimary: rec.primary_finding_id === fid,
+            });
+          }
+        });
       }
     }
 
@@ -153,6 +164,7 @@ export default function LineupDashboard({
                 fromId={conn.fromId}
                 toId={conn.toId}
                 severity={conn.severity}
+                isPrimary={conn.isPrimary}
                 containerId={CONTAINER_ID}
               />
             ))}

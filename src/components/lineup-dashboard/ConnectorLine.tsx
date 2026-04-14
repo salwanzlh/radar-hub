@@ -6,6 +6,7 @@ interface Props {
   fromId: number; // finding id
   toId: number; // recommendation id
   severity: Finding["severity"];
+  isPrimary?: boolean;
   containerId: string;
 }
 
@@ -14,7 +15,7 @@ interface Coords {
   y2: number;
 }
 
-export default function ConnectorLine({ fromId, toId, severity, containerId }: Props) {
+export default function ConnectorLine({ fromId, toId, severity, isPrimary = false, containerId }: Props) {
   const [coords, setCoords] = useState<Coords | null>(null);
 
   useEffect(() => {
@@ -49,8 +50,9 @@ export default function ConnectorLine({ fromId, toId, severity, containerId }: P
       x2="100%"
       y2={coords.y2}
       stroke={SEVERITY_STROKE[severity]}
-      strokeWidth={2}
-      strokeOpacity={0.6}
+      strokeWidth={isPrimary ? 2.5 : 1.5}
+      strokeOpacity={isPrimary ? 0.8 : 0.4}
+      strokeDasharray={isPrimary ? undefined : "4 4"}
       style={{ transition: "all 0.3s ease" }}
     />
   );
