@@ -124,7 +124,7 @@ export default function LineupDashboard({
       <div
         id={CONTAINER_ID}
         className="grid gap-0 relative items-start"
-        style={{ gridTemplateColumns: "1fr 32px 1fr" }}
+        style={{ gridTemplateColumns: "1fr 80px 1fr" }}
       >
         {/* Left: Findings */}
         <div>
