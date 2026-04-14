@@ -81,7 +81,10 @@ export default function PromptsTab() {
       .filter((g) => g.count > 0);
   }, [templates]);
 
-  const currentCategory = activeCategory || availableCategories[0]?.category || null;
+  const currentCategory = useMemo(() => {
+    const stillValid = availableCategories.some((c) => c.category === activeCategory);
+    return stillValid ? activeCategory : availableCategories[0]?.category ?? null;
+  }, [activeCategory, availableCategories]);
 
   const visibleTemplates = useMemo(() => {
     if (!templates || !currentCategory) return [];
@@ -130,6 +133,11 @@ export default function PromptsTab() {
 
       {/* Templates for active category */}
       <div className="space-y-3">
+        {visibleTemplates.length === 0 && currentCategory && (
+          <div className="flex items-center justify-center py-12 text-sm text-text-tertiary">
+            No prompts in this category yet.
+          </div>
+        )}
         {visibleTemplates.map((template) => {
           const isEditing = editingKey === template.key;
           const isBusy = (updateMutation.isPending || resetMutation.isPending) && editingKey === template.key;
