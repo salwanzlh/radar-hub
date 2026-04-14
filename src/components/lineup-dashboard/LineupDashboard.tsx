@@ -14,6 +14,9 @@ export default function LineupDashboard({
   dateFrom,
   dateTo,
 }: LineupDashboardProps) {
+  // Only one card is active across both columns at a time. Clicking a card
+  // in one column deselects any active card in the other. The opposite
+  // column shows passive "isLinked" highlights derived from which side is active.
   const [activeFindingId, setActiveFindingId] = useState<number | null>(null);
   const [activeRecommendationId, setActiveRecommendationId] = useState<number | null>(null);
 

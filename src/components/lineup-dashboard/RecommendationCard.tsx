@@ -9,16 +9,26 @@ interface Props {
 }
 
 export default function RecommendationCard({ recommendation, isActive, isLinked, onClick }: Props) {
-  const severity = PRIORITY_TO_SEVERITY[recommendation.priority];
-  const c = SEVERITY_CLASSES[severity];
+  const severity = PRIORITY_TO_SEVERITY[recommendation.priority] ?? "yellow";
+  const c = SEVERITY_CLASSES[severity] ?? SEVERITY_CLASSES.yellow;
   const bgClass = isActive ? c.bgActive : isLinked ? c.bg : "bg-surface-50";
   const borderClass = isActive ? c.border : isLinked ? c.borderSoft : "border-surface-200";
 
   return (
     <div
       id={`rec-${recommendation.id}`}
+      role="button"
+      tabIndex={0}
+      aria-expanded={isActive}
+      aria-label={`Recommendation: ${recommendation.recommendation}`}
       onClick={onClick}
-      className={`relative overflow-hidden rounded-xl border-2 p-4 cursor-pointer transition-all duration-300 ${bgClass} ${borderClass} ${isActive ? "scale-[1.01] shadow-md" : ""}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className={`relative overflow-hidden rounded-xl border-2 p-4 cursor-pointer transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-accent/40 ${bgClass} ${borderClass} ${isActive ? "scale-[1.01] shadow-md" : ""}`}
     >
       {isActive && (
         <div className={`absolute right-0 top-0 bottom-0 w-1 ${c.dot}`} />
