@@ -5,6 +5,7 @@ import { api, type LineupReport } from "@/lib/api-client";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 import ReactMarkdown, { type Components } from "react-markdown";
+import { LineupDashboard } from "@/components/lineup-dashboard";
 
 /* -- Consulting-style markdown components for report rendering -- */
 
@@ -342,12 +343,22 @@ export default function AnalysisPage() {
                 </div>
               </div>
 
-              {/* Markdown Report -- Consulting-style layout */}
-              <div className="report-content">
-                <ReactMarkdown components={reportComponents}>
-                  {activeReport.content || ""}
-                </ReactMarkdown>
-              </div>
+              {/* Interactive Dashboard (new) OR Markdown Report (fallback) */}
+              {activeReport.findings && activeReport.recommendations ? (
+                <LineupDashboard
+                  findings={activeReport.findings}
+                  recommendations={activeReport.recommendations}
+                  productName={activeReport.lineup.name}
+                  dateFrom={activeReport.date_from}
+                  dateTo={activeReport.date_to}
+                />
+              ) : (
+                <div className="report-content">
+                  <ReactMarkdown components={reportComponents}>
+                    {activeReport.content || ""}
+                  </ReactMarkdown>
+                </div>
+              )}
 
               {/* Sources Appendix */}
               {activeReport.cited_articles && activeReport.cited_articles.length > 0 && (
