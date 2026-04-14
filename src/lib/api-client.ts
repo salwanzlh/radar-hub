@@ -292,6 +292,44 @@ export interface LineupReportCitation {
   relevance_reason: string;
 }
 
+export type FindingSeverity = "red" | "yellow" | "green";
+export type FindingCategory =
+  | "COMPETITIVE THREAT"
+  | "OWNERSHIP RISK"
+  | "MARKET MOMENTUM"
+  | "REGULATION"
+  | "EMERGING CHALLENGER"
+  | "OPPORTUNITY";
+
+export interface Finding {
+  id: number;
+  severity: FindingSeverity;
+  category: FindingCategory;
+  headline: string;
+  evidence: string;
+  impact_on_product: string;
+  sources: string[];
+}
+
+export type RecommendationPriority = "high" | "medium" | "low";
+export type RecommendationArea =
+  | "marketing"
+  | "after-sales"
+  | "product positioning"
+  | "distribution"
+  | "digital";
+
+export interface Recommendation {
+  id: number;
+  priority: RecommendationPriority;
+  area: RecommendationArea;
+  recommendation: string;
+  rationale: string;
+  finding_ids: number[];
+  primary_finding_id: number | null;
+  supporting_data: string[];
+}
+
 export interface LineupReport {
   id: string;
   lineup: { id: string; name: string; slug: string; segment: string | null };
@@ -299,6 +337,8 @@ export interface LineupReport {
   status: string;
   content: string | null;
   cited_articles: LineupReportCitation[] | null;
+  findings: Finding[] | null;
+  recommendations: Recommendation[] | null;
   model_used: string | null;
   token_usage: { prompt: number; completion: number } | null;
   report_date: string;
