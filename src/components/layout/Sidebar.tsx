@@ -69,7 +69,6 @@ const NAV_SECTIONS: NavItem[] = [
   {
     label: "Data Pipeline",
     icon: Database,
-    adminOnly: true,
     children: [
       { label: "Internal", href: "/pipeline", icon: HardDrive },
       {
@@ -78,7 +77,7 @@ const NAV_SECTIONS: NavItem[] = [
         children: [
           { label: "News / Article", href: "/articles", icon: Newspaper },
           { label: "Sentiment", href: "/sentiment", icon: MessageCircle },
-          { label: "Price Comparison", href: "/pricing", icon: DollarSign, adminOnly: true },
+          { label: "Price Comparison", href: "/pricing", icon: DollarSign },
         ],
       },
     ],
@@ -96,7 +95,7 @@ const NAV_SECTIONS: NavItem[] = [
 ];
 
 const BOTTOM_ITEMS: NavLink[] = [
-  { label: "Health Check", href: "/health", icon: HeartPulse, adminOnly: true },
+  { label: "Health Check", href: "/health", icon: HeartPulse },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

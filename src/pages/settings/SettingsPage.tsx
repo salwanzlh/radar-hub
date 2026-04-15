@@ -12,13 +12,13 @@ import UsersTab from "./UsersTab";
 
 type Tab = "categories" | "sources" | "lineups" | "schedule" | "sentiment" | "prompts" | "users";
 
-const BASE_TABS: { id: Tab; label: string; icon: typeof Tags }[] = [
+const BASE_TABS: { id: Tab; label: string; icon: typeof Tags; adminOnly?: boolean }[] = [
   { id: "categories", label: "Categories & Keywords", icon: Tags },
   { id: "sources", label: "News Sources", icon: Globe },
   { id: "lineups", label: "Product Lineups", icon: Car },
   { id: "schedule", label: "Schedule & Scraping", icon: Clock },
   { id: "sentiment", label: "Sentiment", icon: MessageSquare },
-  { id: "prompts", label: "AI Prompts", icon: Wand2 },
+  { id: "prompts", label: "AI Prompts", icon: Wand2, adminOnly: true },
 ];
 
 export default function SettingsPage() {
@@ -26,10 +26,11 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("categories");
 
   const TABS = useMemo(() => {
+    const visible = BASE_TABS.filter((t) => !t.adminOnly || isAdmin);
     if (isAdmin) {
-      return [...BASE_TABS, { id: "users" as Tab, label: "Users", icon: Users }];
+      return [...visible, { id: "users" as Tab, label: "Users", icon: Users }];
     }
-    return BASE_TABS;
+    return visible;
   }, [isAdmin]);
 
   return (
@@ -60,7 +61,7 @@ export default function SettingsPage() {
           {activeTab === "lineups" && <LineupsTab />}
           {activeTab === "schedule" && <ScheduleTab />}
           {activeTab === "sentiment" && <SentimentSettingsTab />}
-          {activeTab === "prompts" && <PromptsTab />}
+          {activeTab === "prompts" && isAdmin && <PromptsTab />}
           {activeTab === "users" && isAdmin && <UsersTab />}
         </div>
       </div>
