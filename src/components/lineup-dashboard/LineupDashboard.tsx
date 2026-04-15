@@ -14,30 +14,18 @@ export default function LineupDashboard({
   dateFrom,
   dateTo,
 }: LineupDashboardProps) {
-  // Only one card is active across both columns at a time. Clicking a card
-  // in one column deselects any active card in the other. The opposite
-  // column shows passive "isLinked" highlights derived from which side is active.
+  // Each column has its own active card, independent of the other.
+  // User can open a finding detail AND a recommendation detail at the same time.
+  // Click the active card again to collapse just that side.
   const [activeFindingId, setActiveFindingId] = useState<number | null>(null);
   const [activeRecommendationId, setActiveRecommendationId] = useState<number | null>(null);
 
   function handleFindingClick(id: number) {
-    if (activeFindingId === id) {
-      setActiveFindingId(null);
-      setActiveRecommendationId(null);
-    } else {
-      setActiveFindingId(id);
-      setActiveRecommendationId(null);
-    }
+    setActiveFindingId((current) => (current === id ? null : id));
   }
 
   function handleRecommendationClick(id: number) {
-    if (activeRecommendationId === id) {
-      setActiveRecommendationId(null);
-      setActiveFindingId(null);
-    } else {
-      setActiveRecommendationId(id);
-      setActiveFindingId(null);
-    }
+    setActiveRecommendationId((current) => (current === id ? null : id));
   }
 
   const linkedRecommendationIds = useMemo(() => {
