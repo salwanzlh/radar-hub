@@ -23,7 +23,6 @@ import {
   type MarketingPlanV2PipelineStatus,
 } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
-import SourceText from "@/components/lineup-dashboard/SourceText";
 
 /**
  * The 7-stage MITRA Marketing Plan v2 pipeline. Order matters for the
@@ -1389,54 +1388,20 @@ function InterpretationCompact({ data }: { data: Record<string, unknown> }) {
 // ── Deliverable C: Detailed Analysis ─────────────────────────
 
 /**
- * Extract `{ text, sources[] }` from a Deliverable C section that may be
- * either the new object form or the legacy plain-string form.
+ * Extract the text body of a Deliverable C section that may be either the
+ * current `{ text, sources[] }` object form or the legacy plain-string form.
+ * The sources array is intentionally ignored — sources are hidden in the UI.
  */
-function extractTextAndSources(value: unknown): { text: string | null; sources: string[] } {
-  if (typeof value === "string") {
-    return { text: value.trim() || null, sources: [] };
-  }
+function extractText(value: unknown): string | null {
+  if (typeof value === "string") return value.trim() || null;
   const rec = asRecord(value);
-  const text = asString(rec.text) ?? asString(rec.content) ?? asString(rec.value);
-  const sources = extractSources(rec.sources);
-  return { text, sources };
-}
-
-function extractSources(value: unknown): string[] {
-  return asArray(value)
-    .map((s) => {
-      if (typeof s === "string") return s;
-      const rec = asRecord(s);
-      return asString(rec.source) ?? asString(rec.ref) ?? asString(rec.url) ?? null;
-    })
-    .filter((s): s is string => Boolean(s && s.trim()));
-}
-
-function SourcesBlock({ sources }: { sources: string[] }) {
-  if (sources.length === 0) return null;
-  return (
-    <div className="mt-3 pt-3 border-t border-surface-100">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-1.5">
-        Sources
-      </p>
-      <ul className="text-[11px] text-text-secondary leading-relaxed space-y-1">
-        {sources.map((s, i) => (
-          <li key={i} className="flex gap-1.5">
-            <span className="text-text-tertiary shrink-0">•</span>
-            <span className="min-w-0 break-words">
-              <SourceText text={s} />
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+  return asString(rec.text) ?? asString(rec.content) ?? asString(rec.value);
 }
 
 function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
-  const trend = extractTextAndSources(data.market_trend_alignment);
-  const insight = extractTextAndSources(data.customer_insight_integration);
-  const position = extractTextAndSources(data.competitive_positioning_map);
+  const trendText = extractText(data.market_trend_alignment);
+  const insightText = extractText(data.customer_insight_integration);
+  const positionText = extractText(data.competitive_positioning_map);
   const diffPoints = asArray(data.product_differentiation_points).filter((p) => {
     const rec = asRecord(p);
     return asString(rec.point) || asString(rec.feature) || asString(rec.our_advantage);
@@ -1448,27 +1413,24 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
 
   return (
     <div className="space-y-8">
-      {(trend.text || insight.text || position.text) && (
+      {(trendText || insightText || positionText) && (
         <div className="space-y-4">
-          {trend.text && (
+          {trendText && (
             <div className="bg-surface-white rounded-xl p-5 border border-surface-100">
               <FieldLabel>Market Trend Alignment</FieldLabel>
-              <p className="text-sm text-text-secondary leading-relaxed">{trend.text}</p>
-              <SourcesBlock sources={trend.sources} />
+              <p className="text-sm text-text-secondary leading-relaxed">{trendText}</p>
             </div>
           )}
-          {insight.text && (
+          {insightText && (
             <div className="bg-surface-white rounded-xl p-5 border border-surface-100">
               <FieldLabel>Customer Insight Integration</FieldLabel>
-              <p className="text-sm text-text-secondary leading-relaxed">{insight.text}</p>
-              <SourcesBlock sources={insight.sources} />
+              <p className="text-sm text-text-secondary leading-relaxed">{insightText}</p>
             </div>
           )}
-          {position.text && (
+          {positionText && (
             <div className="bg-surface-white rounded-xl p-5 border border-surface-100">
               <FieldLabel>Competitive Positioning Map</FieldLabel>
-              <p className="text-sm text-text-secondary leading-relaxed">{position.text}</p>
-              <SourcesBlock sources={position.sources} />
+              <p className="text-sm text-text-secondary leading-relaxed">{positionText}</p>
             </div>
           )}
         </div>
@@ -1483,14 +1445,6 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
               const feature = asString(rec.point) || asString(rec.feature);
               const vsCompetitor = asString(rec.versus) || asString(rec.vs_competitor);
               const ourAdvantage = asString(rec.evidence) || asString(rec.our_advantage);
-              const itemSources = extractSources(rec.sources);
-              const legacyRef = asString(rec.source_ref);
-              const combinedSources =
-                itemSources.length > 0
-                  ? itemSources
-                  : legacyRef
-                    ? [legacyRef]
-                    : [];
               return (
                 <div
                   key={idx}
@@ -1516,7 +1470,6 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
                           {ourAdvantage}
                         </p>
                       )}
-                      <SourcesBlock sources={combinedSources} />
                     </div>
                   </div>
                 </div>
@@ -1536,7 +1489,6 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
               const status = asString(rec.status);
               const proofRef = asString(rec.proof_ref) || asString(rec.source_ref);
               const tool = asString(rec.tool_used);
-              const itemSources = extractSources(rec.sources);
               const isApproved = status === "approved";
               return (
                 <div
@@ -1564,7 +1516,7 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
                           {status}
                         </span>
                       )}
-                      {proofRef && itemSources.length === 0 && (
+                      {proofRef && (
                         <span className="text-[10px] font-mono text-text-tertiary px-2 py-0.5 bg-surface-100 rounded-md truncate max-w-[300px]">
                           {proofRef}
                         </span>
@@ -1575,7 +1527,6 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
                         </span>
                       )}
                     </div>
-                    <SourcesBlock sources={itemSources} />
                   </div>
                 </div>
               );
