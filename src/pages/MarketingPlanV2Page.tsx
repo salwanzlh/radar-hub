@@ -1115,11 +1115,7 @@ function DeliverableCard({
                   )}
                 </div>
               </div>
-              {/* Talking Points + Objections — full width */}
-              <TalkingPointsList data={data} />
-              {interpretationData && (
-                <ObjectionsList data={interpretationData} />
-              )}
+              {/* Talking Points + Objections hidden per request */}
             </div>
           ) : (
             <>
@@ -1178,7 +1174,6 @@ function DeliverableAEditor({
 }) {
   const hero = (draft.hero_headline as string) ?? "";
   const tagline = (draft.slogan_tagline as string) ?? "";
-  const points = asArray(draft.evidence_based_talking_points);
 
   return (
     <div className="space-y-6">
@@ -1199,37 +1194,7 @@ function DeliverableAEditor({
         />
       </FormField>
 
-      <FormField label="Evidence-Based Talking Points">
-        <div className="space-y-3">
-          {points.map((p, idx) => {
-            const rec = asRecord(p);
-            const point = (rec.point as string) ?? "";
-            return (
-              <div
-                key={idx}
-                className="bg-surface-white rounded-xl p-3 border border-surface-100"
-              >
-                <div className="flex items-start gap-2">
-                  <span className="w-6 h-6 rounded-full bg-brand-accent/15 text-brand-accent text-xs font-bold flex items-center justify-center shrink-0 mt-1">
-                    {idx + 1}
-                  </span>
-                  <textarea
-                    value={point}
-                    onChange={(e) =>
-                      update(
-                        ["evidence_based_talking_points", String(idx), "point"],
-                        e.target.value
-                      )
-                    }
-                    rows={2}
-                    className="flex-1 px-2 py-1 text-sm text-text-primary bg-transparent border border-transparent rounded focus:outline-none focus:border-brand-accent resize-y"
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </FormField>
+      {/* Evidence-Based Talking Points editor hidden per request */}
 
     </div>
   );
@@ -1245,7 +1210,6 @@ function DeliverableBEditor({
   const simplicity = (draft.audience_facing_simplicity_draft as string) ?? "";
   const valueProp = (draft.core_value_proposition as string) ?? "";
   const toneAlignment = (draft.brand_tone_of_voice_alignment as string) ?? "";
-  const objections = asArray(draft.key_objections_to_address);
 
   return (
     <div className="space-y-6">
@@ -1277,58 +1241,7 @@ function DeliverableBEditor({
           className="w-full px-3 py-2 text-sm text-text-secondary bg-surface-white border border-surface-100 rounded-xl focus:outline-none focus:border-brand-accent resize-y"
         />
       </FormField>
-      <FormField label="Key Objections to Address">
-        <div className="space-y-3">
-          {objections.map((o, idx) => {
-            const rec = asRecord(o);
-            const objection = (rec.objection as string) ?? "";
-            const counter = (rec.counter_message as string) ?? "";
-            return (
-              <div
-                key={idx}
-                className="bg-surface-white rounded-xl p-3 border border-surface-100 space-y-2"
-              >
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-status-error mb-1">
-                    Objection
-                  </div>
-                  <textarea
-                    value={objection}
-                    onChange={(e) =>
-                      update(
-                        ["key_objections_to_address", String(idx), "objection"],
-                        e.target.value
-                      )
-                    }
-                    rows={2}
-                    className="w-full px-2 py-1 text-sm text-text-primary bg-transparent border border-surface-100 rounded focus:outline-none focus:border-brand-accent resize-y"
-                  />
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-status-success mb-1">
-                    Counter Message
-                  </div>
-                  <textarea
-                    value={counter}
-                    onChange={(e) =>
-                      update(
-                        [
-                          "key_objections_to_address",
-                          String(idx),
-                          "counter_message",
-                        ],
-                        e.target.value
-                      )
-                    }
-                    rows={2}
-                    className="w-full px-2 py-1 text-sm text-text-secondary bg-transparent border border-surface-100 rounded focus:outline-none focus:border-brand-accent resize-y"
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </FormField>
+      {/* Key Objections to Address editor hidden per request */}
     </div>
   );
 }
@@ -1425,70 +1338,7 @@ function DeliverableAHeadline({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-function TalkingPointsList({ data }: { data: Record<string, unknown> }) {
-  const points = asArray(data.evidence_based_talking_points);
-  if (points.length === 0) return null;
-
-  return (
-    <div>
-      <FieldLabel>Evidence-Based Talking Points</FieldLabel>
-      <ol className="space-y-2">
-        {points.map((p, idx) => {
-          const rec = asRecord(p);
-          const point = asString(rec.point);
-          const strength = asString(rec.proof_strength);
-          const claimStatus = asString(rec.claim_status);
-          const proofRef = asString(rec.proof_ref);
-          return (
-            <li
-              key={idx}
-              className="bg-surface-white rounded-xl p-3 border border-surface-100"
-            >
-              <div className="flex items-start gap-3">
-                <span className="w-5 h-5 rounded-full bg-brand-accent/15 text-brand-accent text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
-                  {idx + 1}
-                </span>
-                <div className="flex-1">
-                  <p className="text-sm text-text-primary font-medium leading-relaxed">
-                    {point}
-                  </p>
-                  {(strength || claimStatus || proofRef) && (
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {strength && (
-                        <span
-                          className={cn(
-                            "text-[10px] px-2 py-0.5 rounded-md font-medium",
-                            strength === "strong"
-                              ? "bg-status-success/15 text-status-success"
-                              : strength === "moderate"
-                              ? "bg-brand-accent/15 text-brand-accent"
-                              : "bg-surface-200 text-text-tertiary"
-                          )}
-                        >
-                          {strength}
-                        </span>
-                      )}
-                      {claimStatus && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-surface-100 text-text-tertiary font-medium">
-                          {claimStatus}
-                        </span>
-                      )}
-                      {proofRef && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-surface-100 text-text-tertiary font-mono">
-                          {proofRef}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-}
+// TalkingPointsList component removed — feature hidden per request
 
 // ── Compact interpretation (beside KV — no objections) ───────
 
@@ -1533,47 +1383,7 @@ function InterpretationCompact({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-function ObjectionsList({ data }: { data: Record<string, unknown> }) {
-  const objections = asArray(data.key_objections_to_address);
-  if (objections.length === 0) return null;
-
-  return (
-    <div>
-      <FieldLabel>Key Objections to Address</FieldLabel>
-      <div className="space-y-2">
-        {objections.map((o, idx) => {
-          const rec = asRecord(o);
-          const objection = asString(rec.objection);
-          const counter = asString(rec.counter_message);
-          return (
-            <div
-              key={idx}
-              className="bg-surface-white rounded-xl p-4 border border-surface-100"
-            >
-              <div className="flex items-start gap-3">
-                <span className="w-5 h-5 rounded-full bg-status-error/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <XCircle className="w-3.5 h-3.5 text-status-error" />
-                </span>
-                <div className="flex-1">
-                  <p className="text-sm text-text-primary font-medium">
-                    {objection}
-                  </p>
-                  {counter && (
-                    <div className="mt-2 pl-3 border-l-2 border-status-success/30">
-                      <p className="text-sm text-text-secondary leading-relaxed">
-                        {counter}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+// ObjectionsList component removed — feature hidden per request
 
 // ── Deliverable C: Detailed Analysis ─────────────────────────
 
