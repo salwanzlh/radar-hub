@@ -23,6 +23,7 @@ import {
   type MarketingPlanV2PipelineStatus,
 } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+import SourceText from "@/components/lineup-dashboard/SourceText";
 
 /**
  * The 7-stage MITRA Marketing Plan v2 pipeline. Order matters for the
@@ -1399,6 +1400,9 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
     const rec = asRecord(p);
     return asString(rec.claim);
   });
+  const sources = asArray(data.sources)
+    .map((s) => (typeof s === "string" ? s : asString(asRecord(s).source) || asString(asRecord(s).ref)))
+    .filter((s): s is string => Boolean(s));
 
   return (
     <div className="space-y-8">
@@ -1471,6 +1475,24 @@ function DeliverableCRenderer({ data }: { data: Record<string, unknown> }) {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {sources.length > 0 && (
+        <div>
+          <FieldLabel>Sources</FieldLabel>
+          <div className="bg-surface-white rounded-xl p-5 border border-surface-100">
+            <ul className="text-xs text-text-secondary leading-relaxed space-y-1.5">
+              {sources.map((s, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="text-text-tertiary shrink-0">•</span>
+                  <span className="min-w-0 break-words">
+                    <SourceText text={s} />
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}

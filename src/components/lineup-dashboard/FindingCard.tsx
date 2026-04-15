@@ -1,5 +1,6 @@
 import type { Finding } from "./types";
 import { SEVERITY_CLASSES } from "./constants";
+import SourceText from "./SourceText";
 
 interface Props {
   finding: Finding;
@@ -8,10 +9,19 @@ interface Props {
   onClick: () => void;
 }
 
-export default function FindingCard({ finding, isActive, isLinked, onClick }: Props) {
+export default function FindingCard({
+  finding,
+  isActive,
+  isLinked,
+  onClick,
+}: Props) {
   const c = SEVERITY_CLASSES[finding.severity] ?? SEVERITY_CLASSES.yellow;
   const bgClass = isActive ? c.bgActive : isLinked ? c.bg : "bg-surface-50";
-  const borderClass = isActive ? c.border : isLinked ? c.borderSoft : "border-surface-200";
+  const borderClass = isActive
+    ? c.border
+    : isLinked
+      ? c.borderSoft
+      : "border-surface-200";
 
   return (
     <div
@@ -34,7 +44,9 @@ export default function FindingCard({ finding, isActive, isLinked, onClick }: Pr
       )}
       <div className="flex items-center gap-2 mb-2">
         <span className={`w-2 h-2 rounded-full ${c.dot}`} />
-        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-mono ${c.tag}`}>
+        <span
+          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-mono ${c.tag}`}
+        >
           {finding.category}
         </span>
       </div>
@@ -42,7 +54,7 @@ export default function FindingCard({ finding, isActive, isLinked, onClick }: Pr
         {finding.headline}
       </p>
       <div
-        className={`overflow-hidden transition-all duration-300 ${isActive ? "max-h-96 opacity-100 mt-3" : "max-h-0 opacity-0"}`}
+        className={`overflow-hidden transition-all duration-300 ${isActive ? "opacity-100 mt-3" : "max-h-0 opacity-0"}`}
       >
         <p className="text-xs text-text-secondary leading-relaxed mb-2">
           {finding.evidence}
@@ -59,7 +71,9 @@ export default function FindingCard({ finding, isActive, isLinked, onClick }: Pr
             </p>
             <ul className="text-[11px] text-text-tertiary space-y-0.5">
               {finding.sources.map((s, i) => (
-                <li key={i}>• {s}</li>
+                <li key={i}>
+                  • <SourceText text={s} />
+                </li>
               ))}
             </ul>
           </div>
