@@ -1,5 +1,6 @@
 import type { Finding } from "./types";
 import { SEVERITY_CLASSES } from "./constants";
+import SourceText from "./SourceText";
 
 interface Props {
   finding: Finding;
@@ -59,7 +60,7 @@ export default function FindingCard({ finding, isActive, isLinked, onClick }: Pr
             </p>
             <ul className="text-[11px] text-text-tertiary space-y-0.5">
               {finding.sources.map((s, i) => (
-                <li key={i}>• {s}</li>
+                <li key={i}>• <SourceText text={s} /></li>
               ))}
             </ul>
           </div>

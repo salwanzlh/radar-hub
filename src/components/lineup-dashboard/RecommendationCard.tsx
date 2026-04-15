@@ -1,5 +1,6 @@
 import type { Recommendation } from "./types";
 import { SEVERITY_CLASSES, PRIORITY_TO_SEVERITY, CATEGORY_ICONS } from "./constants";
+import SourceText from "./SourceText";
 
 interface Props {
   recommendation: Recommendation;
@@ -58,7 +59,7 @@ export default function RecommendationCard({ recommendation, isActive, isLinked,
             </p>
             <ul className="text-[11px] text-text-tertiary space-y-0.5">
               {recommendation.supporting_data.map((s, i) => (
-                <li key={i}>• {s}</li>
+                <li key={i}>• <SourceText text={s} /></li>
               ))}
             </ul>
           </div>
