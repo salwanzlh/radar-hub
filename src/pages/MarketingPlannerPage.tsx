@@ -319,8 +319,13 @@ function PlanWizard({ id }: { id: string }) {
     queryFn: () => api.marketingPlanner.get(id),
     enabled: !!id,
     refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status === "summarizing" || status === "generating" ? 2000 : false;
+      const d = query.state.data;
+      if (!d) return false;
+      // Poll while async steps are running
+      if (d.status === "summarizing" || d.status === "generating") return 2000;
+      // Poll while KV is still generating (plan completed but no KV yet)
+      if (d.status === "completed" && d.plan && !d.key_visual) return 3000;
+      return false;
     },
   });
 
