@@ -166,36 +166,36 @@ export default function SummaryStep({
               items={asStringArray(swot.strengths)}
               gradientFrom="#059669"
               gradientTo="#34d399"
-              dotClass="bg-emerald-400"
-              textClass="text-emerald-300"
-              labelClass="text-emerald-400"
+              dotClass="bg-emerald-500"
+              textClass="text-emerald-800"
+              labelClass="text-emerald-600"
             />
             <SwotQuadrant
               title="Weaknesses"
               items={asStringArray(swot.weaknesses)}
               gradientFrom="#dc2626"
               gradientTo="#f87171"
-              dotClass="bg-red-400"
-              textClass="text-red-300"
-              labelClass="text-red-400"
+              dotClass="bg-red-500"
+              textClass="text-red-800"
+              labelClass="text-red-600"
             />
             <SwotQuadrant
               title="Opportunities"
               items={asStringArray(swot.opportunities)}
               gradientFrom="#2563eb"
               gradientTo="#60a5fa"
-              dotClass="bg-blue-400"
-              textClass="text-blue-300"
-              labelClass="text-blue-400"
+              dotClass="bg-blue-500"
+              textClass="text-blue-800"
+              labelClass="text-blue-600"
             />
             <SwotQuadrant
               title="Threats"
               items={asStringArray(swot.threats)}
               gradientFrom="#d97706"
               gradientTo="#fbbf24"
-              dotClass="bg-amber-400"
-              textClass="text-amber-300"
-              labelClass="text-amber-400"
+              dotClass="bg-amber-500"
+              textClass="text-amber-800"
+              labelClass="text-amber-600"
             />
           </div>
         </div>
@@ -232,7 +232,7 @@ export default function SummaryStep({
           <div className="relative grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Their Narrative — left column */}
             <div className="space-y-3">
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-red-400 mb-1">
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-red-600 mb-1">
                 Their Narrative
               </h4>
               {asStringArray(strategicPlay.their_narrative).length > 0 ? (
@@ -241,17 +241,17 @@ export default function SummaryStep({
                     key={i}
                     className={cn(
                       "relative rounded-lg p-4 pl-5",
-                      "bg-red-950/40 border border-red-900/40"
+                      "bg-red-50 border border-red-200"
                     )}
                   >
                     <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-lg bg-red-500" />
-                    <p className="text-sm text-red-200 leading-relaxed">
+                    <p className="text-sm text-red-800 leading-relaxed">
                       {item}
                     </p>
                   </div>
                 ))
               ) : (
-                <p className="text-xs text-red-400/60 italic">No data</p>
+                <p className="text-xs text-red-400 italic">No data</p>
               )}
             </div>
 
@@ -271,7 +271,7 @@ export default function SummaryStep({
 
             {/* Our Counter-Narrative — right column */}
             <div className="space-y-3">
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 mb-1">
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1">
                 Our Counter-Narrative
               </h4>
               {asStringArray(strategicPlay.our_counter_narrative).length > 0 ? (
@@ -280,17 +280,17 @@ export default function SummaryStep({
                     key={i}
                     className={cn(
                       "relative rounded-lg p-4 pl-5",
-                      "bg-emerald-950/40 border border-emerald-900/40"
+                      "bg-emerald-50 border border-emerald-200"
                     )}
                   >
                     <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-lg bg-emerald-500" />
-                    <p className="text-sm text-emerald-200 leading-relaxed">
+                    <p className="text-sm text-emerald-800 leading-relaxed">
                       {item}
                     </p>
                   </div>
                 ))
               ) : (
-                <p className="text-xs text-emerald-400/60 italic">No data</p>
+                <p className="text-xs text-emerald-400 italic">No data</p>
               )}
             </div>
           </div>
