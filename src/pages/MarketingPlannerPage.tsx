@@ -311,7 +311,6 @@ function PlanList() {
 // -- Wizard mode -------------------------------------------------------------
 
 function PlanWizard({ id }: { id: string }) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [revertTarget, setRevertTarget] = useState<string | null>(null);
 
