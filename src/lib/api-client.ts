@@ -809,6 +809,58 @@ export interface MarketingPlanV2PipelineStatus {
   progress_percent: number;
 }
 
+// ── Campaign Planner types ──
+
+export interface CampaignPlanState {
+  id: string;
+  status: "draft" | "audit" | "clarifying" | "summarizing" | "generating" | "completed" | "failed";
+  error: string | null;
+  lineup_report_id: string;
+  recommendation_id: number;
+  recommendation: Record<string, unknown>;
+  linked_findings: Record<string, unknown>[];
+  audit_result: {
+    content_map: { category: string; status: string; detail: string }[];
+    gaps: { category: string; why_needed: string }[];
+    confirmed_at: string | null;
+  } | null;
+  clarification: {
+    questions: ClarificationQuestion[];
+    current_question_index: number;
+    completed_at: string | null;
+    is_final: boolean;
+  } | null;
+  summary_brief: {
+    content: Record<string, unknown>;
+    approved_at: string | null;
+  } | null;
+  plan: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClarificationQuestion {
+  id: number;
+  type: "select" | "multiselect" | "text" | "textarea" | "number" | "radio" | "budget_tier";
+  label: string;
+  description: string | null;
+  options: string[] | null;
+  required: boolean;
+  answer: unknown;
+}
+
+export interface CampaignPlanSummary {
+  id: string;
+  status: string;
+  recommendation_id: number;
+  recommendation_headline: string;
+  recommendation_priority: string;
+  recommendation_area: string;
+  lineup_report_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export const api = {
   auth: {
     verifyPassword: (password: string) =>
@@ -1194,5 +1246,40 @@ export const api = {
         `/api/v2/marketing-plan/${pipelineId}/regenerate-kv`,
         {}
       ),
+  },
+
+  campaignPlan: {
+    create: (body: { lineup_report_id: string; recommendation_id: number }) =>
+      post<CampaignPlanState>("/api/v2/campaign-plans", body),
+
+    get: (id: string) =>
+      get<CampaignPlanState>(`/api/v2/campaign-plans/${id}`),
+
+    list: (reportId?: string) =>
+      get<CampaignPlanSummary[]>(`/api/v2/campaign-plans${reportId ? `?lineup_report_id=${reportId}` : ""}`),
+
+    confirmAudit: (id: string) =>
+      post<CampaignPlanState>(`/api/v2/campaign-plans/${id}/confirm-audit`),
+
+    answer: (id: string, questionId: number, answer: unknown) =>
+      post<CampaignPlanState>(`/api/v2/campaign-plans/${id}/answer`, {
+        question_id: questionId,
+        answer,
+      }),
+
+    generateSummary: (id: string) =>
+      post<{ plan_id: string }>(`/api/v2/campaign-plans/${id}/generate-summary`),
+
+    approveSummary: (id: string) =>
+      post<{ plan_id: string }>(`/api/v2/campaign-plans/${id}/approve-summary`),
+
+    revert: (id: string, step: string) =>
+      post<CampaignPlanState>(`/api/v2/campaign-plans/${id}/revert/${step}`),
+
+    updateSection: (id: string, key: string, content: Record<string, unknown>) =>
+      patch<CampaignPlanState>(`/api/v2/campaign-plans/${id}/sections/${key}`, { content }),
+
+    resetSection: (id: string, key: string) =>
+      post<CampaignPlanState>(`/api/v2/campaign-plans/${id}/sections/${key}/reset`),
   },
 };
