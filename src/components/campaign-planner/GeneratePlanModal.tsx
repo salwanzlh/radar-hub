@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { X, Loader2, ArrowRight, ExternalLink } from "lucide-react";
 import { api } from "@/lib/api-client";
@@ -57,7 +58,7 @@ export default function GeneratePlanModal({
     }
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={(e) => {
@@ -218,6 +219,7 @@ export default function GeneratePlanModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
