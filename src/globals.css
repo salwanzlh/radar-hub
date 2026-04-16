@@ -223,3 +223,14 @@ button:not(:disabled),
   0% { transform: translateX(-100%); }
   100% { transform: translateX(400%); }
 }
+
+/* Campaign planner animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
