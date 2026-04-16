@@ -11,7 +11,7 @@ import {
   Target,
   Calendar,
 } from "lucide-react";
-import { api, type CampaignPlanState, type CampaignPlanSummary } from "@/lib/api-client";
+import { api, type MarketingPlanState, type MarketingPlanSummary } from "@/lib/api-client";
 import StepIndicator from "@/components/campaign-planner/StepIndicator";
 import AuditStep from "@/components/campaign-planner/AuditStep";
 import ClarificationStep from "@/components/campaign-planner/ClarificationStep";
@@ -155,7 +155,7 @@ function SkeletonPulse() {
 
 // -- Status to step mapping --------------------------------------------------
 
-function statusToStep(status: CampaignPlanState["status"]): string {
+function statusToStep(status: MarketingPlanState["status"]): string {
   switch (status) {
     case "draft":
     case "audit":
@@ -180,8 +180,8 @@ function PlanList() {
   const navigate = useNavigate();
 
   const { data: plans, isLoading, error } = useQuery({
-    queryKey: ["campaign-plans"],
-    queryFn: () => api.campaignPlan.list(),
+    queryKey: ["marketing-plans"],
+    queryFn: () => api.marketingPlanner.list(),
   });
 
   if (isLoading) {
@@ -204,7 +204,7 @@ function PlanList() {
         className="flex flex-col items-center justify-center py-16 px-6 rounded-2xl bg-status-error-light border border-status-error/20"
       >
         <AlertTriangle className="w-10 h-10 text-status-error mb-4" />
-        <p className="text-sm font-semibold text-text-primary mb-1">Failed to load campaign plans</p>
+        <p className="text-sm font-semibold text-text-primary mb-1">Failed to load marketing plans</p>
         <p className="text-xs text-text-tertiary mb-4">
           {error instanceof Error ? error.message : "Unknown error"}
         </p>
@@ -224,9 +224,9 @@ function PlanList() {
         <div className="w-20 h-20 rounded-2xl bg-surface-100 flex items-center justify-center mb-6">
           <Target className="w-10 h-10 text-text-tertiary" />
         </div>
-        <p className="text-base font-semibold text-text-primary mb-2">No campaign plans yet</p>
+        <p className="text-base font-semibold text-text-primary mb-2">No marketing plans yet</p>
         <p className="text-sm text-text-tertiary max-w-sm text-center mb-6 leading-relaxed">
-          Start by selecting a recommendation from the Discovery Feed to generate your first campaign plan.
+          Start by selecting a recommendation from the Discovery Feed to generate your first marketing plan.
         </p>
         <Link
           to="/analysis"
@@ -239,7 +239,7 @@ function PlanList() {
   }
 
   // Group by recommendation headline
-  const grouped = plans.reduce<Record<string, CampaignPlanSummary[]>>((acc, plan) => {
+  const grouped = plans.reduce<Record<string, MarketingPlanSummary[]>>((acc, plan) => {
     const key = plan.recommendation_headline || "Untitled";
     if (!acc[key]) acc[key] = [];
     acc[key].push(plan);
@@ -258,7 +258,7 @@ function PlanList() {
               return (
                 <button
                   key={plan.id}
-                  onClick={() => navigate(`/campaign-planner/${plan.id}`)}
+                  onClick={() => navigate(`/marketing-planner/${plan.id}`)}
                   className={cn(
                     "group relative text-left rounded-xl bg-surface-white overflow-hidden",
                     "transition-all duration-200",
@@ -316,8 +316,8 @@ function PlanWizard({ id }: { id: string }) {
   const [revertTarget, setRevertTarget] = useState<string | null>(null);
 
   const { data: plan, isLoading, error } = useQuery({
-    queryKey: ["campaign-plan", id],
-    queryFn: () => api.campaignPlan.get(id),
+    queryKey: ["marketing-plan", id],
+    queryFn: () => api.marketingPlanner.get(id),
     enabled: !!id,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
@@ -328,43 +328,43 @@ function PlanWizard({ id }: { id: string }) {
   // -- Mutations -------------------------------------------------------------
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["campaign-plan", id] });
+    queryClient.invalidateQueries({ queryKey: ["marketing-plan", id] });
   };
 
   const confirmAuditMutation = useMutation({
-    mutationFn: () => api.campaignPlan.confirmAudit(id),
+    mutationFn: () => api.marketingPlanner.confirmAudit(id),
     onSuccess: invalidate,
   });
 
   const answerMutation = useMutation({
     mutationFn: ({ questionId, answer }: { questionId: number; answer: unknown }) =>
-      api.campaignPlan.answer(id, questionId, answer),
+      api.marketingPlanner.answer(id, questionId, answer),
     onSuccess: invalidate,
   });
 
   const generateSummaryMutation = useMutation({
-    mutationFn: () => api.campaignPlan.generateSummary(id),
+    mutationFn: () => api.marketingPlanner.generateSummary(id),
     onSuccess: invalidate,
   });
 
   const approveSummaryMutation = useMutation({
-    mutationFn: () => api.campaignPlan.approveSummary(id),
+    mutationFn: () => api.marketingPlanner.approveSummary(id),
     onSuccess: invalidate,
   });
 
   const editSectionMutation = useMutation({
     mutationFn: ({ key, content }: { key: string; content: Record<string, unknown> }) =>
-      api.campaignPlan.updateSection(id, key, content),
+      api.marketingPlanner.updateSection(id, key, content),
     onSuccess: invalidate,
   });
 
   const resetSectionMutation = useMutation({
-    mutationFn: (key: string) => api.campaignPlan.resetSection(id, key),
+    mutationFn: (key: string) => api.marketingPlanner.resetSection(id, key),
     onSuccess: invalidate,
   });
 
   const revertMutation = useMutation({
-    mutationFn: (step: string) => api.campaignPlan.revert(id, step),
+    mutationFn: (step: string) => api.marketingPlanner.revert(id, step),
     onSuccess: () => {
       setRevertTarget(null);
       invalidate();
@@ -395,12 +395,12 @@ function PlanWizard({ id }: { id: string }) {
     return (
       <div className="flex flex-col items-center justify-center py-20 px-6 rounded-2xl bg-status-error-light border border-status-error/20">
         <XCircle className="w-12 h-12 text-status-error mb-4" />
-        <p className="text-sm font-semibold text-text-primary mb-1">Failed to load campaign plan</p>
+        <p className="text-sm font-semibold text-text-primary mb-1">Failed to load marketing plan</p>
         <p className="text-xs text-text-tertiary mb-6">
           {error instanceof Error ? error.message : "Plan not found"}
         </p>
         <Link
-          to="/campaign-planner"
+          to="/marketing-planner"
           className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-brand-accent text-text-inverse hover:bg-brand-accent-hover transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -413,7 +413,7 @@ function PlanWizard({ id }: { id: string }) {
   // -- Recommendation info from plan -----------------------------------------
 
   const rec = plan.recommendation as Record<string, string> | null;
-  const headline = rec?.headline || "Campaign Plan";
+  const headline = rec?.headline || "Marketing Plan";
   const priority = rec?.priority || "";
   const area = rec?.area || "";
 
@@ -520,16 +520,16 @@ function PlanWizard({ id }: { id: string }) {
       {/* Header */}
       <div className="flex items-start gap-4 mb-2">
         <Link
-          to="/campaign-planner"
+          to="/marketing-planner"
           className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-surface-100 transition-colors mt-0.5 shrink-0"
-          aria-label="Back to campaign plans"
+          aria-label="Back to marketing plans"
         >
           <ArrowLeft className="w-5 h-5 text-text-secondary" />
         </Link>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-xl font-bold text-text-primary truncate">Campaign Plan</h1>
+            <h1 className="text-xl font-bold text-text-primary truncate">Marketing Plan</h1>
             <div className="ml-auto shrink-0">
               <StatusBadge status={plan.status} size="lg" />
             </div>
@@ -589,7 +589,7 @@ function PlanWizard({ id }: { id: string }) {
 
 // -- Page component ----------------------------------------------------------
 
-export default function CampaignPlannerPage() {
+export default function MarketingPlannerPage() {
   const { id } = useParams<{ id: string }>();
 
   return (
@@ -599,7 +599,7 @@ export default function CampaignPlannerPage() {
       ) : (
         <>
           <div className="mb-8">
-            <h1 className="text-xl font-bold text-text-primary mb-1">Campaign Planner</h1>
+            <h1 className="text-xl font-bold text-text-primary mb-1">Marketing Planner</h1>
             <p className="text-sm text-text-secondary">
               Marketing plans driven by strategic recommendations
             </p>

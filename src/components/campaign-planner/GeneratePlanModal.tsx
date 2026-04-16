@@ -61,11 +61,11 @@ export default function GeneratePlanModal({
     setIsCreating(true);
     setError(null);
     try {
-      const result = await api.campaignPlan.create({
+      const result = await api.marketingPlanner.create({
         lineup_report_id: lineupReportId,
         recommendation_id: recommendation.id as number,
       });
-      navigate(`/campaign-planner/${result.id}`);
+      navigate(`/marketing-planner/${result.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create plan");
     } finally {
@@ -225,7 +225,7 @@ export default function GeneratePlanModal({
                 A plan already exists for this recommendation.
               </p>
               <button
-                onClick={() => navigate(`/campaign-planner/${existingPlanId}`)}
+                onClick={() => navigate(`/marketing-planner/${existingPlanId}`)}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-accent hover:underline"
               >
                 <ExternalLink className="w-3 h-3" />

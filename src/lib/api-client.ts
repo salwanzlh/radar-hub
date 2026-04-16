@@ -809,9 +809,9 @@ export interface MarketingPlanV2PipelineStatus {
   progress_percent: number;
 }
 
-// ── Campaign Planner types ──
+// ── Marketing Planner types ──
 
-export interface CampaignPlanState {
+export interface MarketingPlanState {
   id: string;
   status: "draft" | "audit" | "clarifying" | "summarizing" | "generating" | "completed" | "failed";
   error: string | null;
@@ -839,6 +839,9 @@ export interface CampaignPlanState {
   updated_at: string;
 }
 
+/** @deprecated Use MarketingPlanState instead */
+export type CampaignPlanState = MarketingPlanState;
+
 export interface ClarificationQuestion {
   id: number;
   type: "select" | "multiselect" | "text" | "textarea" | "number" | "radio" | "budget_tier";
@@ -849,7 +852,7 @@ export interface ClarificationQuestion {
   answer: unknown;
 }
 
-export interface CampaignPlanSummary {
+export interface MarketingPlanSummary {
   id: string;
   status: string;
   recommendation_id: number;
@@ -860,6 +863,9 @@ export interface CampaignPlanSummary {
   created_at: string;
   updated_at: string;
 }
+
+/** @deprecated Use MarketingPlanSummary instead */
+export type CampaignPlanSummary = MarketingPlanSummary;
 
 export const api = {
   auth: {
@@ -1248,38 +1254,38 @@ export const api = {
       ),
   },
 
-  campaignPlan: {
+  marketingPlanner: {
     create: (body: { lineup_report_id: string; recommendation_id: number }) =>
-      post<CampaignPlanState>("/api/v2/campaign-plans", body),
+      post<MarketingPlanState>("/api/v2/marketing-plans", body),
 
     get: (id: string) =>
-      get<CampaignPlanState>(`/api/v2/campaign-plans/${id}`),
+      get<MarketingPlanState>(`/api/v2/marketing-plans/${id}`),
 
     list: (reportId?: string) =>
-      get<CampaignPlanSummary[]>(`/api/v2/campaign-plans${reportId ? `?lineup_report_id=${reportId}` : ""}`),
+      get<MarketingPlanSummary[]>(`/api/v2/marketing-plans${reportId ? `?lineup_report_id=${reportId}` : ""}`),
 
     confirmAudit: (id: string) =>
-      post<CampaignPlanState>(`/api/v2/campaign-plans/${id}/confirm-audit`),
+      post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/confirm-audit`),
 
     answer: (id: string, questionId: number, answer: unknown) =>
-      post<CampaignPlanState>(`/api/v2/campaign-plans/${id}/answer`, {
+      post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/answer`, {
         question_id: questionId,
         answer,
       }),
 
     generateSummary: (id: string) =>
-      post<{ plan_id: string }>(`/api/v2/campaign-plans/${id}/generate-summary`),
+      post<{ plan_id: string }>(`/api/v2/marketing-plans/${id}/generate-summary`),
 
     approveSummary: (id: string) =>
-      post<{ plan_id: string }>(`/api/v2/campaign-plans/${id}/approve-summary`),
+      post<{ plan_id: string }>(`/api/v2/marketing-plans/${id}/approve-summary`),
 
     revert: (id: string, step: string) =>
-      post<CampaignPlanState>(`/api/v2/campaign-plans/${id}/revert/${step}`),
+      post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/revert/${step}`),
 
     updateSection: (id: string, key: string, content: Record<string, unknown>) =>
-      patch<CampaignPlanState>(`/api/v2/campaign-plans/${id}/sections/${key}`, { content }),
+      patch<MarketingPlanState>(`/api/v2/marketing-plans/${id}/sections/${key}`, { content }),
 
     resetSection: (id: string, key: string) =>
-      post<CampaignPlanState>(`/api/v2/campaign-plans/${id}/sections/${key}/reset`),
+      post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/sections/${key}/reset`),
   },
 };
