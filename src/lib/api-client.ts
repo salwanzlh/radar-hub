@@ -835,6 +835,12 @@ export interface MarketingPlanState {
     approved_at: string | null;
   } | null;
   plan: Record<string, unknown> | null;
+  key_visual: {
+    image_base64: string | null;
+    format: string | null;
+    generated_at: string | null;
+    error?: string | null;
+  } | null;
   created_at: string;
   updated_at: string;
 }
@@ -1287,5 +1293,8 @@ export const api = {
 
     resetSection: (id: string, key: string) =>
       post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/sections/${key}/reset`),
+
+    regenerateKv: (id: string) =>
+      post<{ plan_id: string }>(`/api/v2/marketing-plans/${id}/regenerate-kv`),
   },
 };

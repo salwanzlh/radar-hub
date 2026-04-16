@@ -27,6 +27,9 @@ interface Props {
   onResetSection: (sectionKey: string) => void;
   status: string;
   isEditing: boolean;
+  keyVisual?: { image_base64?: string | null; format?: string | null; error?: string | null; generated_at?: string | null } | null;
+  onRegenerateKv?: () => void;
+  isRegeneratingKv?: boolean;
 }
 
 /* ── safe data helpers ────────────────────────────────────── */
@@ -202,12 +205,68 @@ function Strategy({ d }: { d: Record<string, unknown> }) {
   );
 }
 
-function CampaignTab({ d }: { d: Record<string, unknown> }) {
+function KeyVisualCard({ keyVisual, onRegenerate, isRegenerating }: {
+  keyVisual?: Props["keyVisual"];
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
+}) {
+  const hasImage = keyVisual?.image_base64;
+  const hasError = keyVisual?.error;
+  return (
+    <Anim>
+      <SLabel>Key Visual</SLabel>
+      <Crd className="overflow-hidden">
+        {hasImage ? (
+          <div className="relative group">
+            <img
+              src={`data:image/${keyVisual.format || "png"};base64,${keyVisual.image_base64}`}
+              alt="Campaign Key Visual"
+              className="w-full rounded-lg"
+            />
+            {onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                disabled={isRegenerating}
+                className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-black/60 text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 hover:bg-black/80 disabled:opacity-50"
+              >
+                {isRegenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                {isRegenerating ? "Generating..." : "Regenerate"}
+              </button>
+            )}
+          </div>
+        ) : hasError ? (
+          <div className="flex flex-col items-center gap-3 py-8 text-center">
+            <AlertTriangle className="w-8 h-8 text-status-warning" />
+            <p className="text-sm text-text-secondary">{keyVisual.error}</p>
+            {onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                disabled={isRegenerating}
+                className="px-4 py-2 rounded-lg bg-brand-accent text-white text-xs font-semibold hover:bg-brand-accent/90 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isRegenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                Retry
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-3 py-8 text-center">
+            <Loader2 className="w-6 h-6 text-brand-accent animate-spin" />
+            <p className="text-xs text-text-tertiary">Generating key visual...</p>
+          </div>
+        )}
+      </Crd>
+    </Anim>
+  );
+}
+
+function CampaignTab({ d, keyVisual, onRegenerateKv, isRegeneratingKv }: { d: Record<string, unknown>; keyVisual?: Props["keyVisual"]; onRegenerateKv?: () => void; isRegeneratingKv?: boolean }) {
   const bi = rc(d.big_idea ?? d.campaign_idea);
   const hero = ar(d.hero_content_pieces ?? d.hero_content);
   const rules = ar(d.tactical_rules ?? d.rules_of_engagement);
   return (
     <div className="space-y-6">
+      {(keyVisual !== undefined) && <KeyVisualCard keyVisual={keyVisual} onRegenerate={onRegenerateKv} isRegenerating={isRegeneratingKv} />}
       {(s(bi.title) || s(bi.description)) && <Anim><Crd className="border-l-4 border-l-brand-accent py-6">
         <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-brand-accent to-brand-accent/20" />
         <SLabel>Big Idea</SLabel>
@@ -354,7 +413,7 @@ const TAB_RENDERER: Record<TabKey, React.FC<{ d: Record<string, unknown> }>> = {
   kpi_measurement: Kpis, timeline_roadmap: TimelineTab, risks_countermessages: RisksTab,
 };
 
-export default function PlanDashboard({ plan, onEditSection, onResetSection, status, isEditing }: Props) {
+export default function PlanDashboard({ plan, onEditSection, onResetSection, status, isEditing, keyVisual, onRegenerateKv, isRegeneratingKv }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>("executive_summary");
   const [editingTab, setEditingTab] = useState<TabKey | null>(null);
 
@@ -406,7 +465,7 @@ export default function PlanDashboard({ plan, onEditSection, onResetSection, sta
 
       {/* content with fade transition */}
       <div key={activeTab} className="min-h-[200px]" style={{ animation: "pdFadeIn 0.3s ease-out" }}>
-        {editing ? <JsonEditor value={data} onSave={(v) => { onEditSection(activeTab, v); setEditingTab(null); }} onCancel={() => setEditingTab(null)} isSaving={isEditing} /> : <Renderer d={data} />}
+        {editing ? <JsonEditor value={data} onSave={(v) => { onEditSection(activeTab, v); setEditingTab(null); }} onCancel={() => setEditingTab(null)} isSaving={isEditing} /> : activeTab === "campaign_architecture" ? <CampaignTab d={data} keyVisual={keyVisual} onRegenerateKv={onRegenerateKv} isRegeneratingKv={isRegeneratingKv} /> : <Renderer d={data} />}
       </div>
     </div>
   );

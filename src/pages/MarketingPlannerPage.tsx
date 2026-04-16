@@ -363,6 +363,11 @@ function PlanWizard({ id }: { id: string }) {
     onSuccess: invalidate,
   });
 
+  const regenerateKvMutation = useMutation({
+    mutationFn: () => api.marketingPlanner.regenerateKv(id),
+    onSuccess: invalidate,
+  });
+
   const revertMutation = useMutation({
     mutationFn: (step: string) => api.marketingPlanner.revert(id, step),
     onSuccess: () => {
@@ -482,6 +487,9 @@ function PlanWizard({ id }: { id: string }) {
             onResetSection={(key) => resetSectionMutation.mutate(key)}
             status={plan.status}
             isEditing={editSectionMutation.isPending}
+            keyVisual={plan.key_visual ?? undefined}
+            onRegenerateKv={() => regenerateKvMutation.mutate()}
+            isRegeneratingKv={regenerateKvMutation.isPending}
           />
         );
 
