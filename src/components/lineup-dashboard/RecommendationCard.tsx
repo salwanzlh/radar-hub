@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { FileText } from "lucide-react";
 import type { Recommendation } from "./types";
 import {
   SEVERITY_CLASSES,
@@ -100,7 +100,7 @@ export default function RecommendationCard({
             }}
             className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold border border-brand-accent text-brand-accent rounded-lg hover:bg-brand-accent/5 transition-colors"
           >
-            <Sparkles className="w-3 h-3" />
+            <FileText className="w-3 h-3" />
             Generate Marketing Plan
           </button>
         )}
