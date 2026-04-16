@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import ArticlesPage from "@/pages/ArticlesPage";
 import AnalysisPage from "@/pages/AnalysisPage";
 import MarketingPlanV2Page from "@/pages/MarketingPlanV2Page";
+import CampaignPlannerPage from "@/pages/CampaignPlannerPage";
 import SentimentPage from "@/pages/sentiment";
 import HealthPage from "@/pages/HealthPage";
 import SettingsPage from "@/pages/settings";
@@ -70,6 +71,8 @@ const router = createBrowserRouter(
             { path: "articles", element: <ArticlesPage /> },
             { path: "analysis", element: <AnalysisPage /> },
             { path: "marketing-plan-v2", element: <MarketingPlanV2Page /> },
+            { path: "campaign-planner", element: <CampaignPlannerPage /> },
+            { path: "campaign-planner/:id", element: <CampaignPlannerPage /> },
             { path: "sentiment", element: <SentimentPage /> },
             { path: "atoa", element: <AtoaPage /> },
             { path: "radar", element: <RadarPage /> },
