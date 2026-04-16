@@ -87,7 +87,7 @@ const NAV_SECTIONS: NavItem[] = [
     icon: BrainCircuit,
     children: [
       { label: "Discovery Feed", href: "/analysis", icon: Rss },
-      { label: "Marketing Plan", href: "/marketing-plan-v2", icon: Workflow },
+      { label: "Marketing Planner", href: "/marketing-planner", icon: Workflow },
       { label: "Positioning Radar", href: "/radar", icon: Radar },
       { label: "Chat (Widget)", icon: MessageSquare, action: "open-chat" },
     ],

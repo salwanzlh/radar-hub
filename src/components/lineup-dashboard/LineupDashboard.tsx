@@ -13,6 +13,7 @@ export default function LineupDashboard({
   productName,
   dateFrom,
   dateTo,
+  lineupReportId,
 }: LineupDashboardProps) {
   // Each column has its own active card, independent of the other.
   // User can open a finding detail AND a recommendation detail at the same time.
@@ -176,6 +177,12 @@ export default function LineupDashboard({
                   isActive={activeRecommendationId === rec.id}
                   isLinked={linkedRecommendationIds.has(rec.id)}
                   onClick={() => handleRecommendationClick(rec.id)}
+                  lineupReportId={lineupReportId}
+                  linkedFindings={
+                    findings
+                      .filter((f) => rec.finding_ids?.includes(f.id))
+                      .map((f) => f as unknown as Record<string, unknown>)
+                  }
                 />
               ))
             ) : (

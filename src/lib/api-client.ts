@@ -809,6 +809,70 @@ export interface MarketingPlanV2PipelineStatus {
   progress_percent: number;
 }
 
+// ── Marketing Planner types ──
+
+export interface MarketingPlanState {
+  id: string;
+  status: "draft" | "audit" | "clarifying" | "summarizing" | "generating" | "completed" | "failed";
+  error: string | null;
+  lineup_report_id: string;
+  recommendation_id: number;
+  recommendation: Record<string, unknown>;
+  linked_findings: Record<string, unknown>[];
+  audit_result: {
+    content_map: { category: string; status: string; detail: string }[];
+    gaps: { category: string; why_needed: string }[];
+    confirmed_at: string | null;
+  } | null;
+  clarification: {
+    questions: ClarificationQuestion[];
+    current_question_index: number;
+    completed_at: string | null;
+    is_final: boolean;
+  } | null;
+  summary_brief: {
+    content: Record<string, unknown>;
+    approved_at: string | null;
+  } | null;
+  plan: Record<string, unknown> | null;
+  key_visual: {
+    image_base64: string | null;
+    format: string | null;
+    generated_at: string | null;
+    error?: string | null;
+  } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** @deprecated Use MarketingPlanState instead */
+export type CampaignPlanState = MarketingPlanState;
+
+export interface ClarificationQuestion {
+  id: number;
+  type: "select" | "multiselect" | "text" | "textarea" | "number" | "radio" | "budget_tier";
+  label: string;
+  description: string | null;
+  options: string[] | null;
+  required: boolean;
+  answer: unknown;
+}
+
+export interface MarketingPlanSummary {
+  id: string;
+  status: string;
+  recommendation_id: number;
+  recommendation_headline: string;
+  recommendation_priority: string;
+  recommendation_area: string;
+  lineup_report_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** @deprecated Use MarketingPlanSummary instead */
+export type CampaignPlanSummary = MarketingPlanSummary;
+
 export const api = {
   auth: {
     verifyPassword: (password: string) =>
@@ -1194,5 +1258,43 @@ export const api = {
         `/api/v2/marketing-plan/${pipelineId}/regenerate-kv`,
         {}
       ),
+  },
+
+  marketingPlanner: {
+    create: (body: { lineup_report_id: string; recommendation_id: number }) =>
+      post<MarketingPlanState>("/api/v2/marketing-plans", body),
+
+    get: (id: string) =>
+      get<MarketingPlanState>(`/api/v2/marketing-plans/${id}`),
+
+    list: (reportId?: string) =>
+      get<MarketingPlanSummary[]>(`/api/v2/marketing-plans${reportId ? `?lineup_report_id=${reportId}` : ""}`),
+
+    confirmAudit: (id: string) =>
+      post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/confirm-audit`),
+
+    answer: (id: string, questionId: number, answer: unknown) =>
+      post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/answer`, {
+        question_id: questionId,
+        answer,
+      }),
+
+    generateSummary: (id: string) =>
+      post<{ plan_id: string }>(`/api/v2/marketing-plans/${id}/generate-summary`),
+
+    approveSummary: (id: string) =>
+      post<{ plan_id: string }>(`/api/v2/marketing-plans/${id}/approve-summary`),
+
+    revert: (id: string, step: string) =>
+      post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/revert/${step}`),
+
+    updateSection: (id: string, key: string, content: Record<string, unknown>) =>
+      patch<MarketingPlanState>(`/api/v2/marketing-plans/${id}/sections/${key}`, { content }),
+
+    resetSection: (id: string, key: string) =>
+      post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/sections/${key}/reset`),
+
+    regenerateKv: (id: string) =>
+      post<{ plan_id: string }>(`/api/v2/marketing-plans/${id}/regenerate-kv`),
   },
 };

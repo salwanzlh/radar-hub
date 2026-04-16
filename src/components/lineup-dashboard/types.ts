@@ -8,6 +8,7 @@ export interface LineupDashboardProps {
   productName: string;
   dateFrom: string;
   dateTo: string;
+  lineupReportId?: string;
 }
 
 export interface CardClickHandlers {

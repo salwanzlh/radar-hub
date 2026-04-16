@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { FileText } from "lucide-react";
 import type { Recommendation } from "./types";
 import {
   SEVERITY_CLASSES,
@@ -5,12 +7,16 @@ import {
   CATEGORY_ICONS,
 } from "./constants";
 import SourceText from "./SourceText";
+import GeneratePlanModal from "@/components/campaign-planner/GeneratePlanModal";
 
 interface Props {
   recommendation: Recommendation;
   isActive: boolean;
   isLinked: boolean;
   onClick: () => void;
+  lineupReportId?: string;
+  linkedFindings?: Record<string, unknown>[];
+  existingPlanId?: string | null;
 }
 
 export default function RecommendationCard({
@@ -18,7 +24,11 @@ export default function RecommendationCard({
   isActive,
   isLinked,
   onClick,
+  lineupReportId,
+  linkedFindings,
+  existingPlanId,
 }: Props) {
+  const [showModal, setShowModal] = useState(false);
   const severity = PRIORITY_TO_SEVERITY[recommendation.priority] ?? "yellow";
   const c = SEVERITY_CLASSES[severity] ?? SEVERITY_CLASSES.yellow;
   const bgClass = isActive ? c.bgActive : isLinked ? c.bg : "bg-surface-50";
@@ -81,7 +91,29 @@ export default function RecommendationCard({
             </ul>
           </div>
         )}
+        {lineupReportId && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowModal(true);
+            }}
+            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold border border-brand-accent text-brand-accent rounded-lg hover:bg-brand-accent/5 transition-colors"
+          >
+            <FileText className="w-3 h-3" />
+            Generate Marketing Plan
+          </button>
+        )}
       </div>
+      {showModal && lineupReportId && (
+        <GeneratePlanModal
+          recommendation={recommendation as unknown as Record<string, unknown>}
+          linkedFindings={linkedFindings ?? []}
+          lineupReportId={lineupReportId}
+          onClose={() => setShowModal(false)}
+          existingPlanId={existingPlanId ?? null}
+        />
+      )}
     </div>
   );
 }

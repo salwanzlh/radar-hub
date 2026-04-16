@@ -351,6 +351,7 @@ export default function AnalysisPage() {
                   productName={activeReport.lineup.name}
                   dateFrom={activeReport.date_from}
                   dateTo={activeReport.date_to}
+                  lineupReportId={activeReport.id}
                 />
               ) : (
                 <div className="report-content">
