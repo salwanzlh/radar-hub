@@ -182,12 +182,12 @@ function Strategy({ d }: { d: Record<string, unknown> }) {
   const pos = s(d.positioning_statement ?? d.positioning);
   const og = ar(d.objectives_to_goals ?? d.objectives);
   const msg = rc(d.messaging_architecture ?? d.messaging);
-  const tag = s(msg.tagline), layers = ar(msg.layers ?? msg.message_layers);
-  const rtbs = ar(d.reasons_to_believe ?? d.rtbs);
+  const tag = s(msg.campaign_tagline) ?? s(msg.tagline), layers = ar(msg.layers ?? msg.message_layers);
+  const rtbs = ar(d.key_rtbs ?? d.reasons_to_believe ?? d.rtbs);
   return (
     <div className="space-y-6">
       {pos && <Anim><Crd accent><SLabel>Positioning Statement</SLabel><p className="text-base font-semibold text-text-primary italic leading-relaxed">&ldquo;{pos}&rdquo;</p></Crd></Anim>}
-      {og.length > 0 && <Anim delay={80}><SLabel>Objectives to Goals</SLabel><Tbl headers={["Objective", "Goal", "Metric"]} rows={og.map((o) => { const x = rc(o); return [s(x.objective) ?? "-", s(x.goal) ?? "-", s(x.metric) ?? s(x.kpi) ?? "-"]; })} /></Anim>}
+      {og.length > 0 && <Anim delay={80}><SLabel>Objectives to Goals</SLabel><Tbl headers={["Business Goal", "Marketing Objective", "How Marketing Delivers"]} rows={og.map((o) => { const x = rc(o); return [s(x.business_goal) ?? s(x.objective) ?? "-", s(x.marketing_objective) ?? s(x.goal) ?? "-", s(x.how_marketing_delivers) ?? s(x.metric) ?? "-"]; })} /></Anim>}
       {(tag || layers.length > 0) && <Anim delay={160}><SLabel>Messaging Architecture</SLabel>
         {tag && <Crd className="mb-3"><span className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-accent block mb-2">Tagline</span><p className="text-xl font-bold text-text-primary italic leading-snug">&ldquo;{tag}&rdquo;</p></Crd>}
         {layers.length > 0 && <Tbl headers={["Layer", "Message", "Trigger"]} rows={layers.map((l) => { const x = rc(l); return [s(x.layer) ?? s(x.name) ?? "-", s(x.message) ?? s(x.content) ?? "-", s(x.trigger) ?? "-"]; })} />}
