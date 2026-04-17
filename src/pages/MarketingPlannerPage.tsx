@@ -515,7 +515,13 @@ function PlanWizard({ id }: { id: string }) {
 
   const regeneratePlanMutation = useMutation({
     mutationFn: () => api.marketingPlanner.regeneratePlan(id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      // Poll more aggressively after regen triggers so the "generating" state
+      // is reflected in the UI as soon as the backend picks it up.
+      setTimeout(invalidate, 500);
+      setTimeout(invalidate, 1500);
+    },
   });
 
   const revertMutation = useMutation({
@@ -629,19 +635,24 @@ function PlanWizard({ id }: { id: string }) {
         );
 
       case "generating":
-      case "completed":
+      case "completed": {
+        // Optimistic: while regenerate mutation is pending or plan just triggered,
+        // show generating state even if backend hasn't updated status yet.
+        const isRegenerating = regeneratePlanMutation.isPending;
+        const effectiveStatus = isRegenerating ? "generating" : plan.status;
         return (
           <PlanDashboard
-            plan={plan.plan ?? {}}
+            plan={isRegenerating ? {} : (plan.plan ?? {})}
             onEditSection={(key, content) => editSectionMutation.mutate({ key, content })}
             onResetSection={(key) => resetSectionMutation.mutate(key)}
-            status={plan.status}
+            status={effectiveStatus}
             isEditing={editSectionMutation.isPending}
             keyVisual={plan.key_visual ?? undefined}
             onRegenerateKv={() => regenerateKvMutation.mutate()}
             isRegeneratingKv={regenerateKvMutation.isPending}
           />
         );
+      }
 
       case "failed":
         return (
