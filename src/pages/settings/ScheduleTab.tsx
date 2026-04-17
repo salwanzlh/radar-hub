@@ -6,6 +6,7 @@ import {
   Loader2,
   Play,
   Pause,
+  PlayCircle,
   RefreshCw,
   StopCircle,
   Newspaper,
@@ -153,12 +154,16 @@ const DAYS_BACK_OPTIONS: { value: ScrapeDaysBack; label: string }[] = [
   { value: 90, label: "Last 90 days" },
 ];
 
+type ModalMode = "trigger" | "resume";
+
 export default function ScheduleTab() {
   const queryClient = useQueryClient();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [daysBack, setDaysBack] = useState<ScrapeDaysBack>(1);
+  const [modalMode, setModalMode] = useState<ModalMode>("trigger");
+  const [resumingJobId, setResumingJobId] = useState<string | null>(null);
 
   const { data: schedulerStatus, isLoading: statusLoading } = useQuery({
     queryKey: ["scheduler-status"],
@@ -208,6 +213,32 @@ export default function ScheduleTab() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  const resumeJobMutation = useMutation({
+    mutationFn: (args: { jobId: string; password: string }) =>
+      api.scraping.resume(args.jobId, args.password),
+    onSuccess: () => {
+      setShowPasswordModal(false);
+      setPassword("");
+      setResumingJobId(null);
+      queryClient.invalidateQueries({ queryKey: ["scrape-jobs"] });
+      toast.success("Scrape resume dispatched!");
+    },
+    onError: (err: Error) => toast.error(`Failed to resume: ${err.message}`),
+  });
+
+  const canResume = (job: ScrapeJob) =>
+    job.status === "failed" && job.sources_completed < job.total_sources;
+
+  const openResumeModal = (jobId: string) => {
+    setPassword("");
+    setShowPassword(false);
+    setResumingJobId(jobId);
+    setModalMode("resume");
+    setShowPasswordModal(true);
+  };
+
+  const isModalSubmitting = triggerMutation.isPending || resumeJobMutation.isPending;
 
   const cancelMutation = useMutation({
     mutationFn: (jobId: string) => api.scraping.cancel(jobId),
@@ -346,6 +377,8 @@ export default function ScheduleTab() {
                 setPassword("");
                 setShowPassword(false);
                 setDaysBack(1);
+                setModalMode("trigger");
+                setResumingJobId(null);
                 setShowPasswordModal(true);
               }}
               disabled={triggerMutation.isPending || !!hasActiveJob}
@@ -395,6 +428,7 @@ export default function ScheduleTab() {
                   <th className="text-left px-5 py-3 font-medium text-text-secondary">Sources</th>
                   <th className="text-left px-5 py-3 font-medium text-text-secondary">Articles</th>
                   <th className="text-left px-5 py-3 font-medium text-text-secondary">Started</th>
+                  <th className="text-left px-5 py-3 font-medium text-text-secondary">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
@@ -408,7 +442,19 @@ export default function ScheduleTab() {
                         isJobActive ? "bg-status-info-light/50" : "hover:bg-surface-100"
                       )}
                     >
-                      <td className="px-5 py-3.5 capitalize text-text-primary">{job.job_type}</td>
+                      <td className="px-5 py-3.5 capitalize text-text-primary">
+                        <div className="flex items-center gap-1.5">
+                          <span>{job.job_type}</span>
+                          {job.parent_job_id && (
+                            <span
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-status-info-light text-status-info"
+                              title={`Resumed from job ${job.parent_job_id}`}
+                            >
+                              resumed
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-5 py-3.5">
                         <span
                           className={cn(
@@ -440,6 +486,18 @@ export default function ScheduleTab() {
                       <td className="px-5 py-3.5 text-text-tertiary text-xs">
                         {job.started_at ? formatRelativeDate(job.started_at) : "\u2014"}
                       </td>
+                      <td className="px-5 py-3.5">
+                        {canResume(job) && !hasActiveJob && (
+                          <button
+                            onClick={() => openResumeModal(job.id)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-brand-accent text-brand-accent hover:bg-brand-accent/5 transition-colors"
+                            title={`Resume from pair ${job.sources_completed}/${job.total_sources}`}
+                          >
+                            <PlayCircle className="w-3.5 h-3.5" />
+                            Resume
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -454,15 +512,16 @@ export default function ScheduleTab() {
         )}
       </div>
 
-      {/* Password Confirmation Modal */}
+      {/* Password Confirmation Modal — shared between "Trigger" and "Resume" */}
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => {
-              if (!triggerMutation.isPending) {
+              if (!isModalSubmitting) {
                 setShowPasswordModal(false);
                 setPassword("");
+                setResumingJobId(null);
               }
             }}
           />
@@ -475,10 +534,12 @@ export default function ScheduleTab() {
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-text-primary">
-                    Confirm Manual Scrape
+                    {modalMode === "resume" ? "Confirm Resume Scrape" : "Confirm Manual Scrape"}
                   </h3>
                   <p className="text-xs text-text-tertiary mt-0.5">
-                    Enter trigger password to proceed
+                    {modalMode === "resume"
+                      ? "Continue the previous scrape from where it stopped"
+                      : "Enter trigger password to proceed"}
                   </p>
                 </div>
               </div>
@@ -486,8 +547,9 @@ export default function ScheduleTab() {
                 onClick={() => {
                   setShowPasswordModal(false);
                   setPassword("");
+                  setResumingJobId(null);
                 }}
-                disabled={triggerMutation.isPending}
+                disabled={isModalSubmitting}
                 className="p-1.5 rounded-lg hover:bg-surface-100 text-text-tertiary transition-colors disabled:opacity-60"
               >
                 <X className="w-4 h-4" />
@@ -498,30 +560,44 @@ export default function ScheduleTab() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (password.trim()) triggerMutation.mutate({ password, daysBack });
+                if (!password.trim()) return;
+                if (modalMode === "resume" && resumingJobId) {
+                  resumeJobMutation.mutate({ jobId: resumingJobId, password });
+                } else {
+                  triggerMutation.mutate({ password, daysBack });
+                }
               }}
             >
-              {/* Date range selector */}
-              <div className="mb-4">
-                <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                  Date range
-                </label>
-                <select
-                  value={daysBack}
-                  onChange={(e) => setDaysBack(Number(e.target.value) as ScrapeDaysBack)}
-                  disabled={triggerMutation.isPending}
-                  className="w-full px-4 py-2.5 bg-surface-100 border border-surface-200 rounded-xl text-sm text-text-primary focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/25 disabled:opacity-60 transition-colors"
-                >
-                  {DAYS_BACK_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-text-tertiary mt-1.5">
-                  How far back SerpAPI should look for news articles.
-                </p>
-              </div>
+              {/* Date range selector — only in trigger mode; resume inherits from parent */}
+              {modalMode === "trigger" && (
+                <div className="mb-4">
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                    Date range
+                  </label>
+                  <select
+                    value={daysBack}
+                    onChange={(e) => setDaysBack(Number(e.target.value) as ScrapeDaysBack)}
+                    disabled={isModalSubmitting}
+                    className="w-full px-4 py-2.5 bg-surface-100 border border-surface-200 rounded-xl text-sm text-text-primary focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/25 disabled:opacity-60 transition-colors"
+                  >
+                    {DAYS_BACK_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-text-tertiary mt-1.5">
+                    How far back SerpAPI should look for news articles.
+                  </p>
+                </div>
+              )}
+
+              {modalMode === "resume" && (
+                <div className="mb-4 p-3 rounded-lg bg-status-info-light/60 border border-status-info/20 text-xs text-text-secondary">
+                  Filters and date range are inherited from the original job.
+                  Pairs already processed will be skipped.
+                </div>
+              )}
 
               {/* Password input */}
               <div className="mb-4">
@@ -535,7 +611,7 @@ export default function ScheduleTab() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter trigger password"
                     autoFocus
-                    disabled={triggerMutation.isPending}
+                    disabled={isModalSubmitting}
                     className="w-full px-4 py-2.5 pr-10 bg-surface-100 border border-surface-200 rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/25 disabled:opacity-60 transition-colors"
                   />
                   <button
@@ -559,21 +635,27 @@ export default function ScheduleTab() {
                   onClick={() => {
                     setShowPasswordModal(false);
                     setPassword("");
+                    setResumingJobId(null);
                   }}
-                  disabled={triggerMutation.isPending}
+                  disabled={isModalSubmitting}
                   className="px-4 py-2.5 text-sm text-text-secondary border border-surface-200 rounded-xl hover:bg-surface-100 transition-colors disabled:opacity-60"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={!password.trim() || triggerMutation.isPending}
+                  disabled={!password.trim() || isModalSubmitting}
                   className="px-5 py-2.5 text-sm bg-brand-accent text-text-inverse font-semibold rounded-xl hover:bg-brand-accent-hover disabled:opacity-60 transition-colors flex items-center gap-1.5"
                 >
-                  {triggerMutation.isPending ? (
+                  {isModalSubmitting ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       Verifying...
+                    </>
+                  ) : modalMode === "resume" ? (
+                    <>
+                      <PlayCircle className="w-3.5 h-3.5" />
+                      Resume Scrape
                     </>
                   ) : (
                     <>

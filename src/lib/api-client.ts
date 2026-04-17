@@ -240,6 +240,8 @@ export interface ScrapeJob {
   articles_new: number;
   errors: unknown[] | null;
   days_back: number | null;
+  start_index: number;
+  parent_job_id: string | null;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
@@ -912,6 +914,8 @@ export const api = {
         password,
         ...(daysBack !== undefined ? { days_back: daysBack } : {}),
       }),
+    resume: (jobId: string, password: string) =>
+      post<ScrapeJob>(`/api/v1/scraping/jobs/${jobId}/resume`, { password }),
     jobs: () => get<PaginatedResponse<ScrapeJob>>("/api/v1/scraping/jobs"),
     cancel: (jobId: string) => post<{ status: string; message: string }>(`/api/v1/scraping/jobs/${jobId}/cancel`),
   },
