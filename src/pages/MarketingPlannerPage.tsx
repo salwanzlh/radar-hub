@@ -14,6 +14,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  RotateCw,
 } from "lucide-react";
 import { api, type MarketingPlanState, type MarketingPlanSummary } from "@/lib/api-client";
 import StepIndicator from "@/components/campaign-planner/StepIndicator";
@@ -512,6 +513,11 @@ function PlanWizard({ id }: { id: string }) {
     onSuccess: invalidate,
   });
 
+  const regeneratePlanMutation = useMutation({
+    mutationFn: () => api.marketingPlanner.regeneratePlan(id),
+    onSuccess: invalidate,
+  });
+
   const revertMutation = useMutation({
     mutationFn: (step: string) => api.marketingPlanner.revert(id, step),
     onSuccess: () => {
@@ -682,7 +688,26 @@ function PlanWizard({ id }: { id: string }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-xl font-bold text-text-primary truncate">Marketing Plan</h1>
-            <div className="ml-auto shrink-0">
+            <div className="ml-auto shrink-0 flex items-center gap-2">
+              {(plan.status === "completed" || plan.status === "failed") && (
+                <button
+                  onClick={() => {
+                    if (confirm("Regenerate the entire plan? Current plan and Key Visual will be replaced.")) {
+                      regeneratePlanMutation.mutate();
+                    }
+                  }}
+                  disabled={regeneratePlanMutation.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-surface-200 text-text-secondary hover:bg-surface-50 hover:border-brand-accent/30 hover:text-brand-accent transition-colors disabled:opacity-60"
+                  title="Regenerate plan with the same clarification answers"
+                >
+                  {regeneratePlanMutation.isPending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <RotateCw className="w-3.5 h-3.5" />
+                  )}
+                  Regenerate
+                </button>
+              )}
               <StatusBadge status={plan.status} size="lg" />
             </div>
           </div>

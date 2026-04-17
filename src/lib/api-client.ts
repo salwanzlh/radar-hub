@@ -1297,5 +1297,8 @@ export const api = {
 
     regenerateKv: (id: string) =>
       post<{ plan_id: string }>(`/api/v2/marketing-plans/${id}/regenerate-kv`),
+
+    regeneratePlan: (id: string) =>
+      post<{ plan_id: string }>(`/api/v2/marketing-plans/${id}/regenerate`),
   },
 };
