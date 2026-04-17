@@ -10,6 +10,11 @@ import {
   XCircle,
   Target,
   Calendar,
+  Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  RotateCw,
 } from "lucide-react";
 import { api, type MarketingPlanState, type MarketingPlanSummary } from "@/lib/api-client";
 import StepIndicator from "@/components/campaign-planner/StepIndicator";
@@ -176,134 +181,270 @@ function statusToStep(status: MarketingPlanState["status"]): string {
 
 // -- List mode ---------------------------------------------------------------
 
+type SortKey = "created_desc" | "created_asc" | "priority" | "status";
+
 function PlanList() {
   const navigate = useNavigate();
+  const [activeProduct, setActiveProduct] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("created_desc");
 
   const { data: plans, isLoading, error } = useQuery({
     queryKey: ["marketing-plans"],
     queryFn: () => api.marketingPlanner.list(),
   });
 
-  if (isLoading) {
-    return (
-      <div className="grid gap-4 sm:grid-cols-2 animate-pulse">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="rounded-xl bg-surface-white p-5 space-y-3" style={{ boxShadow: "var(--th-shadow-card)" }}>
-            <div className="h-3 w-full rounded bg-surface-200" />
-            <div className="h-3 w-3/4 rounded bg-surface-200" />
-            <div className="h-3 w-1/2 rounded bg-surface-200" />
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const { data: lineups } = useQuery({
+    queryKey: ["lineups"],
+    queryFn: api.lineupAnalysis.lineups,
+  });
 
   if (error) {
     return (
-      <div
-        className="flex flex-col items-center justify-center py-16 px-6 rounded-2xl bg-status-error-light border border-status-error/20"
-      >
+      <div className="flex flex-col items-center justify-center py-16 px-6 rounded-2xl bg-status-error-light border border-status-error/20">
         <AlertTriangle className="w-10 h-10 text-status-error mb-4" />
         <p className="text-sm font-semibold text-text-primary mb-1">Failed to load marketing plans</p>
         <p className="text-xs text-text-tertiary mb-4">
           {error instanceof Error ? error.message : "Unknown error"}
         </p>
-        <button
-          onClick={() => window.location.reload()}
-          className="px-4 py-2 text-xs font-semibold rounded-lg bg-status-error text-white hover:opacity-90 transition-opacity"
-        >
-          Retry
-        </button>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 text-xs font-semibold rounded-lg bg-status-error text-white hover:opacity-90 transition-opacity">Retry</button>
       </div>
     );
   }
 
-  if (!plans || plans.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 px-6">
-        <div className="w-20 h-20 rounded-2xl bg-surface-100 flex items-center justify-center mb-6">
-          <Target className="w-10 h-10 text-text-tertiary" />
-        </div>
-        <p className="text-base font-semibold text-text-primary mb-2">No marketing plans yet</p>
-        <p className="text-sm text-text-tertiary max-w-sm text-center mb-6 leading-relaxed">
-          Start by selecting a recommendation from the Discovery Feed to generate your first marketing plan.
-        </p>
-        <Link
-          to="/analysis"
-          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl bg-brand-accent text-text-inverse hover:bg-brand-accent-hover transition-colors"
-        >
-          Go to Discovery Feed
-        </Link>
-      </div>
-    );
-  }
-
-  // Group by recommendation headline
-  const grouped = plans.reduce<Record<string, MarketingPlanSummary[]>>((acc, plan) => {
-    const key = plan.recommendation_headline || "Untitled";
+  // Group plans by product name
+  const grouped = (plans ?? []).reduce<Record<string, MarketingPlanSummary[]>>((acc, plan) => {
+    const key = plan.product_name || "Other";
     if (!acc[key]) acc[key] = [];
     acc[key].push(plan);
     return acc;
   }, {});
 
-  return (
-    <div className="space-y-8">
-      {Object.entries(grouped).map(([headline, groupPlans]) => (
-        <div key={headline} className="space-y-4">
-          <h3 className="text-sm font-semibold text-text-primary">{headline}</h3>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {groupPlans.map((plan) => {
-              const statusCfg = STATUS_CONFIG[plan.status] ?? STATUS_CONFIG.draft;
+  // Tab list = ALL lineups (even with zero plans)
+  const productNames = lineups && lineups.length > 0
+    ? lineups.map((l) => l.name)
+    : Object.keys(grouped);
+  const activeName = productNames.includes(activeProduct ?? "") ? activeProduct! : productNames[0] ?? "";
+  const rawActivePlans = grouped[activeName] ?? [];
 
+  // Apply filters
+  let activePlans = rawActivePlans.filter((p) => {
+    if (search && !p.recommendation_headline.toLowerCase().includes(search.toLowerCase())) return false;
+    if (priorityFilter !== "all" && p.recommendation_priority.toLowerCase() !== priorityFilter) return false;
+    if (statusFilter !== "all") {
+      if (statusFilter === "completed" && p.status !== "completed") return false;
+      if (statusFilter === "in_progress" && !["summarizing", "generating", "clarifying", "audit", "draft"].includes(p.status)) return false;
+      if (statusFilter === "failed" && p.status !== "failed") return false;
+    }
+    return true;
+  });
+
+  // Apply sort
+  const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const STATUS_ORDER: Record<string, number> = { completed: 0, generating: 1, summarizing: 1, clarifying: 2, audit: 3, draft: 4, failed: 5 };
+  activePlans = [...activePlans].sort((a, b) => {
+    switch (sortKey) {
+      case "created_asc":
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case "priority":
+        return (PRIORITY_ORDER[a.recommendation_priority.toLowerCase()] ?? 9) - (PRIORITY_ORDER[b.recommendation_priority.toLowerCase()] ?? 9);
+      case "status":
+        return (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+      case "created_desc":
+      default:
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Main panel with tabs + list */}
+      <div className="bg-surface-white rounded-xl border border-surface-100 overflow-hidden">
+        {/* Product tabs */}
+        <div className="flex items-stretch border-b border-surface-100 bg-gradient-to-r from-surface-50/50 to-transparent">
+          <div className="flex overflow-x-auto gap-0.5 px-2 pt-2 scrollbar-hide flex-1">
+            {productNames.map((name) => {
+              const isActive = name === activeName;
+              const count = grouped[name]?.length ?? 0;
               return (
                 <button
-                  key={plan.id}
-                  onClick={() => navigate(`/marketing-planner/${plan.id}`)}
+                  key={name}
+                  onClick={() => setActiveProduct(name)}
                   className={cn(
-                    "group relative text-left rounded-xl bg-surface-white overflow-hidden",
-                    "transition-all duration-200",
-                    "hover:shadow-lg hover:-translate-y-0.5"
+                    "relative px-3.5 py-2 text-xs font-semibold rounded-t-lg transition-all duration-200 whitespace-nowrap shrink-0 flex items-center gap-1.5",
+                    isActive
+                      ? "bg-surface-white text-text-primary shadow-sm"
+                      : "text-text-tertiary hover:text-text-secondary hover:bg-surface-100/50",
                   )}
-                  style={{ boxShadow: "var(--th-shadow-card)" }}
                 >
-                  {/* Top gradient bar */}
-                  <div className={cn("h-[3px] w-full bg-gradient-to-r", statusCfg.gradient)} />
-
-                  <div className="p-5 space-y-3">
-                    {/* Badges row */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <PriorityBadge priority={plan.recommendation_priority} />
-                      <AreaBadge area={plan.recommendation_area ?? ""} />
-                      <div className="ml-auto">
-                        <StatusBadge status={plan.status} />
-                      </div>
-                    </div>
-
-                    {/* Headline */}
-                    <p className="text-sm font-semibold text-text-primary truncate leading-snug group-hover:text-brand-accent transition-colors">
-                      {plan.recommendation_headline}
-                    </p>
-
-                    {/* Date */}
-                    <div className="flex items-center gap-1.5 text-text-tertiary">
-                      <Calendar className="w-3 h-3" />
-                      <span className="text-xs">
-                        {new Date(plan.created_at).toLocaleDateString("id-ID", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                  </div>
+                  {name}
+                  <span className={cn(
+                    "text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center",
+                    count === 0
+                      ? "bg-surface-200 text-text-tertiary"
+                      : isActive
+                        ? "bg-brand-accent text-white"
+                        : "bg-surface-200 text-text-secondary",
+                  )}>{count}</span>
+                  {isActive && <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-brand-accent rounded-full" />}
                 </button>
               );
             })}
           </div>
+          <div className="flex items-center px-3 border-l border-surface-100 shrink-0">
+            <Link
+              to="/analysis"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-lg text-brand-accent hover:bg-brand-accent/5 transition-colors whitespace-nowrap"
+            >
+              <Target className="w-3 h-3" />
+              New Plan
+            </Link>
+          </div>
         </div>
-      ))}
+
+        {/* Toolbar: search + filters + sort */}
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b border-surface-100 bg-surface-50/30">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-tertiary pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search recommendation..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs text-text-primary bg-surface-white border border-surface-200 rounded-lg placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-brand-accent/20 focus:border-brand-accent/50"
+            />
+          </div>
+
+          {/* Priority filter */}
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            className="px-2.5 py-1.5 text-xs font-medium text-text-secondary bg-surface-white border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent/20 cursor-pointer"
+          >
+            <option value="all">All Priority</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+
+          {/* Status filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-2.5 py-1.5 text-xs font-medium text-text-secondary bg-surface-white border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent/20 cursor-pointer"
+          >
+            <option value="all">All Status</option>
+            <option value="completed">Completed</option>
+            <option value="in_progress">In Progress</option>
+            <option value="failed">Failed</option>
+          </select>
+
+          {/* Sort */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-text-secondary bg-surface-white border border-surface-200 rounded-lg">
+            <ArrowUpDown className="w-3 h-3 text-text-tertiary" />
+            <select
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as SortKey)}
+              className="bg-transparent cursor-pointer focus:outline-none"
+            >
+              <option value="created_desc">Newest First</option>
+              <option value="created_asc">Oldest First</option>
+              <option value="priority">Priority</option>
+              <option value="status">Status</option>
+            </select>
+          </div>
+
+          <div className="ml-auto text-[11px] text-text-tertiary font-medium">
+            {activePlans.length} of {rawActivePlans.length}
+          </div>
+        </div>
+
+        {/* Table header */}
+        {activePlans.length > 0 && (
+          <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-text-tertiary bg-surface-50/50 border-b border-surface-100">
+            <div className="w-2" />
+            <div>Recommendation</div>
+            <div className="text-right w-[340px]">Priority · Area · Status</div>
+            <div className="text-right w-24">Created</div>
+          </div>
+        )}
+
+        {/* Rows */}
+        <div className="divide-y divide-surface-50">
+          {isLoading ? (
+            [1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-2.5 animate-pulse">
+                <div className="w-2 h-2 rounded-full bg-surface-200" />
+                <div className="flex-1 h-3 rounded bg-surface-100" />
+                <div className="w-48 h-4 rounded bg-surface-100" />
+                <div className="w-20 h-3 rounded bg-surface-100" />
+              </div>
+            ))
+          ) : activePlans.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 px-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-accent/10 to-brand-accent/5 flex items-center justify-center mb-3">
+                <Target className="w-5 h-5 text-brand-accent/60" />
+              </div>
+              {rawActivePlans.length === 0 ? (
+                <>
+                  <p className="text-sm font-semibold text-text-primary mb-1">No plans for {activeName}</p>
+                  <p className="text-xs text-text-tertiary text-center mb-4">
+                    Generate one from a strategic recommendation
+                  </p>
+                  <Link
+                    to="/analysis"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-brand-accent text-text-inverse hover:bg-brand-accent-hover transition-colors"
+                  >
+                    <Target className="w-3 h-3" />
+                    Go to Discovery Feed
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-text-primary mb-1">No matching plans</p>
+                  <p className="text-xs text-text-tertiary text-center">
+                    Try clearing the search or filters above
+                  </p>
+                </>
+              )}
+            </div>
+          ) : activePlans.map((plan) => {
+            const statusCfg = STATUS_CONFIG[plan.status] ?? STATUS_CONFIG.draft;
+            const dotColor =
+              statusCfg.gradient.includes("green") ? "bg-status-success"
+                : statusCfg.gradient.includes("red") ? "bg-status-error"
+                  : statusCfg.gradient.includes("amber") ? "bg-status-warning"
+                    : "bg-surface-300";
+            return (
+              <button
+                key={plan.id}
+                onClick={() => navigate(`/marketing-planner/${plan.id}`)}
+                className="w-full grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 px-4 py-2.5 text-left hover:bg-surface-50/80 transition-colors group"
+              >
+                <div className={cn("w-2 h-2 rounded-full shrink-0", dotColor)} />
+                <p className="text-[13px] text-text-primary truncate leading-snug group-hover:text-brand-accent transition-colors">
+                  {plan.recommendation_headline}
+                </p>
+                <div className="flex items-center gap-1.5 shrink-0 w-[340px] justify-end">
+                  <PriorityBadge priority={plan.recommendation_priority} />
+                  <AreaBadge area={plan.recommendation_area ?? ""} />
+                  <StatusBadge status={plan.status} />
+                </div>
+                <span className="text-[11px] text-text-tertiary shrink-0 w-24 text-right font-medium">
+                  {new Date(plan.created_at).toLocaleDateString("id-ID", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -370,6 +511,17 @@ function PlanWizard({ id }: { id: string }) {
   const regenerateKvMutation = useMutation({
     mutationFn: () => api.marketingPlanner.regenerateKv(id),
     onSuccess: invalidate,
+  });
+
+  const regeneratePlanMutation = useMutation({
+    mutationFn: () => api.marketingPlanner.regeneratePlan(id),
+    onSuccess: () => {
+      invalidate();
+      // Poll more aggressively after regen triggers so the "generating" state
+      // is reflected in the UI as soon as the backend picks it up.
+      setTimeout(invalidate, 500);
+      setTimeout(invalidate, 1500);
+    },
   });
 
   const revertMutation = useMutation({
@@ -483,19 +635,24 @@ function PlanWizard({ id }: { id: string }) {
         );
 
       case "generating":
-      case "completed":
+      case "completed": {
+        // Optimistic: while regenerate mutation is pending or plan just triggered,
+        // show generating state even if backend hasn't updated status yet.
+        const isRegenerating = regeneratePlanMutation.isPending;
+        const effectiveStatus = isRegenerating ? "generating" : plan.status;
         return (
           <PlanDashboard
-            plan={plan.plan ?? {}}
+            plan={isRegenerating ? {} : (plan.plan ?? {})}
             onEditSection={(key, content) => editSectionMutation.mutate({ key, content })}
             onResetSection={(key) => resetSectionMutation.mutate(key)}
-            status={plan.status}
+            status={effectiveStatus}
             isEditing={editSectionMutation.isPending}
             keyVisual={plan.key_visual ?? undefined}
             onRegenerateKv={() => regenerateKvMutation.mutate()}
             isRegeneratingKv={regenerateKvMutation.isPending}
           />
         );
+      }
 
       case "failed":
         return (
@@ -542,7 +699,26 @@ function PlanWizard({ id }: { id: string }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-xl font-bold text-text-primary truncate">Marketing Plan</h1>
-            <div className="ml-auto shrink-0">
+            <div className="ml-auto shrink-0 flex items-center gap-2">
+              {(plan.status === "completed" || plan.status === "failed") && (
+                <button
+                  onClick={() => {
+                    if (confirm("Regenerate the entire plan? Current plan and Key Visual will be replaced.")) {
+                      regeneratePlanMutation.mutate();
+                    }
+                  }}
+                  disabled={regeneratePlanMutation.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-surface-200 text-text-secondary hover:bg-surface-50 hover:border-brand-accent/30 hover:text-brand-accent transition-colors disabled:opacity-60"
+                  title="Regenerate plan with the same clarification answers"
+                >
+                  {regeneratePlanMutation.isPending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <RotateCw className="w-3.5 h-3.5" />
+                  )}
+                  Regenerate
+                </button>
+              )}
               <StatusBadge status={plan.status} size="lg" />
             </div>
           </div>
@@ -605,16 +781,20 @@ export default function MarketingPlannerPage() {
   const { id } = useParams<{ id: string }>();
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+    <div className="px-4 py-5 sm:px-6 lg:px-8">
       {id ? (
-        <PlanWizard id={id} />
+        <div className="max-w-6xl mx-auto">
+          <PlanWizard id={id} />
+        </div>
       ) : (
         <>
-          <div className="mb-8">
-            <h1 className="text-xl font-bold text-text-primary mb-1">Marketing Planner</h1>
-            <p className="text-sm text-text-secondary">
-              Marketing plans driven by strategic recommendations
-            </p>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-bold text-text-primary tracking-tight">Marketing Plan</h1>
+              <p className="text-xs text-text-tertiary">
+                Marketing plans driven by strategic recommendations
+              </p>
+            </div>
           </div>
           <PlanList />
         </>

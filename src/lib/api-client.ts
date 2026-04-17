@@ -861,6 +861,7 @@ export interface ClarificationQuestion {
 export interface MarketingPlanSummary {
   id: string;
   status: string;
+  product_name: string;
   recommendation_id: number;
   recommendation_headline: string;
   recommendation_priority: string;
@@ -1296,5 +1297,8 @@ export const api = {
 
     regenerateKv: (id: string) =>
       post<{ plan_id: string }>(`/api/v2/marketing-plans/${id}/regenerate-kv`),
+
+    regeneratePlan: (id: string) =>
+      post<{ plan_id: string }>(`/api/v2/marketing-plans/${id}/regenerate`),
   },
 };
