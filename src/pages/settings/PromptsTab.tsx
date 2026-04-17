@@ -6,12 +6,13 @@ import toast from "react-hot-toast";
 
 const CATEGORY_LABELS: Record<string, string> = {
   chat: "Chat / Discovery",
-  marketing_plan: "Marketing Plan",
+  marketing_plan: "Marketing Plan (V2)",
+  marketing_planner: "Marketing Plan",
   kv_generation: "KV Image Generation",
   lineup_analysis: "Lineup Analysis (Discovery Feed)",
 };
 
-const CATEGORY_ORDER = ["chat", "marketing_plan", "kv_generation", "lineup_analysis"];
+const CATEGORY_ORDER = ["chat", "marketing_planner", "marketing_plan", "kv_generation", "lineup_analysis"];
 
 function highlightVariables(text: string): ReactNode[] {
   const parts = text.split(/(\{[^}]+\})/g);
