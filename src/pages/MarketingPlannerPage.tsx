@@ -246,7 +246,7 @@ function PlanList() {
         <div className="flex overflow-x-auto pt-1 gap-1 scrollbar-hide">
           {productNames.map((name) => {
             const isActive = name === activeName;
-            const count = grouped[name].length;
+            const count = grouped[name]?.length ?? 0;
             return (
               <button
                 key={name}
