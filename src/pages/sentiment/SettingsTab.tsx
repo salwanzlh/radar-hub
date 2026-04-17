@@ -307,7 +307,12 @@ export function SettingsTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-100">
-                {accounts.filter((a) => a.platform !== "twitter_search" && a.platform !== "direct_url").map((account) => (
+                {accounts.filter((a) =>
+                  a.platform !== "twitter_search" &&
+                  a.platform !== "direct_url" &&
+                  a.platform !== "instagram_search" &&
+                  a.platform !== "youtube_search"
+                ).map((account) => (
                   <AccountRow
                     key={account.id}
                     account={account}
@@ -436,6 +441,12 @@ export function SettingsTab() {
       {/* Twitter Keyword Search */}
       <TwitterSearchSection />
 
+      {/* Instagram Hashtag Search */}
+      <InstagramSearchSection />
+
+      {/* YouTube Keyword Search */}
+      <YouTubeSearchSection />
+
       {/* Direct URL Scraping */}
       <DirectUrlSection />
 
@@ -451,7 +462,10 @@ export function SettingsTab() {
 
           {/* Platform channel selector */}
           <div className="flex flex-wrap gap-2">
-            {(["facebook", "instagram", "twitter", "youtube", "tiktok", "twitter_search", "direct_url"] as const).map((p) => {
+            {([
+              "facebook", "instagram", "twitter", "youtube", "tiktok",
+              "twitter_search", "instagram_search", "youtube_search", "direct_url",
+            ] as const).map((p) => {
               const labels: Record<string, string> = {
                 facebook: "Facebook",
                 instagram: "Instagram",
@@ -459,6 +473,8 @@ export function SettingsTab() {
                 youtube: "YouTube",
                 tiktok: "TikTok",
                 twitter_search: "Twitter Search",
+                instagram_search: "Instagram Search",
+                youtube_search: "YouTube Search",
                 direct_url: "Direct URL",
               };
               const active = selectedPlatforms.has(p);
@@ -1204,6 +1220,276 @@ function TwitterSearchSection() {
             className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary"
           />
           <p className="text-[10px] text-text-tertiary mt-1">Maximum tweets per keyword search (default: 50)</p>
+        </div>
+      </div>
+
+      {activeKeywords.length > 0 && (
+        <div className="mt-3">
+          <p className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Search Keywords (from Product Mappings)
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {activeKeywords.map((kw, i) => (
+              <span key={i} className="px-2 py-0.5 text-xs bg-surface-100 text-text-secondary rounded-md">
+                {kw}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </CollapsibleSection>
+  );
+}
+
+/* --- Instagram Hashtag Search Section --- */
+
+function InstagramSearchSection() {
+  const queryClient = useQueryClient();
+
+  const { data: accounts } = useQuery<SocialAccount[]>({
+    queryKey: ["sentiment-accounts"],
+    queryFn: sentimentApi.accounts.list,
+  });
+
+  const { data: mappings } = useQuery<ProductMapping[]>({
+    queryKey: ["sentiment-product-mappings"],
+    queryFn: sentimentApi.products.mappings.list,
+  });
+
+  const igAccount = accounts?.find((a) => a.platform === "instagram_search");
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<SocialAccount> }) =>
+      sentimentApi.accounts.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sentiment-accounts"] });
+      toast.success("Instagram search config updated");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  if (!igAccount) return null;
+
+  const config = igAccount.scrape_config as {
+    max_posts_per_keyword?: number;
+    max_comments_per_post?: number;
+  };
+  const maxPosts = config.max_posts_per_keyword ?? 20;
+  const maxComments = config.max_comments_per_post ?? 30;
+
+  const activeKeywords = mappings
+    ?.filter((m) => m.is_active)
+    .flatMap((m) => m.keywords) ?? [];
+
+  return (
+    <CollapsibleSection
+      title="Instagram Hashtag Search"
+      icon={<MessageSquare className="w-4 h-4" />}
+      rightSlot={
+        <button
+          onClick={() =>
+            updateMutation.mutate({
+              id: igAccount.id,
+              data: { is_active: !igAccount.is_active },
+            })
+          }
+          className={cn(
+            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+            igAccount.is_active ? "bg-status-success" : "bg-surface-200"
+          )}
+        >
+          <span
+            className={cn(
+              "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+              igAccount.is_active ? "translate-x-6" : "translate-x-1"
+            )}
+          />
+        </button>
+      }
+    >
+      <p className="text-xs text-text-tertiary mb-4">
+        Search Instagram by hashtag using product keywords (treated as hashtags — # stripped, alphanumeric only). Uses the same keywords from Product Keyword Mappings above.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 border border-surface-200 rounded-xl bg-surface-50">
+        <div>
+          <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Max Posts per Hashtag
+          </label>
+          <input
+            type="number"
+            min={5}
+            max={100}
+            value={maxPosts}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) || 20;
+              updateMutation.mutate({
+                id: igAccount.id,
+                data: {
+                  scrape_config: { ...config, max_posts_per_keyword: val },
+                },
+              });
+            }}
+            className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary"
+          />
+          <p className="text-[10px] text-text-tertiary mt-1">Maximum posts per hashtag (default: 20)</p>
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Max Comments per Post
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={200}
+            value={maxComments}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) || 30;
+              updateMutation.mutate({
+                id: igAccount.id,
+                data: {
+                  scrape_config: { ...config, max_comments_per_post: val },
+                },
+              });
+            }}
+            className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary"
+          />
+          <p className="text-[10px] text-text-tertiary mt-1">Maximum comments per post (default: 30)</p>
+        </div>
+      </div>
+
+      {activeKeywords.length > 0 && (
+        <div className="mt-3">
+          <p className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Search Hashtags (from Product Mappings)
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {activeKeywords.map((kw, i) => (
+              <span key={i} className="px-2 py-0.5 text-xs bg-surface-100 text-text-secondary rounded-md">
+                #{kw.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase()}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </CollapsibleSection>
+  );
+}
+
+/* --- YouTube Keyword Search Section --- */
+
+function YouTubeSearchSection() {
+  const queryClient = useQueryClient();
+
+  const { data: accounts } = useQuery<SocialAccount[]>({
+    queryKey: ["sentiment-accounts"],
+    queryFn: sentimentApi.accounts.list,
+  });
+
+  const { data: mappings } = useQuery<ProductMapping[]>({
+    queryKey: ["sentiment-product-mappings"],
+    queryFn: sentimentApi.products.mappings.list,
+  });
+
+  const ytAccount = accounts?.find((a) => a.platform === "youtube_search");
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<SocialAccount> }) =>
+      sentimentApi.accounts.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sentiment-accounts"] });
+      toast.success("YouTube search config updated");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  if (!ytAccount) return null;
+
+  const config = ytAccount.scrape_config as {
+    max_videos_per_keyword?: number;
+    max_comments_per_video?: number;
+  };
+  const maxVideos = config.max_videos_per_keyword ?? 15;
+  const maxComments = config.max_comments_per_video ?? 50;
+
+  const activeKeywords = mappings
+    ?.filter((m) => m.is_active)
+    .flatMap((m) => m.keywords) ?? [];
+
+  return (
+    <CollapsibleSection
+      title="YouTube Keyword Search"
+      icon={<MessageSquare className="w-4 h-4" />}
+      rightSlot={
+        <button
+          onClick={() =>
+            updateMutation.mutate({
+              id: ytAccount.id,
+              data: { is_active: !ytAccount.is_active },
+            })
+          }
+          className={cn(
+            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+            ytAccount.is_active ? "bg-status-success" : "bg-surface-200"
+          )}
+        >
+          <span
+            className={cn(
+              "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+              ytAccount.is_active ? "translate-x-6" : "translate-x-1"
+            )}
+          />
+        </button>
+      }
+    >
+      <p className="text-xs text-text-tertiary mb-4">
+        Pure global YouTube search using product keywords — returns videos from any channel, not limited to channels listed above.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 border border-surface-200 rounded-xl bg-surface-50">
+        <div>
+          <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Max Videos per Keyword
+          </label>
+          <input
+            type="number"
+            min={5}
+            max={100}
+            value={maxVideos}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) || 15;
+              updateMutation.mutate({
+                id: ytAccount.id,
+                data: {
+                  scrape_config: { ...config, max_videos_per_keyword: val },
+                },
+              });
+            }}
+            className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary"
+          />
+          <p className="text-[10px] text-text-tertiary mt-1">Maximum videos per keyword search (default: 15)</p>
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-2">
+            Max Comments per Video
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={500}
+            value={maxComments}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) || 50;
+              updateMutation.mutate({
+                id: ytAccount.id,
+                data: {
+                  scrape_config: { ...config, max_comments_per_video: val },
+                },
+              });
+            }}
+            className="w-full px-3.5 py-2.5 text-sm bg-surface-100 border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-accent/20 text-text-primary"
+          />
+          <p className="text-[10px] text-text-tertiary mt-1">Maximum comments per video (default: 50)</p>
         </div>
       </div>
 
