@@ -16,7 +16,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { api, type ScrapeJob } from "@/lib/api-client";
+import { api, type ScrapeDaysBack, type ScrapeJob } from "@/lib/api-client";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 
@@ -144,11 +144,21 @@ function ScrapeProgressPanel({ job }: { job: ScrapeJob }) {
   );
 }
 
+const DAYS_BACK_OPTIONS: { value: ScrapeDaysBack; label: string }[] = [
+  { value: 1, label: "Last 24 hours" },
+  { value: 3, label: "Last 3 days" },
+  { value: 7, label: "Last 7 days" },
+  { value: 14, label: "Last 14 days" },
+  { value: 30, label: "Last 30 days" },
+  { value: 90, label: "Last 90 days" },
+];
+
 export default function ScheduleTab() {
   const queryClient = useQueryClient();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [daysBack, setDaysBack] = useState<ScrapeDaysBack>(1);
 
   const { data: schedulerStatus, isLoading: statusLoading } = useQuery({
     queryKey: ["scheduler-status"],
@@ -188,7 +198,8 @@ export default function ScheduleTab() {
   });
 
   const triggerMutation = useMutation({
-    mutationFn: (pw: string) => api.scraping.trigger(pw),
+    mutationFn: (args: { password: string; daysBack: ScrapeDaysBack }) =>
+      api.scraping.trigger(args.password, args.daysBack),
     onSuccess: () => {
       setShowPasswordModal(false);
       setPassword("");
@@ -334,6 +345,7 @@ export default function ScheduleTab() {
               onClick={() => {
                 setPassword("");
                 setShowPassword(false);
+                setDaysBack(1);
                 setShowPasswordModal(true);
               }}
               disabled={triggerMutation.isPending || !!hasActiveJob}
@@ -379,6 +391,7 @@ export default function ScheduleTab() {
                 <tr className="bg-surface-100 border-b border-surface-200">
                   <th className="text-left px-5 py-3 font-medium text-text-secondary">Type</th>
                   <th className="text-left px-5 py-3 font-medium text-text-secondary">Status</th>
+                  <th className="text-left px-5 py-3 font-medium text-text-secondary">Range</th>
                   <th className="text-left px-5 py-3 font-medium text-text-secondary">Sources</th>
                   <th className="text-left px-5 py-3 font-medium text-text-secondary">Articles</th>
                   <th className="text-left px-5 py-3 font-medium text-text-secondary">Started</th>
@@ -414,6 +427,9 @@ export default function ScheduleTab() {
                           )}
                           {job.status}
                         </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-text-secondary text-xs">
+                        {job.days_back ? `${job.days_back}d` : "default"}
                       </td>
                       <td className="px-5 py-3.5 text-text-secondary">
                         {job.sources_completed}/{job.total_sources}
@@ -478,34 +494,62 @@ export default function ScheduleTab() {
               </button>
             </div>
 
-            {/* Password Input */}
+            {/* Form */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (password.trim()) triggerMutation.mutate(password);
+                if (password.trim()) triggerMutation.mutate({ password, daysBack });
               }}
             >
-              <div className="relative mb-4">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter trigger password"
-                  autoFocus
+              {/* Date range selector */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                  Date range
+                </label>
+                <select
+                  value={daysBack}
+                  onChange={(e) => setDaysBack(Number(e.target.value) as ScrapeDaysBack)}
                   disabled={triggerMutation.isPending}
-                  className="w-full px-4 py-2.5 pr-10 bg-surface-100 border border-surface-200 rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/25 disabled:opacity-60 transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-secondary transition-colors"
+                  className="w-full px-4 py-2.5 bg-surface-100 border border-surface-200 rounded-xl text-sm text-text-primary focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/25 disabled:opacity-60 transition-colors"
                 >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
+                  {DAYS_BACK_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-text-tertiary mt-1.5">
+                  How far back SerpAPI should look for news articles.
+                </p>
+              </div>
+
+              {/* Password input */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                  Trigger password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter trigger password"
+                    autoFocus
+                    disabled={triggerMutation.isPending}
+                    className="w-full px-4 py-2.5 pr-10 bg-surface-100 border border-surface-200 rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/25 disabled:opacity-60 transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-secondary transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Actions */}
