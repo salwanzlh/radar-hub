@@ -14,6 +14,23 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const CATEGORY_ORDER = ["chat", "marketing_planner", "marketing_plan", "kv_generation", "lineup_analysis"];
 
+const PROMPT_DESCRIPTIONS: Record<string, string> = {
+  // Marketing Planner
+  mkp_audit_system: "Runs when user clicks 'Start Planning'. Scans recommendation + findings, classifies 10 categories as provided/partial/missing. Output: Content Map table + Gaps list in Audit step.",
+  mkp_clarification_system: "Generates interactive questions one-by-one after audit is confirmed. Picks input type (select/checkbox/text/budget). Always asks brand tone, channels, budget. Output: question cards in Clarification step.",
+  mkp_summary_system: "Generates strategic brief after all clarification questions are answered. Output: Situation Snapshot, SWOT, Core Tension, Strategic Play, Positioning, Audience, Messaging Territory, Budget Reality Check in Summary step.",
+  mkp_plan_call_a: "Parallel call A — generates Executive Summary (SMART objectives), Target Audience (2 personas), Strategic Framework (positioning, messaging layers, RTBs). Shown in first 3 tabs of Plan dashboard.",
+  mkp_plan_call_b: "Parallel call B — generates Campaign Architecture (big idea, 5 hero content, tactical rules), Channel & Content Plan (pillars, calendar), Budget Allocation. Shown in tabs 4-6 of Plan dashboard.",
+  mkp_plan_call_c: "Parallel call C — generates KPIs & Measurement (dashboard, triggers), Timeline & Roadmap (phases, RACI), Risks & Counter-messages (risk register, dealer talking points). Shown in tabs 7-9.",
+  // Chat
+  chat_quick: "System prompt for Quick Q&A chat mode. Handles user questions about news, data, and market intelligence.",
+  chat_advisor: "System prompt for Advisor chat mode. Provides strategic advisory responses with deeper analysis.",
+  // Lineup Analysis
+  lineup_news_system: "Fetches and analyzes news articles for competitive developments impacting the product lineup.",
+  lineup_impact_assessment_system: "Cross-references all data sources (news, sentiment, ATOA, pricing) into categorized findings with severity (red/yellow/green).",
+  lineup_strategic_recommendation_system: "Produces 3-7 actionable strategic recommendations from impact findings. Each rec links to specific findings.",
+};
+
 function highlightVariables(text: string): ReactNode[] {
   const parts = text.split(/(\{[^}]+\})/g);
   return parts.map((part, i) =>
@@ -150,6 +167,7 @@ export default function PromptsTab() {
             >
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-3 bg-surface-50">
+                <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-text-primary">
                     {template.label}
@@ -160,7 +178,13 @@ export default function PromptsTab() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1.5">
+                {PROMPT_DESCRIPTIONS[template.key] && (
+                  <p className="text-[11px] text-text-tertiary leading-relaxed mt-1">
+                    {PROMPT_DESCRIPTIONS[template.key]}
+                  </p>
+                )}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
                   {isEditing ? (
                     <>
                       {!template.is_default && (
