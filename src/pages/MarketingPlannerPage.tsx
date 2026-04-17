@@ -19,6 +19,7 @@ import AuditStep from "@/components/campaign-planner/AuditStep";
 import ClarificationStep from "@/components/campaign-planner/ClarificationStep";
 import SummaryStep from "@/components/campaign-planner/SummaryStep";
 import PlanDashboard from "@/components/campaign-planner/PlanDashboard";
+import PlanDashboardV2 from "@/components/campaign-planner/PlanDashboardV2";
 import { cn } from "@/lib/utils";
 
 // -- Status helpers ----------------------------------------------------------
@@ -637,18 +638,20 @@ function PlanWizard({ id }: { id: string }) {
         // show generating state even if backend hasn't updated status yet.
         const isRegenerating = regeneratePlanMutation.isPending;
         const effectiveStatus = isRegenerating ? "generating" : plan.status;
-        return (
-          <PlanDashboard
-            plan={isRegenerating ? {} : (plan.plan ?? {})}
-            onEditSection={(key, content) => editSectionMutation.mutate({ key, content })}
-            onResetSection={(key) => resetSectionMutation.mutate(key)}
-            status={effectiveStatus}
-            isEditing={editSectionMutation.isPending}
-            keyVisual={plan.key_visual ?? undefined}
-            onRegenerateKv={() => regenerateKvMutation.mutate()}
-            isRegeneratingKv={regenerateKvMutation.isPending}
-          />
-        );
+        const dashboardProps = {
+          plan: isRegenerating ? {} : (plan.plan ?? {}),
+          onEditSection: (key: string, content: Record<string, unknown>) =>
+            editSectionMutation.mutate({ key, content }),
+          onResetSection: (key: string) => resetSectionMutation.mutate(key),
+          status: effectiveStatus,
+          isEditing: editSectionMutation.isPending,
+          keyVisual: plan.key_visual ?? undefined,
+          onRegenerateKv: () => regenerateKvMutation.mutate(),
+          isRegeneratingKv: regenerateKvMutation.isPending,
+        };
+        return plan.plan_version === "v2"
+          ? <PlanDashboardV2 {...dashboardProps} />
+          : <PlanDashboard {...dashboardProps} />;
       }
 
       case "failed":
