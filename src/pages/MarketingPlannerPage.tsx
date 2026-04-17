@@ -10,6 +10,10 @@ import {
   XCircle,
   Target,
   Calendar,
+  Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { api, type MarketingPlanState, type MarketingPlanSummary } from "@/lib/api-client";
 import StepIndicator from "@/components/campaign-planner/StepIndicator";
@@ -176,9 +180,15 @@ function statusToStep(status: MarketingPlanState["status"]): string {
 
 // -- List mode ---------------------------------------------------------------
 
+type SortKey = "created_desc" | "created_asc" | "priority" | "status";
+
 function PlanList() {
   const navigate = useNavigate();
   const [activeProduct, setActiveProduct] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("created_desc");
 
   const { data: plans, isLoading, error } = useQuery({
     queryKey: ["marketing-plans"],
@@ -216,44 +226,39 @@ function PlanList() {
     ? lineups.map((l) => l.name)
     : Object.keys(grouped);
   const activeName = productNames.includes(activeProduct ?? "") ? activeProduct! : productNames[0] ?? "";
-  const activePlans = grouped[activeName] ?? [];
+  const rawActivePlans = grouped[activeName] ?? [];
 
-  // Stats across all plans
-  const allPlans = plans ?? [];
-  const stats = {
-    total: allPlans.length,
-    completed: allPlans.filter((p) => p.status === "completed").length,
-    inProgress: allPlans.filter((p) => ["summarizing", "generating", "clarifying", "audit"].includes(p.status)).length,
-    failed: allPlans.filter((p) => p.status === "failed").length,
-  };
+  // Apply filters
+  let activePlans = rawActivePlans.filter((p) => {
+    if (search && !p.recommendation_headline.toLowerCase().includes(search.toLowerCase())) return false;
+    if (priorityFilter !== "all" && p.recommendation_priority.toLowerCase() !== priorityFilter) return false;
+    if (statusFilter !== "all") {
+      if (statusFilter === "completed" && p.status !== "completed") return false;
+      if (statusFilter === "in_progress" && !["summarizing", "generating", "clarifying", "audit", "draft"].includes(p.status)) return false;
+      if (statusFilter === "failed" && p.status !== "failed") return false;
+    }
+    return true;
+  });
 
-  const STATS_CARDS = [
-    { label: "Total Plans", value: stats.total, color: "text-text-primary", bg: "from-surface-50 to-surface-white" },
-    { label: "Completed", value: stats.completed, color: "text-status-success", bg: "from-status-success/5 to-surface-white" },
-    { label: "In Progress", value: stats.inProgress, color: "text-status-warning", bg: "from-status-warning/5 to-surface-white" },
-    { label: "Failed", value: stats.failed, color: "text-status-error", bg: "from-status-error/5 to-surface-white" },
-  ];
+  // Apply sort
+  const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const STATUS_ORDER: Record<string, number> = { completed: 0, generating: 1, summarizing: 1, clarifying: 2, audit: 3, draft: 4, failed: 5 };
+  activePlans = [...activePlans].sort((a, b) => {
+    switch (sortKey) {
+      case "created_asc":
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case "priority":
+        return (PRIORITY_ORDER[a.recommendation_priority.toLowerCase()] ?? 9) - (PRIORITY_ORDER[b.recommendation_priority.toLowerCase()] ?? 9);
+      case "status":
+        return (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+      case "created_desc":
+      default:
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+  });
 
   return (
     <div className="space-y-4">
-      {/* Stats cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {STATS_CARDS.map((stat) => (
-          <div
-            key={stat.label}
-            className={cn(
-              "relative rounded-xl border border-surface-100 px-4 py-3 overflow-hidden",
-              "bg-gradient-to-br", stat.bg,
-            )}
-          >
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">{stat.label}</p>
-            <p className={cn("text-2xl font-extrabold tracking-tight", stat.color)}>
-              {isLoading ? <span className="inline-block w-8 h-6 rounded bg-surface-200 animate-pulse" /> : stat.value}
-            </p>
-          </div>
-        ))}
-      </div>
-
       {/* Main panel with tabs + list */}
       <div className="bg-surface-white rounded-xl border border-surface-100 overflow-hidden">
         {/* Product tabs */}
@@ -287,17 +292,73 @@ function PlanList() {
               );
             })}
           </div>
-          {activePlans.length > 0 && (
-            <div className="flex items-center px-4 border-l border-surface-100 shrink-0">
-              <Link
-                to="/analysis"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-lg text-brand-accent hover:bg-brand-accent/5 transition-colors whitespace-nowrap"
-              >
-                <Target className="w-3 h-3" />
-                New Plan
-              </Link>
-            </div>
-          )}
+          <div className="flex items-center px-3 border-l border-surface-100 shrink-0">
+            <Link
+              to="/analysis"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-lg text-brand-accent hover:bg-brand-accent/5 transition-colors whitespace-nowrap"
+            >
+              <Target className="w-3 h-3" />
+              New Plan
+            </Link>
+          </div>
+        </div>
+
+        {/* Toolbar: search + filters + sort */}
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b border-surface-100 bg-surface-50/30">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-tertiary pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search recommendation..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs text-text-primary bg-surface-white border border-surface-200 rounded-lg placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-brand-accent/20 focus:border-brand-accent/50"
+            />
+          </div>
+
+          {/* Priority filter */}
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            className="px-2.5 py-1.5 text-xs font-medium text-text-secondary bg-surface-white border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent/20 cursor-pointer"
+          >
+            <option value="all">All Priority</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+
+          {/* Status filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-2.5 py-1.5 text-xs font-medium text-text-secondary bg-surface-white border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent/20 cursor-pointer"
+          >
+            <option value="all">All Status</option>
+            <option value="completed">Completed</option>
+            <option value="in_progress">In Progress</option>
+            <option value="failed">Failed</option>
+          </select>
+
+          {/* Sort */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-text-secondary bg-surface-white border border-surface-200 rounded-lg">
+            <ArrowUpDown className="w-3 h-3 text-text-tertiary" />
+            <select
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as SortKey)}
+              className="bg-transparent cursor-pointer focus:outline-none"
+            >
+              <option value="created_desc">Newest First</option>
+              <option value="created_asc">Oldest First</option>
+              <option value="priority">Priority</option>
+              <option value="status">Status</option>
+            </select>
+          </div>
+
+          <div className="ml-auto text-[11px] text-text-tertiary font-medium">
+            {activePlans.length} of {rawActivePlans.length}
+          </div>
         </div>
 
         {/* Table header */}
@@ -322,21 +383,32 @@ function PlanList() {
               </div>
             ))
           ) : activePlans.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 px-6">
+            <div className="flex flex-col items-center justify-center py-16 px-6">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-accent/10 to-brand-accent/5 flex items-center justify-center mb-3">
                 <Target className="w-5 h-5 text-brand-accent/60" />
               </div>
-              <p className="text-sm font-semibold text-text-primary mb-1">No plans for {activeName}</p>
-              <p className="text-xs text-text-tertiary text-center mb-4">
-                Generate one from a strategic recommendation
-              </p>
-              <Link
-                to="/analysis"
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-brand-accent text-text-inverse hover:bg-brand-accent-hover transition-colors"
-              >
-                <Target className="w-3 h-3" />
-                Go to Discovery Feed
-              </Link>
+              {rawActivePlans.length === 0 ? (
+                <>
+                  <p className="text-sm font-semibold text-text-primary mb-1">No plans for {activeName}</p>
+                  <p className="text-xs text-text-tertiary text-center mb-4">
+                    Generate one from a strategic recommendation
+                  </p>
+                  <Link
+                    to="/analysis"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-brand-accent text-text-inverse hover:bg-brand-accent-hover transition-colors"
+                  >
+                    <Target className="w-3 h-3" />
+                    Go to Discovery Feed
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-text-primary mb-1">No matching plans</p>
+                  <p className="text-xs text-text-tertiary text-center">
+                    Try clearing the search or filters above
+                  </p>
+                </>
+              )}
             </div>
           ) : activePlans.map((plan) => {
             const statusCfg = STATUS_CONFIG[plan.status] ?? STATUS_CONFIG.draft;
@@ -673,9 +745,11 @@ export default function MarketingPlannerPage() {
   const { id } = useParams<{ id: string }>();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-5 sm:px-6 lg:px-8">
+    <div className="px-4 py-5 sm:px-6 lg:px-8">
       {id ? (
-        <PlanWizard id={id} />
+        <div className="max-w-6xl mx-auto">
+          <PlanWizard id={id} />
+        </div>
       ) : (
         <>
           <div className="mb-4 flex items-center justify-between">
