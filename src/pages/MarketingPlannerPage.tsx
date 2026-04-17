@@ -178,6 +178,7 @@ function statusToStep(status: MarketingPlanState["status"]): string {
 
 function PlanList() {
   const navigate = useNavigate();
+  const [activeProduct, setActiveProduct] = useState<string | null>(null);
 
   const { data: plans, isLoading, error } = useQuery({
     queryKey: ["marketing-plans"],
@@ -246,54 +247,80 @@ function PlanList() {
     return acc;
   }, {});
 
+  const productNames = Object.keys(grouped);
+  const activeName = productNames.includes(activeProduct ?? "") ? activeProduct! : productNames[0];
+  const activePlans = grouped[activeName] ?? [];
+
   return (
-    <div className="space-y-6">
-      {Object.entries(grouped).map(([productName, groupPlans]) => (
-        <div key={productName}>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-1 h-5 bg-brand-accent rounded-full" />
-            <h3 className="text-sm font-bold text-text-primary tracking-wide">{productName}</h3>
-            <span className="text-[10px] font-semibold text-text-tertiary bg-surface-100 px-2 py-0.5 rounded-full">{groupPlans.length}</span>
-          </div>
-          <div className="bg-surface-white rounded-xl border border-surface-100 overflow-hidden divide-y divide-surface-100">
-            {groupPlans.map((plan) => {
-              const statusCfg = STATUS_CONFIG[plan.status] ?? STATUS_CONFIG.draft;
-
-              return (
-                <button
-                  key={plan.id}
-                  onClick={() => navigate(`/marketing-planner/${plan.id}`)}
-                  className="w-full flex items-center gap-4 px-5 py-3.5 text-left hover:bg-surface-50 transition-colors group"
-                >
-                  {/* Status dot */}
-                  <div className={cn("w-2 h-2 rounded-full shrink-0", statusCfg.gradient.includes("green") ? "bg-status-success" : statusCfg.gradient.includes("red") ? "bg-status-error" : "bg-status-warning")} />
-
-                  {/* Rec title */}
-                  <p className="flex-1 text-sm text-text-primary truncate leading-snug group-hover:text-brand-accent transition-colors">
-                    {plan.recommendation_headline}
-                  </p>
-
-                  {/* Badges */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <PriorityBadge priority={plan.recommendation_priority} />
-                    <AreaBadge area={plan.recommendation_area ?? ""} />
-                    <StatusBadge status={plan.status} />
-                  </div>
-
-                  {/* Date */}
-                  <span className="text-[11px] text-text-tertiary shrink-0 w-28 text-right">
-                    {new Date(plan.created_at).toLocaleDateString("id-ID", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+    <div className="space-y-0">
+      {/* Product tabs */}
+      <div className="border-b border-surface-100">
+        <div className="flex overflow-x-auto pt-1 gap-1 scrollbar-hide">
+          {productNames.map((name) => {
+            const isActive = name === activeName;
+            const count = grouped[name].length;
+            return (
+              <button
+                key={name}
+                onClick={() => setActiveProduct(name)}
+                className={cn(
+                  "relative px-4 py-2.5 text-sm font-medium rounded-t-xl transition-all duration-200 whitespace-nowrap shrink-0",
+                  isActive
+                    ? "bg-surface-100 text-text-primary"
+                    : "text-text-tertiary hover:text-text-secondary hover:bg-surface-50"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  {name}
+                  <span className={cn(
+                    "text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                    isActive ? "bg-brand-accent/10 text-brand-accent" : "bg-surface-200 text-text-tertiary"
+                  )}>{count}</span>
+                </span>
+                {isActive && (
+                  <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-brand-accent rounded-full" />
+                )}
+              </button>
+            );
+          })}
         </div>
-      ))}
+      </div>
+
+      {/* Active product plan list */}
+      <div className="bg-surface-white rounded-b-xl border border-t-0 border-surface-100 overflow-hidden divide-y divide-surface-100">
+        {activePlans.map((plan) => {
+          const statusCfg = STATUS_CONFIG[plan.status] ?? STATUS_CONFIG.draft;
+          return (
+            <button
+              key={plan.id}
+              onClick={() => navigate(`/marketing-planner/${plan.id}`)}
+              className="w-full flex items-center gap-4 px-5 py-3.5 text-left hover:bg-surface-50 transition-colors group"
+            >
+              <div className={cn(
+                "w-2 h-2 rounded-full shrink-0",
+                statusCfg.gradient.includes("green") ? "bg-status-success"
+                  : statusCfg.gradient.includes("red") ? "bg-status-error"
+                    : "bg-status-warning"
+              )} />
+              <p className="flex-1 text-sm text-text-primary truncate leading-snug group-hover:text-brand-accent transition-colors">
+                {plan.recommendation_headline}
+              </p>
+              <div className="flex items-center gap-2 shrink-0">
+                <PriorityBadge priority={plan.recommendation_priority} />
+                <AreaBadge area={plan.recommendation_area ?? ""} />
+                <StatusBadge status={plan.status} />
+              </div>
+              <span className="text-[11px] text-text-tertiary shrink-0 w-28 text-right">
+                {new Date(plan.created_at).toLocaleDateString("id-ID", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
