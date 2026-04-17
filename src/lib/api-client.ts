@@ -861,6 +861,7 @@ export interface ClarificationQuestion {
 export interface MarketingPlanSummary {
   id: string;
   status: string;
+  product_name: string;
   recommendation_id: number;
   recommendation_headline: string;
   recommendation_priority: string;

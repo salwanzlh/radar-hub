@@ -238,20 +238,24 @@ function PlanList() {
     );
   }
 
-  // Group by recommendation headline
+  // Group by product name
   const grouped = plans.reduce<Record<string, MarketingPlanSummary[]>>((acc, plan) => {
-    const key = plan.recommendation_headline || "Untitled";
+    const key = plan.product_name || "Other";
     if (!acc[key]) acc[key] = [];
     acc[key].push(plan);
     return acc;
   }, {});
 
   return (
-    <div className="space-y-8">
-      {Object.entries(grouped).map(([headline, groupPlans]) => (
-        <div key={headline} className="space-y-4">
-          <h3 className="text-sm font-semibold text-text-primary">{headline}</h3>
-          <div className="grid gap-4 sm:grid-cols-2">
+    <div className="space-y-6">
+      {Object.entries(grouped).map(([productName, groupPlans]) => (
+        <div key={productName}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-5 bg-brand-accent rounded-full" />
+            <h3 className="text-sm font-bold text-text-primary tracking-wide">{productName}</h3>
+            <span className="text-[10px] font-semibold text-text-tertiary bg-surface-100 px-2 py-0.5 rounded-full">{groupPlans.length}</span>
+          </div>
+          <div className="bg-surface-white rounded-xl border border-surface-100 overflow-hidden divide-y divide-surface-100">
             {groupPlans.map((plan) => {
               const statusCfg = STATUS_CONFIG[plan.status] ?? STATUS_CONFIG.draft;
 
@@ -259,45 +263,31 @@ function PlanList() {
                 <button
                   key={plan.id}
                   onClick={() => navigate(`/marketing-planner/${plan.id}`)}
-                  className={cn(
-                    "group relative text-left rounded-xl bg-surface-white overflow-hidden",
-                    "transition-all duration-200",
-                    "hover:shadow-lg hover:-translate-y-0.5"
-                  )}
-                  style={{ boxShadow: "var(--th-shadow-card)" }}
+                  className="w-full flex items-center gap-4 px-5 py-3.5 text-left hover:bg-surface-50 transition-colors group"
                 >
-                  {/* Top gradient bar */}
-                  <div className={cn("h-[3px] w-full bg-gradient-to-r", statusCfg.gradient)} />
+                  {/* Status dot */}
+                  <div className={cn("w-2 h-2 rounded-full shrink-0", statusCfg.gradient.includes("green") ? "bg-status-success" : statusCfg.gradient.includes("red") ? "bg-status-error" : "bg-status-warning")} />
 
-                  <div className="p-5 space-y-3">
-                    {/* Badges row */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <PriorityBadge priority={plan.recommendation_priority} />
-                      <AreaBadge area={plan.recommendation_area ?? ""} />
-                      <div className="ml-auto">
-                        <StatusBadge status={plan.status} />
-                      </div>
-                    </div>
+                  {/* Rec title */}
+                  <p className="flex-1 text-sm text-text-primary truncate leading-snug group-hover:text-brand-accent transition-colors">
+                    {plan.recommendation_headline}
+                  </p>
 
-                    {/* Headline */}
-                    <p className="text-sm font-semibold text-text-primary truncate leading-snug group-hover:text-brand-accent transition-colors">
-                      {plan.recommendation_headline}
-                    </p>
-
-                    {/* Date */}
-                    <div className="flex items-center gap-1.5 text-text-tertiary">
-                      <Calendar className="w-3 h-3" />
-                      <span className="text-xs">
-                        {new Date(plan.created_at).toLocaleDateString("id-ID", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
+                  {/* Badges */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <PriorityBadge priority={plan.recommendation_priority} />
+                    <AreaBadge area={plan.recommendation_area ?? ""} />
+                    <StatusBadge status={plan.status} />
                   </div>
+
+                  {/* Date */}
+                  <span className="text-[11px] text-text-tertiary shrink-0 w-28 text-right">
+                    {new Date(plan.created_at).toLocaleDateString("id-ID", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
                 </button>
               );
             })}
