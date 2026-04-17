@@ -228,6 +228,8 @@ export interface Source {
   created_at: string;
 }
 
+export type ScrapeDaysBack = 1 | 3 | 7 | 14 | 30 | 90;
+
 export interface ScrapeJob {
   id: string;
   job_type: string;
@@ -237,6 +239,7 @@ export interface ScrapeJob {
   articles_found: number;
   articles_new: number;
   errors: unknown[] | null;
+  days_back: number | null;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
@@ -904,7 +907,11 @@ export const api = {
     delete: (id: string) => del(`/api/v1/sources/${id}`),
   },
   scraping: {
-    trigger: (password: string) => post<ScrapeJob>("/api/v1/scraping/trigger", { password }),
+    trigger: (password: string, daysBack?: ScrapeDaysBack) =>
+      post<ScrapeJob>("/api/v1/scraping/trigger", {
+        password,
+        ...(daysBack !== undefined ? { days_back: daysBack } : {}),
+      }),
     jobs: () => get<PaginatedResponse<ScrapeJob>>("/api/v1/scraping/jobs"),
     cancel: (jobId: string) => post<{ status: string; message: string }>(`/api/v1/scraping/jobs/${jobId}/cancel`),
   },
