@@ -9,11 +9,8 @@ import {
   AlertTriangle,
   XCircle,
   Target,
-  Calendar,
   Search,
   ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
   RotateCw,
 } from "lucide-react";
 import { api, type MarketingPlanState, type MarketingPlanSummary } from "@/lib/api-client";
