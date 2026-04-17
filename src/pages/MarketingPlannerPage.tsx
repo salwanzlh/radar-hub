@@ -185,6 +185,11 @@ function PlanList() {
     queryFn: () => api.marketingPlanner.list(),
   });
 
+  const { data: lineups } = useQuery({
+    queryKey: ["lineups"],
+    queryFn: api.lineupAnalysis.lineups,
+  });
+
   if (isLoading) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 animate-pulse">
@@ -219,36 +224,19 @@ function PlanList() {
     );
   }
 
-  if (!plans || plans.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 px-6">
-        <div className="w-20 h-20 rounded-2xl bg-surface-100 flex items-center justify-center mb-6">
-          <Target className="w-10 h-10 text-text-tertiary" />
-        </div>
-        <p className="text-base font-semibold text-text-primary mb-2">No marketing plans yet</p>
-        <p className="text-sm text-text-tertiary max-w-sm text-center mb-6 leading-relaxed">
-          Start by selecting a recommendation from the Discovery Feed to generate your first marketing plan.
-        </p>
-        <Link
-          to="/analysis"
-          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl bg-brand-accent text-text-inverse hover:bg-brand-accent-hover transition-colors"
-        >
-          Go to Discovery Feed
-        </Link>
-      </div>
-    );
-  }
-
-  // Group by product name
-  const grouped = plans.reduce<Record<string, MarketingPlanSummary[]>>((acc, plan) => {
+  // Group plans by product name
+  const grouped = (plans ?? []).reduce<Record<string, MarketingPlanSummary[]>>((acc, plan) => {
     const key = plan.product_name || "Other";
     if (!acc[key]) acc[key] = [];
     acc[key].push(plan);
     return acc;
   }, {});
 
-  const productNames = Object.keys(grouped);
-  const activeName = productNames.includes(activeProduct ?? "") ? activeProduct! : productNames[0];
+  // Tab list = ALL lineups (even with zero plans)
+  const productNames = lineups && lineups.length > 0
+    ? lineups.map((l) => l.name)
+    : Object.keys(grouped);
+  const activeName = productNames.includes(activeProduct ?? "") ? activeProduct! : productNames[0] ?? "";
   const activePlans = grouped[activeName] ?? [];
 
   return (
@@ -288,7 +276,23 @@ function PlanList() {
 
       {/* Active product plan list */}
       <div className="bg-surface-white rounded-b-xl border border-t-0 border-surface-100 overflow-hidden divide-y divide-surface-100">
-        {activePlans.map((plan) => {
+        {activePlans.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-6">
+            <div className="w-14 h-14 rounded-xl bg-surface-100 flex items-center justify-center mb-4">
+              <Target className="w-6 h-6 text-text-tertiary" />
+            </div>
+            <p className="text-sm font-semibold text-text-primary mb-1">No marketing plan for {activeName}</p>
+            <p className="text-xs text-text-tertiary max-w-sm text-center mb-4 leading-relaxed">
+              Generate one from a strategic recommendation in the Discovery Feed.
+            </p>
+            <Link
+              to="/analysis"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-brand-accent text-text-inverse hover:bg-brand-accent-hover transition-colors"
+            >
+              Go to Discovery Feed
+            </Link>
+          </div>
+        ) : activePlans.map((plan) => {
           const statusCfg = STATUS_CONFIG[plan.status] ?? STATUS_CONFIG.draft;
           return (
             <button
