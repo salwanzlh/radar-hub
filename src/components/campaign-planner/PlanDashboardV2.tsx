@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type ReactNode, type SVGProps } from "react";
+import { useEffect, useState, type ComponentType, type ReactNode, type SVGProps } from "react";
 import {
   AlertTriangle, ArrowDown, ArrowRight, ArrowUp, Calendar, CheckCircle2, Circle,
   DollarSign, Loader2, Megaphone, MessageSquare, RotateCcw, Shield,
@@ -171,7 +171,7 @@ export default function PlanDashboardV2({
   plan,
   onEditSection: _onEditSection,
   onResetSection: _onResetSection,
-  status: _status,
+  status,
   isEditing: _isEditing,
   keyVisual,
   onRegenerateKv,
@@ -182,6 +182,13 @@ export default function PlanDashboardV2({
   const messaging = rc(plan.messaging_content_strategy);
   const campaignName = s(messaging.campaign_name);
   const campaignTagline = s(messaging.campaign_tagline);
+
+  // Skeleton while plan is being (re)generated — UX priority over showing stale data.
+  // Also kicks in on first-load if plan object is completely empty.
+  const planIsEmpty = Object.keys(plan).length === 0;
+  if (status === "generating" || planIsEmpty) {
+    return <PlanSkeleton />;
+  }
 
   return (
     <div className="space-y-6">
@@ -977,6 +984,127 @@ function KpisTab({ section }: { section: Record<string, unknown> }) {
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PLAN SKELETON — shown while plan is being (re)generated
+// ════════════════════════════════════════════════════════════════════
+const SKELETON_MESSAGES = [
+  "Analyzing findings and recommendations…",
+  "Drafting strategic objectives…",
+  "Mapping audience personas…",
+  "Building messaging pillars…",
+  "Scheduling content pipeline…",
+  "Allocating budget across phases…",
+  "Defining KPIs and cadence…",
+  "Rendering the final plan…",
+];
+
+function PlanSkeleton() {
+  const [messageIndex, setMessageIndex] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setMessageIndex((i) => (i + 1) % SKELETON_MESSAGES.length);
+    }, 3500);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="space-y-6 animate-pulse">
+      {/* Generating banner */}
+      <div className="flex items-center gap-4 bg-gradient-to-r from-rose-50 to-surface-50 rounded-xl p-5 border border-rose-200 animate-none">
+        <Loader2 className="w-6 h-6 text-brand-accent animate-spin flex-shrink-0" />
+        <div className="flex-1">
+          <div className="text-sm font-bold text-text-primary">Generating your marketing plan…</div>
+          <div className="text-xs text-text-tertiary mt-0.5 transition-opacity">
+            {SKELETON_MESSAGES[messageIndex]}
+          </div>
+        </div>
+        <div className="text-xs text-text-tertiary italic hidden md:block">Typically 1–2 minutes</div>
+      </div>
+
+      {/* Key Visual skeleton */}
+      <div className="bg-surface-white rounded-xl border border-surface-100 overflow-hidden p-5">
+        <div className="h-3 w-20 rounded bg-surface-100 mb-4" />
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div className="lg:col-span-3 rounded-lg bg-gradient-to-br from-slate-200 to-slate-100 min-h-[180px]" />
+          <div className="lg:col-span-2 rounded-lg bg-rose-100/60 min-h-[180px] p-5">
+            <div className="h-3 w-20 rounded bg-rose-200 mb-3" />
+            <div className="h-6 w-3/4 rounded bg-rose-200 mb-2" />
+            <div className="h-3 w-full rounded bg-rose-200/60 mb-1" />
+            <div className="h-3 w-5/6 rounded bg-rose-200/60" />
+          </div>
+        </div>
+      </div>
+
+      {/* Tab bar skeleton */}
+      <div className="flex flex-wrap gap-2 border-b border-surface-100 pb-3">
+        {[80, 150, 130, 130, 140].map((w, i) => (
+          <div key={i} className="h-9 rounded-lg bg-surface-100" style={{ width: `${w}px` }} />
+        ))}
+      </div>
+
+      {/* Overview tab skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 rounded-xl p-5 border border-rose-200 bg-rose-50/70 space-y-3">
+          <div className="h-3 w-28 rounded bg-rose-200" />
+          <div className="h-4 w-full rounded bg-rose-200/60" />
+          <div className="h-4 w-5/6 rounded bg-rose-200/60" />
+        </div>
+        <div className="rounded-xl p-5 border border-surface-100 bg-surface-white space-y-3">
+          <div className="h-3 w-16 rounded bg-surface-100" />
+          <div className="h-3 w-full rounded bg-surface-100" />
+          <div className="h-3 w-3/4 rounded bg-surface-100" />
+        </div>
+      </div>
+
+      {/* KPI cards skeleton */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="bg-surface-white rounded-xl p-4 border border-surface-100 min-h-[120px] space-y-3">
+            <div className="h-8 w-16 rounded bg-surface-100" />
+            <div className="h-3 w-full rounded bg-surface-100" />
+            <div className="h-3 w-2/3 rounded bg-surface-100" />
+          </div>
+        ))}
+      </div>
+
+      {/* Objectives list skeleton */}
+      <div className="bg-surface-white rounded-xl border border-surface-100 divide-y divide-surface-100">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center gap-3 p-4">
+            <div className="w-4 h-4 rounded-full bg-surface-100 flex-shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-3/4 rounded bg-surface-100" />
+              <div className="h-3 w-1/2 rounded bg-surface-100" />
+            </div>
+            <div className="h-6 w-12 rounded-full bg-surface-100 flex-shrink-0" />
+          </div>
+        ))}
+      </div>
+
+      {/* SWOT count cards skeleton */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          "bg-green-50 border-green-200",
+          "bg-rose-50 border-rose-200",
+          "bg-blue-50 border-blue-200",
+          "bg-amber-50 border-amber-200",
+        ].map((color, i) => (
+          <div key={i} className={cn("rounded-xl p-4 border min-h-[140px] space-y-3", color)}>
+            <div className="h-3 w-20 rounded bg-surface-100/80" />
+            <div className="flex gap-1 mt-2">
+              <div className="h-1.5 flex-1 rounded-full bg-surface-100/60" />
+              <div className="h-1.5 flex-1 rounded-full bg-surface-100/60" />
+              <div className="h-1.5 flex-1 rounded-full bg-surface-100/60" />
+            </div>
+            <div className="h-3 w-full rounded bg-surface-100/60" />
+            <div className="h-3 w-5/6 rounded bg-surface-100/60" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
