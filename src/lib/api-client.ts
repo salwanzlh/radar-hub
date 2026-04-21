@@ -819,6 +819,7 @@ export interface MarketingPlanV2PipelineStatus {
 export interface MarketingPlanState {
   id: string;
   status: "draft" | "audit" | "clarifying" | "summarizing" | "generating" | "completed" | "failed";
+  plan_version: string;
   error: string | null;
   lineup_report_id: string;
   recommendation_id: number;
