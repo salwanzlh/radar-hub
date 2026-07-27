@@ -12,10 +12,12 @@ import {
   Search,
   ArrowUpDown,
   RotateCw,
+  Trash2,
 } from "lucide-react";
 import { api, type MarketingPlanState, type MarketingPlanSummary } from "@/lib/api-client";
 import StepIndicator from "@/components/campaign-planner/StepIndicator";
 import AuditStep from "@/components/campaign-planner/AuditStep";
+import StrategicRecommendationStep from "@/components/campaign-planner/StrategicRecommendationStep";
 import ClarificationStep from "@/components/campaign-planner/ClarificationStep";
 import SummaryStep from "@/components/campaign-planner/SummaryStep";
 import PlanDashboard from "@/components/campaign-planner/PlanDashboard";
@@ -36,11 +38,18 @@ const STATUS_CONFIG: Record<
     gradient: "from-surface-300 to-surface-200",
   },
   audit: {
-    label: "Audit",
+    label: "Situation",
     dot: "bg-status-info",
     text: "text-status-info",
     icon: Clock,
     gradient: "from-status-info to-blue-400",
+  },
+  recommending: {
+    label: "Strategic Recommendation",
+    dot: "bg-amber-500",
+    text: "text-amber-500",
+    icon: Clock,
+    gradient: "from-amber-500 to-amber-400",
   },
   clarifying: {
     label: "Clarifying",
@@ -163,6 +172,8 @@ function statusToStep(status: MarketingPlanState["status"]): string {
     case "draft":
     case "audit":
       return "audit";
+    case "recommending":
+      return "recommending";
     case "clarifying":
       return "clarifying";
     case "summarizing":
@@ -183,6 +194,7 @@ type SortKey = "created_desc" | "created_asc" | "priority" | "status";
 
 function PlanList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeProduct, setActiveProduct] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
@@ -198,6 +210,23 @@ function PlanList() {
     queryKey: ["lineups"],
     queryFn: api.lineupAnalysis.lineups,
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.marketingPlanner.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["marketing-plans"] });
+    },
+    onError: (err) => {
+      alert(err instanceof Error ? err.message : "Failed to delete plan");
+    },
+  });
+
+  const handleDelete = (e: React.MouseEvent, plan: MarketingPlanSummary) => {
+    e.stopPropagation();
+    if (confirm(`Delete plan "${plan.recommendation_headline}"? This cannot be undone.`)) {
+      deleteMutation.mutate(plan.id);
+    }
+  };
 
   if (error) {
     return (
@@ -362,11 +391,12 @@ function PlanList() {
 
         {/* Table header */}
         {activePlans.length > 0 && (
-          <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-text-tertiary bg-surface-50/50 border-b border-surface-100">
+          <div className="grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-3 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-text-tertiary bg-surface-50/50 border-b border-surface-100">
             <div className="w-2" />
             <div>Recommendation</div>
             <div className="text-right w-[340px]">Priority · Area · Status</div>
             <div className="text-right w-24">Created</div>
+            <div className="w-6" />
           </div>
         )}
 
@@ -416,11 +446,18 @@ function PlanList() {
                 : statusCfg.gradient.includes("red") ? "bg-status-error"
                   : statusCfg.gradient.includes("amber") ? "bg-status-warning"
                     : "bg-surface-300";
+            const isDeleting = deleteMutation.isPending && deleteMutation.variables === plan.id;
             return (
-              <button
+              <div
                 key={plan.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => navigate(`/marketing-planner/${plan.id}`)}
-                className="w-full grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 px-4 py-2.5 text-left hover:bg-surface-50/80 transition-colors group"
+                onKeyDown={(e) => e.key === "Enter" && navigate(`/marketing-planner/${plan.id}`)}
+                className={cn(
+                  "w-full grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-3 px-4 py-2.5 text-left hover:bg-surface-50/80 transition-colors group cursor-pointer",
+                  isDeleting && "opacity-50 pointer-events-none"
+                )}
               >
                 <div className={cn("w-2 h-2 rounded-full shrink-0", dotColor)} />
                 <p className="text-[13px] text-text-primary truncate leading-snug group-hover:text-brand-accent transition-colors">
@@ -438,7 +475,16 @@ function PlanList() {
                     year: "numeric",
                   })}
                 </span>
-              </button>
+                <button
+                  onClick={(e) => handleDelete(e, plan)}
+                  disabled={isDeleting}
+                  className="shrink-0 p-1.5 rounded-lg text-text-tertiary hover:text-status-error hover:bg-status-error-light transition-colors disabled:opacity-50"
+                  title="Delete plan"
+                  aria-label="Delete plan"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             );
           })}
         </div>
@@ -479,9 +525,35 @@ function PlanWizard({ id }: { id: string }) {
     onSuccess: invalidate,
   });
 
+  const submitRecommendationMutation = useMutation({
+    mutationFn: (body: {
+      selected_primary_option: number;
+      selected_secondary_options: number[];
+      confidence_flag_responses: { option_index: number; response: "will_verify" | "accept_risk" }[];
+      user_note?: string;
+    }) => api.marketingPlanner.submitRecommendation(id, body),
+    onSuccess: invalidate,
+  });
+
+  const regenerateRecommendationMutation = useMutation({
+    mutationFn: (note: string) => api.marketingPlanner.regenerateRecommendation(id, note),
+    onSuccess: invalidate,
+  });
+
   const answerMutation = useMutation({
     mutationFn: ({ questionId, answer }: { questionId: number; answer: unknown }) =>
       api.marketingPlanner.answer(id, questionId, answer),
+    onSuccess: invalidate,
+  });
+
+  const generateQuickFillMutation = useMutation({
+    mutationFn: (category: string) => api.marketingPlanner.generateQuickFill(id, category),
+    onSuccess: invalidate,
+  });
+
+  const saveQuickFillMutation = useMutation({
+    mutationFn: ({ category, answers }: { category: string; answers: Record<string, unknown> }) =>
+      api.marketingPlanner.saveQuickFillAnswers(id, category, answers),
     onSuccess: invalidate,
   });
 
@@ -587,7 +659,7 @@ function PlanWizard({ id }: { id: string }) {
             <div className="flex items-center justify-center py-16">
               <div className="flex flex-col items-center gap-3">
                 <Loader2 className="w-7 h-7 text-brand-accent animate-spin" />
-                <span className="text-sm text-text-secondary">Preparing audit...</span>
+                <span className="text-sm text-text-secondary">Preparing situation analysis...</span>
               </div>
             </div>
           );
@@ -597,6 +669,41 @@ function PlanWizard({ id }: { id: string }) {
             auditResult={plan.audit_result}
             onConfirm={() => confirmAuditMutation.mutate()}
             isConfirming={confirmAuditMutation.isPending}
+            onGenerateQuickFill={(category) => generateQuickFillMutation.mutate(category)}
+            isGeneratingQuickFill={(category) =>
+              generateQuickFillMutation.isPending && generateQuickFillMutation.variables === category
+            }
+            hasQuickFillGenerateError={(category) =>
+              generateQuickFillMutation.isError && generateQuickFillMutation.variables === category
+            }
+            onSaveQuickFillAnswers={(category, answers) =>
+              saveQuickFillMutation.mutate({ category, answers })
+            }
+            isSavingQuickFill={(category) =>
+              saveQuickFillMutation.isPending && saveQuickFillMutation.variables?.category === category
+            }
+          />
+        );
+
+      case "recommending":
+        if (!plan.strategic_recommendation) {
+          return (
+            <div className="flex items-center justify-center py-16">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="w-7 h-7 text-brand-accent animate-spin" />
+                <span className="text-sm text-text-secondary">Generating strategic directions...</span>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <StrategicRecommendationStep
+            key={plan.updated_at}
+            strategicRecommendation={plan.strategic_recommendation}
+            onSubmit={(payload) => submitRecommendationMutation.mutate(payload)}
+            onRegenerate={(note) => regenerateRecommendationMutation.mutate(note)}
+            isSubmitting={submitRecommendationMutation.isPending}
+            isRegenerating={regenerateRecommendationMutation.isPending}
           />
         );
 
@@ -627,7 +734,7 @@ function PlanWizard({ id }: { id: string }) {
             summaryBrief={plan.summary_brief}
             status={plan.status}
             onApprove={() => approveSummaryMutation.mutate()}
-            onBack={() => handleStepClick("clarification")}
+            onBack={() => handleStepClick("strategic_recommendation")}
             isApproving={approveSummaryMutation.isPending}
           />
         );
@@ -674,7 +781,7 @@ function PlanWizard({ id }: { id: string }) {
               )}
             >
               {revertMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Retry from audit
+              Retry from situation
             </button>
           </div>
         );

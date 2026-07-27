@@ -344,10 +344,9 @@ export default function AnalysisPage() {
               </div>
 
               {/* Interactive Dashboard (new) OR Markdown Report (fallback) */}
-              {activeReport.findings?.length && activeReport.recommendations?.length ? (
+              {activeReport.findings?.length ? (
                 <LineupDashboard
                   findings={activeReport.findings}
-                  recommendations={activeReport.recommendations}
                   productName={activeReport.lineup.name}
                   dateFrom={activeReport.date_from}
                   dateTo={activeReport.date_to}

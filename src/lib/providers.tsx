@@ -17,7 +17,7 @@ function ThemedToaster() {
           border: theme === "dark" ? "1px solid #262626" : "1px solid #E5E5E5",
           borderRadius: "14px",
           fontSize: "14px",
-          fontFamily: "'Play', system-ui, sans-serif",
+          fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
         },
       }}
     />

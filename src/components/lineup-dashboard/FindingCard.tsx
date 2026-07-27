@@ -1,12 +1,17 @@
+import { useState } from "react";
+import { FileText } from "lucide-react";
 import type { Finding } from "./types";
 import { SEVERITY_CLASSES } from "./constants";
 import SourceText from "./SourceText";
+import GeneratePlanModal from "@/components/campaign-planner/GeneratePlanModal";
 
 interface Props {
   finding: Finding;
   isActive: boolean;
   isLinked: boolean;
   onClick: () => void;
+  lineupReportId?: string;
+  existingPlanId?: string | null;
 }
 
 export default function FindingCard({
@@ -14,7 +19,10 @@ export default function FindingCard({
   isActive,
   isLinked,
   onClick,
+  lineupReportId,
+  existingPlanId,
 }: Props) {
+  const [showModal, setShowModal] = useState(false);
   const c = SEVERITY_CLASSES[finding.severity] ?? SEVERITY_CLASSES.yellow;
   const bgClass = isActive ? c.bgActive : isLinked ? c.bg : "bg-surface-50";
   const borderClass = isActive
@@ -78,7 +86,28 @@ export default function FindingCard({
             </ul>
           </div>
         )}
+        {lineupReportId && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowModal(true);
+            }}
+            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold border border-brand-accent text-brand-accent rounded-lg hover:bg-brand-accent/5 transition-colors"
+          >
+            <FileText className="w-3 h-3" />
+            Generate Marketing Plan
+          </button>
+        )}
       </div>
+      {showModal && lineupReportId && (
+        <GeneratePlanModal
+          finding={finding as unknown as Record<string, unknown>}
+          lineupReportId={lineupReportId}
+          onClose={() => setShowModal(false)}
+          existingPlanId={existingPlanId ?? null}
+        />
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
   MessageSquare,
-  Hash,
+  Activity,
   // FileText,
   Package,
 } from "lucide-react";
@@ -21,7 +21,7 @@ type Tab = "overview" | "comments" | "topics" | "reports";
 const TABS: { id: Tab; label: string; icon: typeof BarChart3 }[] = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "comments", label: "Comments", icon: MessageSquare },
-  { id: "topics", label: "Topics", icon: Hash },
+  { id: "topics", label: "Topics", icon: Activity },
   // { id: "reports", label: "Reports", icon: FileText },
 ];
 
@@ -66,8 +66,10 @@ export default function SentimentPage() {
     queryFn: sentimentApi.products.lineups,
   });
 
+  const selectedProductName = productLineups?.find((p) => p.id === selectedProduct)?.name;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-jakarta">
       {/* Product Selector */}
       <div className="bg-surface-white rounded-[20px] shadow-card p-4">
         <div className="flex items-center gap-2 flex-wrap">
@@ -122,7 +124,7 @@ export default function SentimentPage() {
         </div>
 
         <div className="p-7">
-          {activeTab === "overview" && <OverviewTab selectedProduct={selectedProduct} />}
+          {activeTab === "overview" && <OverviewTab selectedProduct={selectedProduct} selectedProductName={selectedProductName} />}
           {activeTab === "comments" && <CommentsTab selectedProduct={selectedProduct} />}
           {activeTab === "topics" && <TopicsTab selectedProduct={selectedProduct} />}
           {activeTab === "reports" && <ReportsTab selectedProduct={selectedProduct} />}

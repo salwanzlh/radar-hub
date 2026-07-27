@@ -1,22 +1,11 @@
-import type { Finding, Recommendation } from "@/lib/api-client";
+import type { Finding } from "@/lib/api-client";
 
-export type { Finding, Recommendation };
+export type { Finding };
 
 export interface LineupDashboardProps {
   findings: Finding[];
-  recommendations: Recommendation[];
   productName: string;
   dateFrom: string;
   dateTo: string;
   lineupReportId?: string;
-}
-
-export interface CardClickHandlers {
-  onFindingClick: (id: number) => void;
-  onRecommendationClick: (id: number) => void;
-}
-
-export interface ActiveState {
-  activeFindingId: number | null;
-  activeRecommendationId: number | null;
 }

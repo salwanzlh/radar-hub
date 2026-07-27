@@ -16,8 +16,8 @@ const CATEGORY_ORDER = ["chat", "marketing_planner", "marketing_plan", "kv_gener
 
 const PROMPT_DESCRIPTIONS: Record<string, string> = {
   // Marketing Planner
-  mkp_audit_system: "Runs when user clicks 'Start Planning'. Scans recommendation + findings, classifies 10 categories as provided/partial/missing. Output: Content Map table + Gaps list in Audit step.",
-  mkp_clarification_system: "Generates interactive questions one-by-one after audit is confirmed. Picks input type (select/checkbox/text/budget). Always asks brand tone, channels, budget. Output: question cards in Clarification step.",
+  mkp_audit_system: "Runs when user clicks 'Start Planning'. Scans recommendation + findings, classifies 10 categories as provided/partial/missing. Output: Content Map table + Gaps list in Situation step.",
+  mkp_clarification_system: "Generates interactive questions one-by-one after the Situation step is confirmed. Picks input type (select/checkbox/text/budget). Always asks brand tone, channels, budget. Output: question cards in Clarification step.",
   mkp_summary_system: "Generates strategic brief after all clarification questions are answered. Output: Situation Snapshot, SWOT, Core Tension, Strategic Play, Positioning, Audience, Messaging Territory, Budget Reality Check in Summary step.",
   mkp_plan_call_a: "Parallel call A — generates Executive Summary (SMART objectives), Target Audience (2 personas), Strategic Framework (positioning, messaging layers, RTBs). Shown in first 3 tabs of Plan dashboard.",
   mkp_plan_call_b: "Parallel call B — generates Campaign Architecture (big idea, 5 hero content, tactical rules), Channel & Content Plan (pillars, calendar), Budget Allocation. Shown in tabs 4-6 of Plan dashboard.",

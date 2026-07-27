@@ -5,43 +5,35 @@ import { X, Loader2, ArrowRight, ExternalLink, XCircle } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
-const PRIORITY_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
-  high: {
+const SEVERITY_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
+  red: {
     bg: "bg-gradient-to-r from-red-600 to-red-500",
     text: "text-white",
     ring: "ring-red-500/30",
   },
-  medium: {
+  yellow: {
     bg: "bg-gradient-to-r from-amber-600 to-amber-500",
     text: "text-white",
     ring: "ring-amber-500/30",
   },
-  low: {
+  green: {
     bg: "bg-gradient-to-r from-green-600 to-green-500",
     text: "text-white",
     ring: "ring-green-500/30",
   },
 };
 
-const SEVERITY_DOT_COLORS: Record<string, string> = {
-  red: "bg-status-error",
-  yellow: "bg-status-warning",
-  green: "bg-status-success",
-};
-
-const FLOW_STEPS = ["Audit", "Clarify", "Summary", "Plan"] as const;
+const FLOW_STEPS = ["Situation", "Clarify", "Summary", "Plan"] as const;
 
 interface Props {
-  recommendation: Record<string, unknown>;
-  linkedFindings: Record<string, unknown>[];
+  finding: Record<string, unknown>;
   lineupReportId: string;
   onClose: () => void;
   existingPlanId: string | null;
 }
 
 export default function GeneratePlanModal({
-  recommendation,
-  linkedFindings,
+  finding,
   lineupReportId,
   onClose,
   existingPlanId,
@@ -50,12 +42,12 @@ export default function GeneratePlanModal({
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const priority = String(recommendation.priority ?? "medium").toLowerCase();
-  const area = String(recommendation.area ?? "");
-  const recText = String(recommendation.recommendation ?? "");
-  const supportingData = Array.isArray(recommendation.supporting_data)
-    ? (recommendation.supporting_data as string[])
-    : [];
+  const severity = String(finding.severity ?? "yellow").toLowerCase();
+  const category = String(finding.category ?? "");
+  const headline = String(finding.headline ?? "");
+  const evidence = String(finding.evidence ?? "");
+  const impactOnProduct = String(finding.impact_on_product ?? "");
+  const sources = Array.isArray(finding.sources) ? (finding.sources as string[]) : [];
 
   async function handleStartPlanning() {
     setIsCreating(true);
@@ -63,7 +55,7 @@ export default function GeneratePlanModal({
     try {
       const result = await api.marketingPlanner.create({
         lineup_report_id: lineupReportId,
-        recommendation_id: recommendation.id as number,
+        finding_id: finding.id as number,
       });
       navigate(`/marketing-planner/${result.id}`);
     } catch (err) {
@@ -73,7 +65,7 @@ export default function GeneratePlanModal({
     }
   }
 
-  const priorityCfg = PRIORITY_COLORS[priority] ?? PRIORITY_COLORS.medium;
+  const priorityCfg = SEVERITY_COLORS[severity] ?? SEVERITY_COLORS.yellow;
 
   return createPortal(
     <div
@@ -110,7 +102,7 @@ export default function GeneratePlanModal({
 
         {/* Body */}
         <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
-          {/* Recommendation preview card */}
+          {/* Key Finding preview card */}
           <div className="relative rounded-xl bg-gradient-to-r from-surface-50 to-surface-white overflow-hidden">
             {/* Left accent bar */}
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-accent rounded-l-xl" />
@@ -124,60 +116,38 @@ export default function GeneratePlanModal({
                     priorityCfg.ring
                   )}
                 >
-                  {priority}
+                  {severity}
                 </span>
-                {area && (
+                {category && (
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-surface-100 text-text-secondary">
-                    {area}
+                    {category}
                   </span>
                 )}
               </div>
               <p className="text-sm font-semibold text-text-primary leading-snug">
-                {recText}
+                {headline}
               </p>
+              {evidence && (
+                <p className="text-xs text-text-secondary leading-relaxed mt-2">
+                  {evidence}
+                </p>
+              )}
+              {impactOnProduct && (
+                <p className="text-xs text-text-secondary leading-relaxed italic mt-2">
+                  Impact: {impactOnProduct}
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Linked Findings */}
-          {linkedFindings.length > 0 && (
+          {/* Sources */}
+          {sources.length > 0 && (
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-2.5">
-                Linked Findings
-              </p>
-              <ul className="space-y-2">
-                {linkedFindings.map((f, i) => {
-                  const severity = String(
-                    (f as Record<string, unknown>).severity ?? "yellow"
-                  );
-                  const findingHeadline = String(
-                    (f as Record<string, unknown>).headline ?? ""
-                  );
-                  const isRed = severity === "red";
-                  return (
-                    <li key={i} className="flex items-start gap-2.5 text-xs text-text-secondary">
-                      <span
-                        className={cn(
-                          "mt-1 w-2 h-2 rounded-full shrink-0",
-                          SEVERITY_DOT_COLORS[severity] ?? SEVERITY_DOT_COLORS.yellow,
-                          isRed && "animate-pulse"
-                        )}
-                      />
-                      <span className="leading-relaxed">{findingHeadline}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-
-          {/* Supporting Data */}
-          {supportingData.length > 0 && (
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-2.5">
-                Supporting Data
+                Sources
               </p>
               <ol className="space-y-1.5 text-xs text-text-secondary">
-                {supportingData.map((s, i) => (
+                {sources.map((s, i) => (
                   <li key={i} className="flex items-start gap-2.5 leading-relaxed">
                     <span className="w-5 h-5 rounded-full bg-surface-100 flex items-center justify-center text-[10px] font-bold text-text-tertiary shrink-0 mt-px">
                       {i + 1}
@@ -222,7 +192,7 @@ export default function GeneratePlanModal({
           {existingPlanId && (
             <div className="rounded-xl bg-status-warning-light border-l-4 border-status-warning p-4">
               <p className="text-xs text-text-primary font-medium mb-2">
-                A plan already exists for this recommendation.
+                A plan already exists for this finding.
               </p>
               <button
                 onClick={() => navigate(`/marketing-planner/${existingPlanId}`)}

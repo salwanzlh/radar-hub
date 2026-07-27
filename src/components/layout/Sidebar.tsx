@@ -256,6 +256,7 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
           style={{
             background: active ? "rgba(var(--th-brand-accent-rgb), 0.12)" : "transparent",
             color: active ? "var(--th-brand-accent)" : "var(--th-sidebar-icon-muted)",
+            border: active ? "1px solid transparent" : "1px solid var(--th-sidebar-border)",
           }}
         >
           <item.icon className="w-[14px] h-[14px]" />
@@ -348,7 +349,10 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
         >
           <span
             className="w-[18px] h-[18px] rounded-md flex items-center justify-center shrink-0 transition-all duration-200"
-            style={{ color: sgActive ? "var(--th-brand-accent)" : "var(--th-sidebar-icon-submuted)" }}
+            style={{
+              color: sgActive ? "var(--th-brand-accent)" : "var(--th-sidebar-icon-submuted)",
+              border: sgActive ? "1px solid transparent" : "1px solid var(--th-sidebar-border)",
+            }}
           >
             <SubIcon className="w-[14px] h-[14px]" />
           </span>
@@ -407,8 +411,8 @@ export function Sidebar({ onChatOpen }: { onChatOpen?: () => void }) {
           <div
             className="relative w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0 transition-all duration-300"
             style={active
-              ? { background: "var(--th-brand-accent)", color: "var(--th-text-inverse)", boxShadow: `0 0 20px rgba(var(--th-brand-accent-rgb), 0.2)` }
-              : { background: "var(--th-sidebar-item-hover)", color: "inherit" }
+              ? { background: "var(--th-brand-accent)", color: "var(--th-text-inverse)", boxShadow: `0 0 20px rgba(var(--th-brand-accent-rgb), 0.2)`, border: "1px solid transparent" }
+              : { background: "var(--th-sidebar-item-hover)", color: "inherit", border: "1px solid var(--th-sidebar-border)" }
             }
           >
             <section.icon className="w-4 h-4" />

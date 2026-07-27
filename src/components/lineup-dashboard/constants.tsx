@@ -1,6 +1,3 @@
-import type { ReactElement } from "react";
-import { Megaphone, Wrench, Target, Truck, Smartphone } from "lucide-react";
-
 export const SEVERITY_CLASSES = {
   red: {
     dot: "bg-status-error",
@@ -30,23 +27,3 @@ export const SEVERITY_CLASSES = {
     tag: "bg-status-success/10 text-status-success",
   },
 } as const;
-
-export const SEVERITY_STROKE = {
-  red: "#EF4444",
-  yellow: "#EAB308",
-  green: "#22C55E",
-} as const;
-
-export const PRIORITY_TO_SEVERITY = {
-  high: "red",
-  medium: "yellow",
-  low: "green",
-} as const;
-
-export const CATEGORY_ICONS: Record<string, ReactElement> = {
-  marketing: <Megaphone className="w-3 h-3" />,
-  "after-sales": <Wrench className="w-3 h-3" />,
-  "product positioning": <Target className="w-3 h-3" />,
-  distribution: <Truck className="w-3 h-3" />,
-  digital: <Smartphone className="w-3 h-3" />,
-};

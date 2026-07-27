@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Loader2,
   ArrowLeft,
@@ -8,9 +9,6 @@ import {
   Target,
   Users,
   MessageSquare,
-  TrendingUp,
-  TrendingDown,
-  XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,28 +32,69 @@ function fadeIn(delayMs: number): React.CSSProperties {
   };
 }
 
-/* ─── Data interfaces ─── */
+/* ─── Data interfaces (matches summary_agent.py JSON SCHEMA) ─── */
 
-interface SwotData {
-  strengths: string[];
-  weaknesses: string[];
-  opportunities: string[];
-  threats: string[];
+interface RecapData {
+  primary_option_label: string;
+  primary_option_title: string;
+  secondary_option_label: string | null;
+  secondary_option_title: string | null;
+  lever_text: string;
+  quick_summary: string;
 }
 
-interface StrategicPlayData {
-  their_narrative: string[];
-  our_counter_narrative: string[];
+interface ObjectiveData {
+  metric_text: string;
+  is_estimate: boolean;
+  baseline: string | null;
+  baseline_disclaimer: string | null;
 }
 
-interface AudienceSketchData {
-  primary: string;
-  secondary: string;
+interface KeyMessagePillar {
+  pillar_title: string;
+  bullets: string[];
 }
 
-interface BudgetRealityCheckData {
-  can_do: string[];
-  cannot_do: string[];
+interface BudgetGuardrail {
+  base_amount: string;
+  additional_from_secondary: string | null;
+  total_amount: string;
+  over_budget: boolean;
+  over_note: string | null;
+}
+
+interface TimelineMilestone {
+  label: string;
+  position_pct: number;
+}
+
+interface TimelineGuardrail {
+  duration: string;
+  milestones: TimelineMilestone[];
+}
+
+interface AudienceGuardrail {
+  segment: string;
+  cross_shop_competitors: string[];
+  source_note: string;
+}
+
+interface GuardrailData {
+  budget: BudgetGuardrail;
+  timeline: TimelineGuardrail;
+  audience: AudienceGuardrail;
+}
+
+type ReadinessStatus = "ready" | "gap" | "unknown" | "ready_conditional";
+
+interface ReadinessItem {
+  c: string;
+  must_be_true: string;
+  status: ReadinessStatus;
+  owner: string | null;
+  deadline: string | null;
+  detail: string;
+  confidence_flag: string | null;
 }
 
 interface Props {
@@ -74,6 +113,21 @@ function asStringArray(v: unknown): string[] {
   return v.filter((item): item is string => typeof item === "string");
 }
 
+const KEY_MESSAGE_COLORS = ["bg-teal-700", "bg-purple-700", "bg-slate-700"];
+
+const READINESS_BADGE: Record<ReadinessStatus, { label: string; className: string }> = {
+  ready: { label: "Ready", className: "bg-status-success/10 text-status-success border border-status-success/20" },
+  ready_conditional: {
+    label: "Ready — bersyarat",
+    className: "bg-status-success/10 text-status-success border border-status-success/20",
+  },
+  gap: { label: "Gap", className: "bg-amber-500/10 text-amber-600 border border-amber-500/20" },
+  unknown: {
+    label: "Belum diketahui",
+    className: "bg-surface-100 text-text-tertiary border border-surface-200",
+  },
+};
+
 /* ─── Main Component ─── */
 
 export default function SummaryStep({
@@ -90,6 +144,9 @@ export default function SummaryStep({
     (!summaryBrief || !hasContent) && status === "summarizing";
   const isApproved = !!summaryBrief?.approved_at;
 
+  const [objectiveConfirmed, setObjectiveConfirmed] = useState(false);
+  const [objectiveText, setObjectiveText] = useState<string | null>(null);
+
   if (isLoading) {
     return <SkeletonLoading />;
   }
@@ -100,28 +157,32 @@ export default function SummaryStep({
 
   const c = summaryBrief.content;
 
-  const situationSnapshot = (c.situation_snapshot as string) ?? "";
-  const swot = (c.swot as SwotData | undefined) ?? {
-    strengths: [],
-    weaknesses: [],
-    opportunities: [],
-    threats: [],
+  const recap = (c.recap as RecapData | undefined) ?? {
+    primary_option_label: "",
+    primary_option_title: "",
+    secondary_option_label: null,
+    secondary_option_title: null,
+    lever_text: "",
+    quick_summary: "",
   };
-  const coreStrategicTension = (c.core_strategic_tension as string) ?? "";
-  const strategicPlay = (c.strategic_play as StrategicPlayData | undefined) ?? {
-    their_narrative: [],
-    our_counter_narrative: [],
+  const objective = (c.objective as ObjectiveData | undefined) ?? {
+    metric_text: "",
+    is_estimate: false,
+    baseline: null,
+    baseline_disclaimer: null,
   };
-  const positioningDirection = (c.positioning_direction as string) ?? "";
-  const audienceSketch = (c.audience_sketch as AudienceSketchData | undefined) ?? {
-    primary: "",
-    secondary: "",
+  const keyMessages = Array.isArray(c.key_messages)
+    ? (c.key_messages as KeyMessagePillar[])
+    : [];
+  const guardrail = (c.guardrail as GuardrailData | undefined) ?? {
+    budget: { base_amount: "", additional_from_secondary: null, total_amount: "", over_budget: false, over_note: null },
+    timeline: { duration: "", milestones: [] },
+    audience: { segment: "", cross_shop_competitors: [], source_note: "" },
   };
-  const messagingTerritory = (c.messaging_territory as string) ?? "";
-  const budgetRealityCheck = (c.budget_reality_check as BudgetRealityCheckData | undefined) ?? {
-    can_do: [],
-    cannot_do: [],
-  };
+  const readiness = Array.isArray(c.readiness) ? (c.readiness as ReadinessItem[]) : [];
+  const deferredToTactics = asStringArray(c.deferred_to_tactics);
+
+  const canApprove = isApproved || objectiveConfirmed;
 
   let sectionIndex = 0;
   const nextDelay = () => (sectionIndex++) * 50;
@@ -131,335 +192,281 @@ export default function SummaryStep({
       <style dangerouslySetInnerHTML={{ __html: KEYFRAMES_CSS }} />
 
       <div className="space-y-8">
-        {/* 1. Situation Snapshot */}
-        {situationSnapshot && (
-          <div style={fadeIn(nextDelay())}>
-            <SectionHeader icon={Shield} label="Situation Snapshot" />
-            <div
-              className={cn(
-                "relative rounded-xl p-6",
-                "bg-surface-white border border-surface-200",
-                "overflow-hidden"
+        {/* 1. Recap — quote from Strategic Recommendation, not a new argument */}
+        {(recap.primary_option_title || recap.quick_summary) && (
+          <div
+            style={fadeIn(nextDelay())}
+            className="relative rounded-xl p-6 bg-slate-900 text-white overflow-hidden"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-pink-200 mb-3">
+              Dikutip dari Strategic Recommendation
+            </p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {recap.primary_option_title && (
+                <span className="text-[10.5px] font-bold px-3 py-1 rounded-full bg-pink-200 text-slate-900">
+                  {recap.primary_option_label ? `${recap.primary_option_label} — ` : ""}
+                  {recap.primary_option_title}
+                </span>
               )}
-            >
-              {/* Gradient left border accent */}
-              <div
-                className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
-                style={{
-                  background:
-                    "linear-gradient(to bottom, var(--color-brand-accent), #ec4899)",
-                }}
-              />
-              <p className="text-base italic text-text-secondary leading-relaxed pl-4">
-                &ldquo;{situationSnapshot}&rdquo;
-              </p>
+              {recap.secondary_option_title && (
+                <span className="text-[10.5px] font-bold px-3 py-1 rounded-full bg-slate-700 text-surface-100">
+                  + elemen Sekunder dari{" "}
+                  {recap.secondary_option_label ? `${recap.secondary_option_label}: ` : ""}
+                  {recap.secondary_option_title}
+                </span>
+              )}
             </div>
+            {recap.lever_text && (
+              <p className="text-sm leading-relaxed text-surface-100">
+                <b className="text-white">Lever:</b> {recap.lever_text}
+              </p>
+            )}
+            {recap.quick_summary && (
+              <p className="text-[12.5px] italic leading-relaxed text-surface-200 mt-3 pt-3 border-t border-slate-700">
+                {recap.quick_summary}
+              </p>
+            )}
           </div>
         )}
 
-        {/* 2. SWOT Analysis */}
+        {/* 2. Objective — single SMART campaign-level target, gated */}
         <div style={fadeIn(nextDelay())}>
-          <SectionHeader icon={Target} label="SWOT Analysis" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <SwotQuadrant
-              title="Strengths"
-              items={asStringArray(swot.strengths)}
-              gradientFrom="#059669"
-              gradientTo="#34d399"
-              dotClass="bg-emerald-500"
-              textClass="text-emerald-800"
-              labelClass="text-emerald-600"
+          <SectionHeader icon={Target} label="Objective" />
+          <div className="rounded-xl p-5 bg-amber-500/10 border border-amber-500/20">
+            {objective.is_estimate && (
+              <span className="inline-block text-[10px] font-bold text-amber-700 bg-surface-white border border-amber-500/30 rounded-full px-2.5 py-0.5 mb-2">
+                ⚠ Estimasi AI
+              </span>
+            )}
+            <input
+              type="text"
+              value={objectiveText ?? objective.metric_text}
+              onChange={(e) => setObjectiveText(e.target.value)}
+              disabled={isApproved}
+              className={cn(
+                "w-full text-lg font-bold text-text-primary",
+                "border border-surface-300 rounded-lg px-3 py-2.5 mb-3 mt-1",
+                "bg-surface-white disabled:opacity-70 disabled:cursor-not-allowed"
+              )}
             />
-            <SwotQuadrant
-              title="Weaknesses"
-              items={asStringArray(swot.weaknesses)}
-              gradientFrom="#dc2626"
-              gradientTo="#f87171"
-              dotClass="bg-red-500"
-              textClass="text-red-800"
-              labelClass="text-red-600"
-            />
-            <SwotQuadrant
-              title="Opportunities"
-              items={asStringArray(swot.opportunities)}
-              gradientFrom="#2563eb"
-              gradientTo="#60a5fa"
-              dotClass="bg-blue-500"
-              textClass="text-blue-800"
-              labelClass="text-blue-600"
-            />
-            <SwotQuadrant
-              title="Threats"
-              items={asStringArray(swot.threats)}
-              gradientFrom="#d97706"
-              gradientTo="#fbbf24"
-              dotClass="bg-amber-500"
-              textClass="text-amber-800"
-              labelClass="text-amber-600"
-            />
+            {(objective.baseline || objective.baseline_disclaimer) && (
+              <div className="text-[11.5px] text-text-secondary bg-surface-white border border-surface-200 rounded-lg px-3 py-2 mb-3 leading-relaxed">
+                {objective.baseline && (
+                  <span>
+                    <b className="text-text-primary">Baseline:</b> {objective.baseline}
+                  </span>
+                )}
+                {objective.baseline_disclaimer && (
+                  <span className={objective.baseline ? "block mt-1" : ""}>
+                    ⚠ <b className="text-text-primary">Perlu dikonfirmasi:</b>{" "}
+                    {objective.baseline_disclaimer}
+                  </span>
+                )}
+              </div>
+            )}
+            {!isApproved && (
+              <label className="flex items-center gap-2 text-[11.5px] font-semibold text-text-secondary cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={objectiveConfirmed}
+                  onChange={(e) => setObjectiveConfirmed(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-brand-accent"
+                />
+                Saya konfirmasi angka ini
+              </label>
+            )}
           </div>
         </div>
 
-        {/* 3. Core Strategic Tension */}
-        {coreStrategicTension && (
+        {/* 3. Key Messages — channel-agnostic pillars */}
+        {keyMessages.length > 0 && (
           <div style={fadeIn(nextDelay())}>
-            <SectionHeader icon={TrendingUp} label="Core Strategic Tension" />
-            <div
-              className={cn(
-                "relative rounded-xl p-8",
-                "bg-slate-900 text-white",
-                "text-center overflow-hidden"
-              )}
-            >
-              <p className="text-lg font-bold leading-relaxed">
-                {coreStrategicTension}
-              </p>
-              {/* Bottom accent line */}
-              <div
-                className="absolute bottom-0 left-0 right-0 h-[3px]"
-                style={{
-                  background:
-                    "linear-gradient(to right, var(--color-brand-accent), #ec4899)",
-                }}
-              />
+            <SectionHeader icon={MessageSquare} label="Key Messages" />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {keyMessages.map((pillar, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "rounded-xl p-4 text-white",
+                    KEY_MESSAGE_COLORS[i % KEY_MESSAGE_COLORS.length]
+                  )}
+                >
+                  <div className="text-sm font-bold mb-2">{pillar.pillar_title}</div>
+                  <ul className="list-disc pl-4 space-y-1.5 text-xs leading-relaxed opacity-95">
+                    {asStringArray(pillar.bullets).map((bullet, j) => (
+                      <li key={j}>{bullet}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* 4. Strategic Play */}
+        {/* 4. Guardrail for Tactics — constraints, not the tactics themselves */}
         <div style={fadeIn(nextDelay())}>
-          <SectionHeader icon={Shield} label="Strategic Play" />
-          <div className="relative grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Their Narrative — left column */}
-            <div className="space-y-3">
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-red-600 mb-1">
-                Their Narrative
-              </h4>
-              {asStringArray(strategicPlay.their_narrative).length > 0 ? (
-                asStringArray(strategicPlay.their_narrative).map((item, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "relative rounded-lg p-4 pl-5",
-                      "bg-red-50 border border-red-200"
-                    )}
-                  >
-                    <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-lg bg-red-500" />
-                    <p className="text-sm text-red-800 leading-relaxed">
-                      {item}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-red-400 italic">No data</p>
+          <SectionHeader icon={Shield} label="Guardrail untuk Tactics" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Budget */}
+            <div
+              className={cn(
+                "rounded-xl p-4 bg-surface-white border",
+                guardrail.budget.over_budget ? "border-amber-500/40" : "border-surface-200"
               )}
-            </div>
-
-            {/* VS Badge — centered between columns */}
-            <div className="hidden sm:flex absolute inset-0 items-center justify-center pointer-events-none z-10">
+            >
+              <div className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1.5">
+                Budget Envelope
+              </div>
               <div
                 className={cn(
-                  "w-10 h-10 rounded-full",
-                  "bg-surface-200 border-2 border-surface-300",
-                  "flex items-center justify-center",
-                  "text-[11px] font-black tracking-wider text-text-primary"
+                  "text-base font-bold mb-1",
+                  guardrail.budget.over_budget ? "text-amber-600" : "text-text-primary"
                 )}
               >
-                VS
+                {guardrail.budget.total_amount || guardrail.budget.base_amount}
+              </div>
+              <div className="text-[11px] text-text-secondary leading-relaxed">
+                {guardrail.budget.base_amount}
+                {guardrail.budget.additional_from_secondary &&
+                  ` + ${guardrail.budget.additional_from_secondary} elemen Sekunder`}
+                {guardrail.budget.over_budget && guardrail.budget.over_note && (
+                  <span className="block mt-1 text-amber-600 font-medium">
+                    ⚠ {guardrail.budget.over_note} — perlu approval deviasi
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Our Counter-Narrative — right column */}
-            <div className="space-y-3">
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1">
-                Our Counter-Narrative
-              </h4>
-              {asStringArray(strategicPlay.our_counter_narrative).length > 0 ? (
-                asStringArray(strategicPlay.our_counter_narrative).map((item, i) => (
+            {/* Timeline */}
+            <div className="rounded-xl p-4 bg-surface-white border border-surface-200">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1.5">
+                Timeline Envelope
+              </div>
+              <div className="text-base font-bold text-text-primary mb-2">
+                {guardrail.timeline.duration}
+              </div>
+              {guardrail.timeline.milestones.length > 0 && (
+                <>
+                  <div className="relative h-[3px] bg-surface-200 rounded-full my-2">
+                    <div className="absolute inset-0 bg-status-info rounded-full" />
+                    {guardrail.timeline.milestones.map((m, i) => (
+                      <div
+                        key={i}
+                        className="absolute top-1/2 w-[7px] h-[7px] rounded-full bg-status-info border-[1.5px] border-white -translate-x-1/2 -translate-y-1/2"
+                        style={{ left: `${m.position_pct}%` }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-[9px] text-text-tertiary">
+                    {guardrail.timeline.milestones.map((m, i) => (
+                      <span key={i}>{m.label}</span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Audience */}
+            <div className="rounded-xl p-4 bg-surface-white border border-surface-200">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1.5">
+                Audience (dipersempit)
+              </div>
+              <div className="text-base font-bold text-text-primary mb-1">
+                {guardrail.audience.segment}
+              </div>
+              <div className="text-[11px] text-text-secondary leading-relaxed">
+                {guardrail.audience.cross_shop_competitors.length > 0 && (
+                  <span>
+                    Cross-shop vs {guardrail.audience.cross_shop_competitors.join(", ")}
+                    {guardrail.audience.source_note ? " — " : ""}
+                  </span>
+                )}
+                {guardrail.audience.source_note}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 5. Readiness — pre-mortem across the 5 Cs */}
+        {readiness.length > 0 && (
+          <div style={fadeIn(nextDelay())}>
+            <SectionHeader icon={Users} label="Kesiapan Realisasi" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {readiness.map((item, i) => {
+                const badge = READINESS_BADGE[item.status] ?? READINESS_BADGE.unknown;
+                const showDetailBox = item.status !== "ready" && !!item.detail;
+                const boxClass =
+                  item.status === "gap"
+                    ? "border border-dashed border-amber-500/40 bg-amber-500/5 text-amber-700"
+                    : item.status === "ready_conditional"
+                    ? "border border-dashed border-status-success/30 bg-status-success/5 text-text-secondary"
+                    : "border border-dashed border-surface-300 bg-surface-100 text-text-secondary";
+
+                return (
                   <div
                     key={i}
-                    className={cn(
-                      "relative rounded-lg p-4 pl-5",
-                      "bg-emerald-50 border border-emerald-200"
-                    )}
+                    className="rounded-xl p-4 bg-surface-white border border-surface-200"
                   >
-                    <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-lg bg-emerald-500" />
-                    <p className="text-sm text-emerald-800 leading-relaxed">
-                      {item}
-                    </p>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-brand-accent">
+                        {item.c}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-[9.5px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full whitespace-nowrap",
+                          badge.className
+                        )}
+                      >
+                        {badge.label}
+                      </span>
+                    </div>
+                    <div className="text-xs text-text-primary leading-relaxed mb-2">
+                      <span className="block text-[10px] font-bold uppercase tracking-wide text-text-tertiary mb-0.5">
+                        Yang harus benar
+                      </span>
+                      {item.must_be_true}
+                    </div>
+                    {showDetailBox && (
+                      <div className={cn("text-[11px] leading-relaxed rounded-lg px-2.5 py-2", boxClass)}>
+                        {item.detail}
+                        {(item.owner || item.deadline) && (
+                          <span className="block mt-1">
+                            {item.owner && <>Owner: {item.owner}</>}
+                            {item.owner && item.deadline && " · "}
+                            {item.deadline && <>Sebelum: {item.deadline}</>}
+                          </span>
+                        )}
+                        {item.confidence_flag && (
+                          <span className="block mt-1 font-medium">
+                            ⚠ {item.confidence_flag}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                ))
-              ) : (
-                <p className="text-xs text-emerald-400 italic">No data</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 5. Positioning Direction */}
-        {positioningDirection && (
-          <div style={fadeIn(nextDelay())}>
-            <SectionHeader icon={TrendingUp} label="Positioning Direction" />
-            <div
-              className={cn(
-                "relative rounded-xl p-6",
-                "bg-surface-white border border-surface-200",
-                "overflow-hidden"
-              )}
-            >
-              <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-brand-accent" />
-              <p className="text-base text-text-primary leading-relaxed pl-4 font-medium">
-                {positioningDirection}
-              </p>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* 6. Audience Sketch */}
-        <div style={fadeIn(nextDelay())}>
-          <SectionHeader icon={Users} label="Audience Sketch" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Primary */}
-            <div
-              className={cn(
-                "relative rounded-xl p-5 overflow-hidden",
-                "bg-surface-white border-2 border-brand-accent/30"
-              )}
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div
-                  className={cn(
-                    "w-9 h-9 rounded-full flex items-center justify-center",
-                    "bg-brand-accent/10"
-                  )}
-                >
-                  <Users className="w-4 h-4 text-brand-accent" />
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-brand-accent">
-                  Primary Audience
-                </span>
-              </div>
-              <p className="text-sm text-text-primary leading-relaxed">
-                {audienceSketch.primary || "Not specified"}
-              </p>
-            </div>
-            {/* Secondary */}
-            <div
-              className={cn(
-                "relative rounded-xl p-5 overflow-hidden",
-                "bg-surface-white border border-surface-200"
-              )}
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div
-                  className={cn(
-                    "w-9 h-9 rounded-full flex items-center justify-center",
-                    "bg-surface-100"
-                  )}
-                >
-                  <Users className="w-4 h-4 text-text-tertiary" />
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary">
-                  Secondary Audience
-                </span>
-              </div>
-              <p className="text-sm text-text-primary leading-relaxed">
-                {audienceSketch.secondary || "Not specified"}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* 7. Messaging Territory */}
-        {messagingTerritory && (
+        {/* 6. Deferred to Tactics */}
+        {deferredToTactics.length > 0 && (
           <div style={fadeIn(nextDelay())}>
-            <SectionHeader icon={MessageSquare} label="Messaging Territory" />
-            <div
-              className="relative rounded-xl p-8 text-center overflow-hidden"
-              style={{
-                background:
-                  "linear-gradient(135deg, var(--color-brand-accent), #ec4899)",
-              }}
-            >
-              <p className="text-lg italic font-semibold text-black leading-relaxed max-w-2xl mx-auto">
-                &ldquo;{messagingTerritory}&rdquo;
-              </p>
+            <div className="rounded-xl p-4 bg-status-info/10 border border-status-info/20">
+              <div className="text-[11.5px] font-bold text-status-info mb-2">
+                Belum diputuskan di step ini — akan ditentukan di Tactics &amp; Action
+              </div>
+              <ul className="list-disc pl-5 space-y-1.5 text-xs text-text-secondary leading-relaxed">
+                {deferredToTactics.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
             </div>
           </div>
         )}
 
-        {/* 8. Budget Reality Check */}
-        <div style={fadeIn(nextDelay())}>
-          <SectionHeader icon={TrendingDown} label="Budget Reality Check" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Can Do */}
-            <div
-              className={cn(
-                "rounded-xl p-5",
-                "bg-surface-white border border-surface-200"
-              )}
-            >
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-status-success mb-4">
-                Can Do
-              </h4>
-              <ul className="space-y-3">
-                {asStringArray(budgetRealityCheck.can_do).map((item, i) => (
-                  <li
-                    key={i}
-                    className={cn(
-                      "flex items-start gap-3 rounded-lg p-3",
-                      "bg-status-success/5"
-                    )}
-                  >
-                    <CheckCircle2 className="w-4 h-4 text-status-success mt-0.5 shrink-0" />
-                    <span className="text-sm text-text-secondary leading-relaxed">
-                      {item}
-                    </span>
-                  </li>
-                ))}
-                {asStringArray(budgetRealityCheck.can_do).length === 0 && (
-                  <li className="text-xs text-text-tertiary italic">
-                    No items
-                  </li>
-                )}
-              </ul>
-            </div>
-            {/* Cannot Do */}
-            <div
-              className={cn(
-                "rounded-xl p-5",
-                "bg-surface-white border border-surface-200"
-              )}
-            >
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-status-error mb-4">
-                Cannot Do
-              </h4>
-              <ul className="space-y-3">
-                {asStringArray(budgetRealityCheck.cannot_do).map((item, i) => (
-                  <li
-                    key={i}
-                    className={cn(
-                      "flex items-start gap-3 rounded-lg p-3",
-                      "bg-status-error/5"
-                    )}
-                  >
-                    <XCircle className="w-4 h-4 text-status-error mt-0.5 shrink-0" />
-                    <span className="text-sm text-text-secondary leading-relaxed">
-                      {item}
-                    </span>
-                  </li>
-                ))}
-                {asStringArray(budgetRealityCheck.cannot_do).length === 0 && (
-                  <li className="text-xs text-text-tertiary italic">
-                    No items
-                  </li>
-                )}
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* 9. Footer */}
+        {/* 7. Footer */}
         <div
           style={fadeIn(nextDelay())}
           className={cn(
@@ -468,21 +475,21 @@ export default function SummaryStep({
             "bg-surface-50/80 backdrop-blur-md -mx-1 px-1"
           )}
         >
-          {/* Warning banner */}
-          <div
-            className={cn(
-              "flex items-center gap-3",
-              "bg-amber-500/10 border border-amber-500/20",
-              "rounded-lg px-5 py-3"
-            )}
-          >
-            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-            <span className="text-xs font-medium text-amber-400">
-              Review carefully — this strategic brief guides the full campaign plan
-            </span>
-          </div>
+          {!isApproved && (
+            <div
+              className={cn(
+                "flex items-center gap-3",
+                "bg-amber-500/10 border border-amber-500/20",
+                "rounded-lg px-5 py-3"
+              )}
+            >
+              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+              <span className="text-xs font-medium text-amber-700">
+                Konfirmasi hanya diperlukan di kartu Objective — review carefully, brief ini menjadi acuan Tactics & Action
+              </span>
+            </div>
+          )}
 
-          {/* Action buttons */}
           <div className="flex items-center justify-between">
             <button
               type="button"
@@ -515,7 +522,7 @@ export default function SummaryStep({
               <button
                 type="button"
                 onClick={onApprove}
-                disabled={isApproving}
+                disabled={isApproving || !canApprove}
                 className={cn(
                   "inline-flex items-center gap-2",
                   "px-7 py-3 rounded-lg",
@@ -532,7 +539,7 @@ export default function SummaryStep({
                 ) : (
                   <ArrowRight className="w-4.5 h-4.5" />
                 )}
-                {isApproving ? "Approving..." : "Approve & Generate Plan"}
+                {isApproving ? "Approving..." : "Lanjut ke Tactics & Action"}
               </button>
             )}
           </div>
@@ -562,74 +569,6 @@ function SectionHeader({
   );
 }
 
-/* ─── SWOT Quadrant (Glass-effect card) ─── */
-
-function SwotQuadrant({
-  title,
-  items,
-  gradientFrom,
-  gradientTo,
-  dotClass,
-  textClass,
-  labelClass,
-}: {
-  title: string;
-  items: string[];
-  gradientFrom: string;
-  gradientTo: string;
-  dotClass: string;
-  textClass: string;
-  labelClass: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "relative rounded-xl overflow-hidden",
-        "bg-surface-white/60 backdrop-blur-sm",
-        "border border-surface-200"
-      )}
-    >
-      {/* Colored top bar gradient */}
-      <div
-        className="h-[3px]"
-        style={{
-          background: `linear-gradient(to right, ${gradientFrom}, ${gradientTo})`,
-        }}
-      />
-      <div className="p-4">
-        <h4
-          className={cn(
-            "text-[10px] font-bold uppercase tracking-widest mb-3",
-            labelClass
-          )}
-        >
-          {title}
-        </h4>
-        <ul className="space-y-2">
-          {items.map((item, i) => (
-            <li key={i} className="flex items-start gap-2">
-              <span
-                className={cn(
-                  "w-1.5 h-1.5 rounded-full mt-1.5 shrink-0",
-                  dotClass
-                )}
-              />
-              <span className={cn("text-sm leading-relaxed", textClass)}>
-                {item}
-              </span>
-            </li>
-          ))}
-          {items.length === 0 && (
-            <li className={cn("text-xs italic opacity-50", textClass)}>
-              No items
-            </li>
-          )}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
 /* ─── Skeleton Loading State ─── */
 
 function SkeletonLoading() {
@@ -645,52 +584,34 @@ function SkeletonLoading() {
         <div className="flex items-center justify-center gap-3 mb-4">
           <Loader2 className="w-5 h-5 text-brand-accent animate-spin" />
           <p className="text-sm font-medium text-text-secondary">
-            Generating Strategic Brief...
+            Generating Strategy Brief...
           </p>
         </div>
 
-        {/* Skeleton card 1 — large */}
+        {/* Skeleton card 1 — recap, dark full width */}
         <div
-          className="rounded-xl bg-surface-100 border border-surface-200 h-28"
+          className="rounded-xl bg-slate-900/10 border border-surface-200 h-28"
           style={pulseStyle(0)}
         />
 
-        {/* Skeleton card 2 — 2x2 grid */}
-        <div className="grid grid-cols-2 gap-4">
-          <div
-            className="rounded-xl bg-surface-100 border border-surface-200 h-32"
-            style={pulseStyle(150)}
-          />
-          <div
-            className="rounded-xl bg-surface-100 border border-surface-200 h-32"
-            style={pulseStyle(300)}
-          />
-          <div
-            className="rounded-xl bg-surface-100 border border-surface-200 h-32"
-            style={pulseStyle(450)}
-          />
-          <div
-            className="rounded-xl bg-surface-100 border border-surface-200 h-32"
-            style={pulseStyle(600)}
-          />
-        </div>
-
-        {/* Skeleton card 3 — full width dark */}
+        {/* Skeleton card 2 — objective */}
         <div
-          className="rounded-xl bg-slate-900 border border-surface-200 h-20"
-          style={pulseStyle(750)}
+          className="rounded-xl bg-surface-100 border border-surface-200 h-24"
+          style={pulseStyle(150)}
         />
 
-        {/* Skeleton card 4 — two columns */}
-        <div className="grid grid-cols-2 gap-4">
-          <div
-            className="rounded-xl bg-surface-100 border border-surface-200 h-24"
-            style={pulseStyle(900)}
-          />
-          <div
-            className="rounded-xl bg-surface-100 border border-surface-200 h-24"
-            style={pulseStyle(1050)}
-          />
+        {/* Skeleton card 3 — key messages, 3 cols */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="rounded-xl bg-surface-100 border border-surface-200 h-28" style={pulseStyle(300)} />
+          <div className="rounded-xl bg-surface-100 border border-surface-200 h-28" style={pulseStyle(450)} />
+          <div className="rounded-xl bg-surface-100 border border-surface-200 h-28" style={pulseStyle(600)} />
+        </div>
+
+        {/* Skeleton card 4 — readiness grid */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="rounded-xl bg-surface-100 border border-surface-200 h-24" style={pulseStyle(750)} />
+          <div className="rounded-xl bg-surface-100 border border-surface-200 h-24" style={pulseStyle(900)} />
+          <div className="rounded-xl bg-surface-100 border border-surface-200 h-24" style={pulseStyle(1050)} />
         </div>
       </div>
     </>

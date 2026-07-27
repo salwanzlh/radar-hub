@@ -816,26 +816,57 @@ export interface MarketingPlanV2PipelineStatus {
 
 // ── Marketing Planner types ──
 
+export interface QuickFillField {
+  type: "text" | "number" | "date" | "chips";
+  key: string;
+  label: string;
+  placeholder: string | null;
+  unit: string | null;
+  unit_position: "prefix" | "suffix" | null;
+  options: string[] | null;
+  wide: boolean;
+  multiple: boolean | null;
+}
+
+export interface QuickFillCategoryState {
+  fields: QuickFillField[];
+  answers: Record<string, unknown>;
+  generated_at: string | null;
+  saved_at: string | null;
+}
+
+export interface AuditResult {
+  content_map: { category: string; status: string; detail: string }[];
+  gaps: { category: string; why_needed: string }[];
+  confirmed_at: string | null;
+  quick_fill: Record<string, QuickFillCategoryState>;
+}
+
 export interface MarketingPlanState {
   id: string;
-  status: "draft" | "audit" | "clarifying" | "summarizing" | "generating" | "completed" | "failed";
+  status: "draft" | "audit" | "recommending" | "clarifying" | "summarizing" | "generating" | "completed" | "failed";
   plan_version: string;
   error: string | null;
   lineup_report_id: string;
   recommendation_id: number;
   recommendation: Record<string, unknown>;
   linked_findings: Record<string, unknown>[];
-  audit_result: {
-    content_map: { category: string; status: string; detail: string }[];
-    gaps: { category: string; why_needed: string }[];
-    confirmed_at: string | null;
-  } | null;
+  audit_result: AuditResult | null;
   clarification: {
     questions: ClarificationQuestion[];
     current_question_index: number;
     completed_at: string | null;
     is_final: boolean;
   } | null;
+  strategic_recommendation: {
+    directions: RecommendationDirection[];
+    confirmed_at: string | null;
+  } | null;
+  selected_primary_option: number | null;
+  selected_secondary_options: number[];
+  confidence_flag_responses: ConfidenceFlagResponse[];
+  user_note: string | null;
+  user_redirect_note: string | null;
   summary_brief: {
     content: Record<string, unknown>;
     approved_at: string | null;
@@ -862,6 +893,32 @@ export interface ClarificationQuestion {
   options: string[] | null;
   required: boolean;
   answer: unknown;
+}
+
+export interface FitBadge {
+  status: "good" | "warn" | "bad";
+  text: string;
+}
+
+export interface RecommendationFramework {
+  business_stake: string;
+  avoid: string;
+  lever: string;
+  recommendation: string;
+}
+
+export interface RecommendationDirection {
+  option_label: string;
+  title: string;
+  fit_badges: FitBadge[];
+  framework: RecommendationFramework;
+  vs_competitor: string;
+  confidence_flag: string | null;
+}
+
+export interface ConfidenceFlagResponse {
+  option_index: number;
+  response: "will_verify" | "accept_risk";
 }
 
 export interface MarketingPlanSummary {
@@ -1274,7 +1331,7 @@ export const api = {
   },
 
   marketingPlanner: {
-    create: (body: { lineup_report_id: string; recommendation_id: number }) =>
+    create: (body: { lineup_report_id: string; finding_id: number }) =>
       post<MarketingPlanState>("/api/v2/marketing-plans", body),
 
     get: (id: string) =>
@@ -1283,13 +1340,46 @@ export const api = {
     list: (reportId?: string) =>
       get<MarketingPlanSummary[]>(`/api/v2/marketing-plans${reportId ? `?lineup_report_id=${reportId}` : ""}`),
 
+    delete: (id: string) =>
+      del(`/api/v2/marketing-plans/${id}`),
+
     confirmAudit: (id: string) =>
       post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/confirm-audit`),
+
+    submitRecommendation: (
+      id: string,
+      body: {
+        selected_primary_option: number;
+        selected_secondary_options: number[];
+        confidence_flag_responses: ConfidenceFlagResponse[];
+        user_note?: string;
+      },
+    ) =>
+      post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/submit-recommendation`, {
+        ...body,
+        user_note: body.user_note ? encodeBase64Utf8(body.user_note) : body.user_note,
+      }),
+
+    regenerateRecommendation: (id: string, userRedirectNote: string) =>
+      post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/regenerate-recommendation`, {
+        user_redirect_note: encodeBase64Utf8(userRedirectNote),
+      }),
 
     answer: (id: string, questionId: number, answer: unknown) =>
       post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/answer`, {
         question_id: questionId,
         answer,
+      }),
+
+    generateQuickFill: (id: string, category: string) =>
+      post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/quick-fill/generate`, {
+        category,
+      }),
+
+    saveQuickFillAnswers: (id: string, category: string, answers: Record<string, unknown>) =>
+      post<MarketingPlanState>(`/api/v2/marketing-plans/${id}/quick-fill/answer`, {
+        category,
+        answers,
       }),
 
     generateSummary: (id: string) =>

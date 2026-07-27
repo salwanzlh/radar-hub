@@ -28,6 +28,9 @@ import {
 } from "@/lib/sentiment-api-client";
 import { cn, formatRelativeDate } from "@/lib/utils";
 import toast from "react-hot-toast";
+import { useTheme } from "@/lib/theme-context";
+import { getChartColors } from "@/lib/chart-theme";
+import { Card } from "@/components/ui/Card";
 import { SentimentBadge, PlatformBadge } from "./SentimentPage";
 import { CommentDetailModal } from "./CommentDetailModal";
 
@@ -69,6 +72,8 @@ function SortHeader({
 }
 
 export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
+  const { theme } = useTheme();
+  const chart = getChartColors(theme);
   const [search, setSearch] = useState("");
   const [platform, setPlatform] = useState("");
   const [sentiment, setSentiment] = useState("");
@@ -205,23 +210,23 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
 
   const donutOption = stats && stats.total_comments > 0 ? {
     tooltip: { trigger: "item" as const, formatter: "{b}: {c} ({d}%)", confine: true },
-    legend: { bottom: 0, textStyle: { color: "#94a3b8" } },
+    legend: { bottom: 0, textStyle: { color: chart.text } },
     series: [{
       type: "pie" as const,
       radius: ["45%", "70%"],
       center: ["50%", "45%"],
       avoidLabelOverlap: false,
-      itemStyle: { borderRadius: 6, borderColor: "#1a1a2e", borderWidth: 2 },
+      itemStyle: { borderRadius: 6, borderColor: chart.ringGap, borderWidth: 2 },
       label: {
         show: true,
         position: "center" as const,
         formatter: `{total|${stats.total_comments.toLocaleString()}}\n{label|comments}`,
         rich: {
-          total: { fontSize: 22, fontWeight: "bold" as const, color: "#e2e8f0", lineHeight: 30 },
-          label: { fontSize: 11, color: "#64748b", lineHeight: 16 },
+          total: { fontSize: 22, fontWeight: "bold" as const, color: chart.emphasisText, lineHeight: 30 },
+          label: { fontSize: 11, color: chart.textMuted, lineHeight: 16 },
         },
       },
-      emphasis: { label: { show: true, fontSize: 13, fontWeight: "bold", color: "#e2e8f0" } },
+      emphasis: { label: { show: false } },
       data: [
         { value: stats.positive_count, name: "Positive", itemStyle: { color: "#10B981" } },
         { value: stats.neutral_count, name: "Neutral", itemStyle: { color: "#3B82F6" } },
@@ -241,15 +246,15 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
 
   const productChartOption = showProductChart ? {
     tooltip: { trigger: "axis" as const, axisPointer: { type: "shadow" as const }, confine: true },
-    legend: { data: ["Positive", "Neutral", "Negative"], bottom: 0, textStyle: { color: "#94a3b8" } },
+    legend: { data: ["Positive", "Neutral", "Negative"], bottom: 0, textStyle: { color: chart.text } },
     grid: { top: 10, right: 10, bottom: 40, left: 120, containLabel: true },
-    xAxis: { type: "value" as const, axisLabel: { color: "#64748b" }, splitLine: { lineStyle: { color: "#1e293b" } } },
+    xAxis: { type: "value" as const, axisLabel: { color: chart.textMuted }, splitLine: { lineStyle: { color: chart.splitLine } } },
     yAxis: {
       type: "category" as const,
       data: productBreakdown!.map((p) => p.product_name),
       axisLabel: {
         fontSize: 11,
-        color: (value: string) => value === localProductName ? "#D4FF00" : "#94a3b8",
+        color: (value: string) => value === localProductName ? chart.accent : chart.text,
         fontWeight: ((value: string) => value === localProductName ? "bold" : "normal") as unknown as string,
       },
       triggerEvent: true,
@@ -279,14 +284,14 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
 
   const platformChartOption = platformBreakdown && platformBreakdown.length > 0 ? {
     tooltip: { trigger: "axis" as const, axisPointer: { type: "shadow" as const }, confine: true },
-    legend: { data: ["Positive", "Neutral", "Negative"], bottom: 0, textStyle: { color: "#94a3b8" } },
+    legend: { data: ["Positive", "Neutral", "Negative"], bottom: 0, textStyle: { color: chart.text } },
     grid: { top: 10, right: 10, bottom: 40, left: 100, containLabel: true },
-    xAxis: { type: "value" as const, axisLabel: { color: "#64748b" }, splitLine: { lineStyle: { color: "#1e293b" } } },
+    xAxis: { type: "value" as const, axisLabel: { color: chart.textMuted }, splitLine: { lineStyle: { color: chart.splitLine } } },
     yAxis: {
       type: "category" as const,
       data: platformBreakdown.map((p) => p.platform),
       axisLabel: {
-        color: (value: string) => value === platform ? "#D4FF00" : "#94a3b8",
+        color: (value: string) => value === platform ? chart.accent : chart.text,
         fontWeight: ((value: string) => value === platform ? "bold" : "normal") as unknown as string,
       },
       triggerEvent: true,
@@ -386,7 +391,7 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
       {/* Charts */}
       <div className={cn("grid grid-cols-1 gap-4", gridCols)}>
         {donutOption && (
-          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100 overflow-hidden">
+          <Card className="overflow-hidden">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-semibold text-text-primary">Sentiment Distribution</h4>
               {sentiment && (
@@ -404,10 +409,10 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
               style={{ height: 220 }}
               onEvents={{ click: onDonutClick }}
             />
-          </div>
+          </Card>
         )}
         {productChartOption && (
-          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100 overflow-hidden">
+          <Card className="overflow-hidden">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-semibold text-text-primary">Sentiment per Product</h4>
               {localProduct && (
@@ -425,10 +430,10 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
               style={{ height: 220 }}
               onEvents={{ click: onProductChartClick }}
             />
-          </div>
+          </Card>
         )}
         {platformChartOption && (
-          <div className="bg-surface-white rounded-[20px] shadow-card p-6 border border-surface-100 overflow-hidden">
+          <Card className="overflow-hidden">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-sm font-semibold text-text-primary">Sentiment per Platform</h4>
               {platform && (
@@ -446,7 +451,7 @@ export function CommentsTab({ selectedProduct }: { selectedProduct?: string }) {
               style={{ height: 220 }}
               onEvents={{ click: onPlatformChartClick }}
             />
-          </div>
+          </Card>
         )}
       </div>
 

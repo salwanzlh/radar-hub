@@ -1,11 +1,22 @@
 import { Check, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// NOTE: `key` is passed verbatim to POST /revert/{step} (see MarketingPlannerPage's
+// handleStepClick), so it must match the backend's REVERTABLE_STEPS names exactly —
+// not just be a UI-friendly slug.
 const STEPS = [
-  { key: "audit", label: "Audit", statusMatch: ["audit"] },
-  { key: "clarification", label: "Clarification", statusMatch: ["clarifying"] },
-  { key: "summary", label: "Summary", statusMatch: ["summarizing"] },
-  { key: "plan", label: "Plan", statusMatch: ["generating", "completed"] },
+  { key: "audit", label: "Situation", statusMatch: ["audit"] },
+  {
+    key: "strategic_recommendation",
+    label: "Strategic Recommendation",
+    // "clarifying" is included for plans created before this step existed —
+    // they're still mid-flow in the old Clarification UI, which occupied
+    // this exact pipeline slot. Without this alias those legacy plans read
+    // as no step active (every circle renders "locked").
+    statusMatch: ["recommending", "clarifying"],
+  },
+  { key: "summary", label: "Strategy", statusMatch: ["summarizing"] },
+  { key: "plan", label: "Tactics & Action", statusMatch: ["generating", "completed"] },
 ] as const;
 
 interface Props {
